@@ -1,0 +1,16 @@
+services:
+  postgres:
+    container_name: sqlchemy-test
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mateTrip
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    command: postgres -c shared_preload_libraries=vector
+
+volumes:
+  postgres-data:
