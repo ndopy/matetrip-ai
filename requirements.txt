@@ -1,0 +1,6 @@
+uvicorn[standard]
+fastapi[all]
+pydantic
+pydantic-settings
+requests
+beautifulsoup4
