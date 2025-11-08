@@ -1,5 +1,5 @@
-from models.place import Place
-from schemas.place import PlaceCreate, PlaceResponse
+from app.models.place import Place
+from app.schemas.place import PlaceCreate, PlaceResponse
 
 
 class PlaceMapper:

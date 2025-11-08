@@ -1,9 +1,11 @@
-from logging import log
+import logging
 from typing import Dict, List
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from models.review import PlaceReview
+from app.models.review import PlaceReview
+
+logger = logging.getLogger(__name__)
 
 
 class ReviewService:
@@ -35,7 +37,7 @@ class ReviewService:
             return []
 
         db.commit()
-        log.info(f"Reviews saved: {len(reviews)}")
+        logger.info("Reviews saved: %d", len(reviews))
 
         # todo : dto로
         return reviews

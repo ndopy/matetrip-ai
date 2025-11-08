@@ -8,7 +8,7 @@ from app.service.naver_search_service import NaverSearchService
 from app.models.review import PlaceReview
 from app.service.local_embedding_service import LocalEmbeddingService
 from app.service.review_service import ReviewService
-from service.openai_service import OpenAIService
+from app.service.openai_service import OpenAIService
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()

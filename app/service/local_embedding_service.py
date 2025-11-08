@@ -1,4 +1,3 @@
-from ast import Tuple
 import logging
 from typing import List
 
@@ -24,10 +23,6 @@ class LocalEmbeddingService:
         self.model_name = local_model_name
         log.info("[로컬 임베딩 모델 로딩 완료]\n")
         log.info(f"임베딩 차원 : {self.model.get_sentence_embedding_dimension()}\n")
-
-    def create_embedding(self, text: str) -> List[float]:
-
-        return []
 
     def create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
 

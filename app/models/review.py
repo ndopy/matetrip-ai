@@ -3,9 +3,9 @@ from uuid import UUID, uuid4
 from pgvector import Vector
 from sqlalchemy import TEXT, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
-from torch import embedding
 from app.models.base import Base
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from pgvector.sqlalchemy import Vector
 
 
 class PlaceReview(Base):
@@ -26,5 +26,5 @@ class PlaceReview(Base):
 
     content: Mapped[str] = mapped_column(TEXT, nullable=False)
     source_url: Mapped[str] = mapped_column(TEXT, nullable=False)
-    embedding: Mapped[Optional[Vector]] = mapped_column(Vector(768), nullable=True)  # type: ignore
+    embedding: Mapped[Optional[Vector]] = mapped_column(Vector(768), nullable=True)
     created_at: Mapped[float] = mapped_column()

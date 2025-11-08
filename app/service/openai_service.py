@@ -2,7 +2,7 @@ import logging
 from typing import List
 from openai import OpenAI
 from app.common.config import openaiConfig
-from service.naver_search_service import NaverSearchService
+from app.service.naver_search_service import NaverSearchService
 import json
 
 logger = logging.getLogger(__name__)

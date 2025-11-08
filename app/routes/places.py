@@ -27,7 +27,7 @@ def get_naver_search_service():
     return NaverSearchService()
 
 
-@router.get("/")
+@router.post("/")
 async def create_places(
     place_list: PlaceListCreateRequest,
     background_tasks: BackgroundTasks,
