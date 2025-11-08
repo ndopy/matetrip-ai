@@ -1,23 +1,27 @@
 import logging
 from typing import List
-from fastapi import BackgroundTasks
-from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.coercions import expect
 
 from app.models.place import Place
-from app.schemas.place import PlaceListCreateRequest
 from app.service.crawl_service import CrawlService
 from app.service.naver_search_service import NaverSearchService
-from models.review import PlaceReview
+from app.models.review import PlaceReview
+from app.service.local_embedding_service import LocalEmbeddingService
+from app.service.review_service import ReviewService
+from service.openai_service import OpenAIService
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
+review_service = ReviewService()
 
 logger = logging.getLogger(__name__)
 
 
 class PlaceService:
+
+    def __init__(self) -> None:
+        self.local_embedding_service = LocalEmbeddingService()
+        self.openai_service = OpenAIService()
 
     async def process_place_reviews(self, db: Session, place: Place):
         """
@@ -27,11 +31,15 @@ class PlaceService:
         3. 리뷰 저장 및 임베딩 생성
         4. 태그 및 요약 생성
         """
+        success_count = 0
+        fail_count = 0
         try:
             logger.info(f"process_place_reviews 시작 : {place.title}")
 
             # 1. naver검색 API로 리뷰 URL 추출
-            review_urls = naver_service._search_review_urls(place.title, place.address)
+            review_urls = naver_service.search_review_urls(
+                place.title, place.address, []
+            )
             logger.info(f"{len(review_urls)}개의 리뷰를 찾았습니다")
 
             if not review_urls:
@@ -41,17 +49,39 @@ class PlaceService:
             review_contents = await crawl_service.crawl_reviews_batch(review_urls)
             logger.info(f"{len(review_contents)}개의 리뷰를 크롤링 완료")
 
-            # 3. 리뷰 저장 및 임베딩 생성
-            self._save_reviews
+            # 3. 리뷰 저장
+            reviews: List[PlaceReview] = review_service.save_reviews(
+                place.id, review_contents, db
+            )
+            if not reviews:
+                return
+            # 4. 임베딩 생성
+            texts = [str(review.content) for review in reviews]
+            embeddings = self.local_embedding_service.create_embeddings_batch(texts)
+
+            for idx, (review, embedding) in enumerate(zip(reviews, embeddings), 1):
+                setattr(review, "embedding", embedding)
+                logger.info(f"{idx}번째 리뷰 임베딩 생성 완료")
+
+            db.commit()
+            logger.info(f"\n[배치 처리 완료]")
+            logger.info(f"{'*'*80}\n")
+
+            # 5. 테그 생성
+            review_contents = [review.content for review in reviews]
+            tags: List[str] = self.openai_service.generate_tags_from_reviews(
+                review_contents, place.title
+            )
+
+            # 6. 요약 생성
+            summary = self.openai_service.generate_summary_from_reviews(
+                review_contents, place.title
+            )
+
+            place.tags = tags
+            place.summary = summary
 
         except Exception as e:
-            print(f"Error processing place reviews: {e}")
+            logger.error(f"장소 리뷰 처리 중 오류 발생: {place.title}", exc_info=True)
             db.rollback()
-
-        pass
-
-    def _save_reviews(
-        self, id: str, crawled_reviews: dict, db: Session
-    ) -> List[PlaceReview]:
-
-        return []
+            raise

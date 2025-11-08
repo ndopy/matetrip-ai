@@ -12,8 +12,8 @@ class NaverSearchService:
         self.client_secret = naverSearchConfig.NAVER_CLIENT_SECRET
         self.blog_api_url = naverSearchConfig.NAVER_BLOG_SEARCH_URL
 
-    def _search_review_urls(
-        self, place_title: str, address: str, display: int = 10
+    def search_review_urls(
+        self, place_title: str, address: str, category: list[str], display: int = 10
     ) -> list[str]:
 
         city = extract_city(address)

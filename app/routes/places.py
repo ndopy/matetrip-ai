@@ -8,7 +8,7 @@ from app.models.place import Place
 from app.schemas.place import PlaceCreate, PlaceListCreateRequest
 from app.service.naver_search_service import NaverSearchService
 from app.service.place_service import PlaceService
-from mapper.place_mapper import PlaceMapper
+from app.mapper.place_mapper import PlaceMapper
 
 
 router = APIRouter(
@@ -38,7 +38,11 @@ async def create_places(
     created_places = []
 
     for place_data in place_list.places:
-        statement = select(exists().where(Place.title == place_data.title))
+        statement = select(
+            exists().where(
+                Place.title == place_data.title and Place.address == place_data.address
+            )
+        )
         is_exists: bool | None = db.scalar(statement)
 
         if is_exists:
@@ -70,8 +74,8 @@ async def naver_search_test(
     naver_search_service: NaverSearchService = Depends(get_naver_search_service),
 ):
 
-    urls: list[str] = naver_search_service._search_review_urls(
-        create_place.title, create_place.address, 10
+    urls: list[str] = naver_search_service.search_review_urls(
+        create_place.title, create_place.address, []
     )
     print(urls)
 
