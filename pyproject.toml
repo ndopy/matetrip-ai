@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.17.1",
+    "apscheduler>=3.11.1",
     "asyncio>=4.0.0",
     "asyncpg>=0.30.0",
     "beautifulsoup4>=4.14.2",

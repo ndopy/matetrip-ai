@@ -24,6 +24,9 @@ class NaverSearchConfig(BaseSettings):
     NAVER_CLIENT_ID: str = Field(default="")
     NAVER_CLIENT_SECRET: str = Field(default="")
     NAVER_BLOG_SEARCH_URL: str = Field(default="")
+    NAVER_IMAGE_SEARCH_URL: str = Field(
+        default="https://openapi.naver.com/v1/search/image"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -59,7 +62,21 @@ class OpenAIConfig(BaseSettings):
     )
 
 
+class KakaoLocalConfig(BaseSettings):
+    KAKAO_REST_API_KEY: str = Field(default="", description="Kakao REST API Key")
+    KAKAO_LOCAL_API_URL: str = Field(
+        default="https://dapi.kakao.com/v2/local/search/category.json"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
 embeddingConfig = EmbeddingConfig()
+kakaoLocalConfig = KakaoLocalConfig()

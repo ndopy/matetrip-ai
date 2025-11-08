@@ -34,6 +34,9 @@ class Place(Base):
     summary: Mapped[Optional[str]] = mapped_column(
         TEXT, nullable=True
     )  # 리뷰 요약 (3-4줄)
+    image_url: Mapped[Optional[str]] = mapped_column(
+        TEXT, nullable=True
+    )  # 장소 대표 이미지 URL
 
     # reviews: Mapped[list["Review"]] = relationship("Review", back_populates="place")
     longitude: Mapped[float] = mapped_column(Float, nullable=False)

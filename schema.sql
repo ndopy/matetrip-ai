@@ -10,8 +10,9 @@ CREATE TABLE
     categories jsonb NULL, -- list[str] → jsonb
     tags jsonb NULL, -- Optional[list[str]] → jsonb
     summary text NULL,
+    image_url text NULL, -- 장소 대표 이미지 URL
     longitude double precision NOT NULL,
-    latitude double precision NOT NULL
+    latitude double precision NOT NULL created_at TIMESTAMP DEFAULT now () NOT NULL
   );
 
 -- 리뷰 테이블
@@ -22,5 +23,5 @@ CREATE TABLE
     content text NOT NULL,
     source_url text NOT NULL,
     embedding vector (768), -- pgvector 컬럼 (임베딩 768차원)
-    created_at double precision -- 파이썬 float → double precision 매핑
+    created_at TIMESTAMP DEFAULT now () NOT NULL -- 파이썬 float → double precision 매핑
   );
