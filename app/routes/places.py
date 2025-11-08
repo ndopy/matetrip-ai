@@ -73,7 +73,7 @@ async def naver_search_test(
     naver_search_service: NaverSearchService = Depends(get_naver_search_service),
 ):
 
-    urls: list[str] = naver_search_service.search_review_urls(
+    urls: list[str] = naver_search_service._search_review_urls(
         create_place.title, create_place.address, 10
     )
     print(urls)

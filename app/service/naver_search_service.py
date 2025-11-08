@@ -12,7 +12,7 @@ class NaverSearchService:
         self.client_secret = naverSearchConfig.NAVER_CLIENT_SECRET
         self.blog_api_url = naverSearchConfig.NAVER_BLOG_SEARCH_URL
 
-    def search_review_urls(
+    def _search_review_urls(
         self, place_title: str, address: str, display: int = 10
     ) -> list[str]:
 
