@@ -1,11 +1,13 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import exists, select
+from sqlalchemy.engine import url
 from sqlalchemy.orm import Session
 
-from database.database import get_db
-from models.place import Place
-from schemas.place import PlaceListCreateRequest
-from service.place_service import PlaceService, process_place_reviews
+from app.database.database import get_db
+from app.models.place import Place
+from app.schemas.place import PlaceCreate, PlaceListCreateRequest
+from app.service.naver_search_service import NaverSearchService
+from app.service.place_service import PlaceService, process_place_reviews
 
 
 router = APIRouter(
@@ -16,7 +18,12 @@ router = APIRouter(
 
 # place_service =
 def get_place_service():
+
     return PlaceService()
+
+
+def get_naver_search_service():
+    return NaverSearchService()
 
 
 @router.get("/")
@@ -54,6 +61,22 @@ async def create_places(
             db,
             place,
         )
+
+    return {
+        "message": "success",
+    }
+
+
+@router.post("/naver-search")
+async def naver_search_test(
+    create_place: PlaceCreate,
+    naver_search_service: NaverSearchService = Depends(get_naver_search_service),
+):
+
+    urls: list[str] = naver_search_service.search_review_urls(
+        create_place.title, create_place.address, 10
+    )
+    print(urls)
 
     return {
         "message": "success",

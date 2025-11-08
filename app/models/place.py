@@ -32,7 +32,7 @@ class Place(Base):
         JSONB, nullable=True
     )  # 장소 태그 (예: ["맛집", "분위기좋음", "데이트"])
     summary: Mapped[Optional[str]] = mapped_column(
-        JSONB, nullable=True
+        TEXT, nullable=True
     )  # 리뷰 요약 (3-4줄)
 
     # reviews: Mapped[list["Review"]] = relationship("Review", back_populates="place")

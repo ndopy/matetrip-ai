@@ -2,8 +2,8 @@ from fastapi import BackgroundTasks
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
-from models.place import Place
-from schemas.place import PlaceListCreateRequest
+from app.models.place import Place
+from app.schemas.place import PlaceListCreateRequest
 
 
 class PlaceService:

@@ -8,7 +8,7 @@ class DatabaseConfig(BaseSettings):
     DB_USER: str = Field(default="")
     DB_PASSWORD: str = Field(default="")
     DB_NAME: str = Field(default="")
-    DEBUG: bool = Field(default=False)
+    DB_DEBUG: bool = Field(default=False)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -23,6 +23,7 @@ class DatabaseConfig(BaseSettings):
 class NaverSearchConfig(BaseSettings):
     NAVER_CLIENT_ID: str = Field(default="")
     NAVER_CLIENT_SECRET: str = Field(default="")
+    NAVER_BLOG_SEARCH_URL: str = Field(default="")
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -9,8 +9,12 @@ import asyncio
 
 import uvicorn
 
+from app.routes import places
+
 
 app = FastAPI()
+
+app.include_router(places.router)
 
 
 @app.get("/")
@@ -42,4 +46,4 @@ async def root():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app="main:app", host="localhost", port=8000)
+    uvicorn.run(app="main:app", host="localhost", port=8000, reload=True)
