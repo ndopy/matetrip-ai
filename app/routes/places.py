@@ -7,7 +7,8 @@ from app.database.database import get_db
 from app.models.place import Place
 from app.schemas.place import PlaceCreate, PlaceListCreateRequest
 from app.service.naver_search_service import NaverSearchService
-from app.service.place_service import PlaceService, process_place_reviews
+from app.service.place_service import PlaceService
+from mapper.place_mapper import PlaceMapper
 
 
 router = APIRouter(
@@ -30,6 +31,7 @@ def get_naver_search_service():
 async def create_places(
     place_list: PlaceListCreateRequest,
     background_tasks: BackgroundTasks,
+    place_service: PlaceService = Depends(get_place_service),
     db: Session = Depends(get_db),
 ):
     # 생성 후 background에서 리뷰 수집 및 임베딩하려고
@@ -43,12 +45,7 @@ async def create_places(
             created_places.append(place_data)
             continue
 
-        place = Place(
-            title=place_data.title,
-            address=place_data.address,
-            longitude=place_data.longitude,
-            latitude=place_data.latitude,
-        )
+        place: Place = PlaceMapper.to_entity(place_data)
 
         db.add(place)  # 세션에 등록 -
         db.commit()
@@ -57,7 +54,7 @@ async def create_places(
         created_places.append(place)
 
         background_tasks.add_task(
-            process_place_reviews,
+            place_service.process_place_reviews,
             db,
             place,
         )

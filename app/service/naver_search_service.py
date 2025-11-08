@@ -27,7 +27,12 @@ class NaverSearchService:
 
         try:
             # naver blog 검색 API에 GET 요청
-            response = httpx.get(self.blog_api_url, headers=header, params=param)
+            response = httpx.get(
+                self.blog_api_url,
+                headers=header,
+                params=param,
+                timeout=10.0,  # 10초 timeout
+            )
             if response.status_code != 200:
                 print(f"Error: {response.status_code}")
                 return []

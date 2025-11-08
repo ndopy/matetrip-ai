@@ -1,4 +1,6 @@
+from typing import Optional
 from uuid import UUID
+from click import Option
 from pydantic import BaseModel, Field
 
 
@@ -20,4 +22,24 @@ class PlaceListCreateRequest(BaseModel):
 
 
 class PlaceResponse(BaseModel):
-    id: UUID = Field(..., description="장소 ID")
+    # id: UUID = Field(..., description="장소 ID")
+    title: str = Field(..., description="장소 이름")
+    address: str = Field(..., description="장소 주소")
+    place_url: Optional[str] = Field(default="", description="장소 URL")
+    categories: list[str] = Field(default=[], description="장소 분류")
+    tags: Optional[list[str]] = Field(default=[], description="장소 태그")
+    summary: Optional[str] = Field(default="", description="리뷰 요약")
+
+    model_config = {
+        "from_attributes": True,  # SQLAlchemy 객체에서 바로 변환 허용
+    }
+
+    # title: Mapped[str] = mapped_column(TEXT, nullable=False)
+    # address: Mapped[str] = mapped_column(TEXT, nullable=False)
+    # categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    # tags: Mapped[Optional[list[str]]] = mapped_column(
+    #     JSONB, nullable=True
+    # )  # 장소 태그 (예: ["맛집", "분위기좋음", "데이트"])
+    # summary: Mapped[Optional[str]] = mapped_column(
+    #     TEXT, nullable=True
+    # )  # 리뷰 요약 (3-4줄)

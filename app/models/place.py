@@ -25,8 +25,8 @@ class Place(Base):
         index=True,
     )
 
-    title: Mapped[str] = mapped_column(String, nullable=False)
-    address: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(TEXT, nullable=False)
+    address: Mapped[str] = mapped_column(TEXT, nullable=False)
     categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     tags: Mapped[Optional[list[str]]] = mapped_column(
         JSONB, nullable=True

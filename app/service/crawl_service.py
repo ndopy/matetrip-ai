@@ -9,6 +9,7 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 class CrawlService:
     """
     단일 URL에서 리뷰 컨텐츠를 크롤링합니다.
+
     Args:
         url: 크롤링할 URL
 
@@ -20,6 +21,7 @@ class CrawlService:
 
         config = CrawlerRunConfig(
             cache_mode=CacheMode.BYPASS,  # 캐시 비활성화
+            page_timeout=60000,
             word_count_threshold=10,  # 최소 단어 수
             exclude_external_links=True,  # 외부 링크 제외
             remove_overlay_elements=True,  # 오버레이 요소 제거

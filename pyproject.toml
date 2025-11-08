@@ -13,6 +13,7 @@ dependencies = [
     "crawl4ai>=0.7.6",
     "fastapi[all]>=0.121.0",
     "httpx>=0.28.1",
+    "logging>=0.4.9.6",
     "openai>=2.7.1",
     "pgvector>=0.4.1",
     "psycopg2-binary>=2.9.11",
@@ -26,6 +27,7 @@ dependencies = [
     "sentence-transformers>=5.1.2",
     "sqlalchemy[asyncio]>=2.0.44",
     "torch>=2.9.0",
+    "typing>=3.10.0.0",
     "uvicorn[standard]>=0.38.0",
     "webdriver-manager>=4.0.2",
 ]
