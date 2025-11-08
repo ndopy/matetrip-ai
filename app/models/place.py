@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import JSON, TEXT, Float, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 
 from app.models.base import Base
 
@@ -27,12 +27,12 @@ class Place(Base):
 
     title: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
-    categories: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     tags: Mapped[Optional[list[str]]] = mapped_column(
-        JSON, nullable=True
+        JSONB, nullable=True
     )  # 장소 태그 (예: ["맛집", "분위기좋음", "데이트"])
     summary: Mapped[Optional[str]] = mapped_column(
-        TEXT, nullable=True
+        JSONB, nullable=True
     )  # 리뷰 요약 (3-4줄)
 
     # reviews: Mapped[list["Review"]] = relationship("Review", back_populates="place")

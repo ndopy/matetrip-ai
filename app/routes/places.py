@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database.database import get_db
 from models.place import Place
 from schemas.place import PlaceListCreateRequest
-from service.place_service import PlaceService, process_place_revies
+from service.place_service import PlaceService, process_place_reviews
 
 
 router = APIRouter(
@@ -39,7 +39,7 @@ async def create_places(
         place = Place(
             title=place_data.title,
             address=place_data.address,
-            longitude=place_data.logitude,
+            longitude=place_data.longitude,
             latitude=place_data.latitude,
         )
 
@@ -50,7 +50,7 @@ async def create_places(
         created_places.append(place)
 
         background_tasks.add_task(
-            process_place_revies,
+            process_place_reviews,
             db,
             place,
         )
