@@ -27,7 +27,7 @@ class PlaceReview(Base):
 
     content: Mapped[str] = mapped_column(TEXT, nullable=False)
     source_url: Mapped[str] = mapped_column(TEXT, nullable=False)
-    embedding: Mapped[Optional[Vector]] = mapped_column(Vector(768), nullable=True)
+    embedding: Mapped[Optional[Vector]] = mapped_column(Vector(1024), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.now(), nullable=False
     )

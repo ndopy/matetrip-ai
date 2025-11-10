@@ -45,13 +45,21 @@ async def collect_command(args):
     db = SessionLocal()
 
     try:
-        collector = PlaceCollector(db)
-
         # 카테고리 설정
         categories = args.categories if args.categories else ["tourism", "food"]
 
+        # PlaceCollector 초기화
+        collector = PlaceCollector(
+            db=db,
+            max_naver_api_calls=args.max_naver_calls,
+            region_filter=args.region,
+        )
+
         logger.info(f"수집 카테고리: {categories}")
+        logger.info(f"대상 지역: {args.region if args.region else '전국'}")
         logger.info(f"리뷰 처리: {'ON' if args.with_reviews else 'OFF'}")
+        if args.with_reviews:
+            logger.info(f"네이버 API 제한: {args.max_naver_calls}건")
 
         await collector.collect_and_process(
             categories=categories, process_reviews=args.with_reviews
@@ -79,9 +87,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="실행할 명령어")
 
     # collect 명령어
-    collect_parser = subparsers.add_parser(
-        "collect", help="장소 데이터 수집 (서울 전역)"
-    )
+    collect_parser = subparsers.add_parser("collect", help="장소 데이터 수집 (전국)")
     collect_parser.add_argument(
         "--categories",
         nargs="+",
@@ -92,6 +98,36 @@ def main():
         "--with-reviews",
         action="store_true",
         help="리뷰 자동 처리 활성화",
+    )
+    collect_parser.add_argument(
+        "--region",
+        type=str,
+        choices=[
+            "서울",
+            "부산",
+            "인천",
+            "대구",
+            "대전",
+            "광주",
+            "울산",
+            "세종",
+            "경기",
+            "강원",
+            "충북",
+            "충남",
+            "전북",
+            "전남",
+            "경북",
+            "경남",
+            "제주",
+        ],
+        help="특정 지역만 수집 (기본값: 전국)",
+    )
+    collect_parser.add_argument(
+        "--max-naver-calls",
+        type=int,
+        default=20000,
+        help="네이버 API 최대 호출 수 (기본값: 20000)",
     )
 
     # schedule 명령어

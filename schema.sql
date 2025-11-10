@@ -1,6 +1,10 @@
-CREATE EXTENSION IF NOT EXISTS "pgvector";
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+DROP TABLE IF EXISTS place_review;
+
+DROP TABLE IF EXISTS places;
 
 CREATE TABLE
   places (
@@ -12,7 +16,8 @@ CREATE TABLE
     summary text NULL,
     image_url text NULL, -- 장소 대표 이미지 URL
     longitude double precision NOT NULL,
-    latitude double precision NOT NULL created_at TIMESTAMP DEFAULT now () NOT NULL
+    latitude double precision NOT null,
+    created_at TIMESTAMP DEFAULT now () NOT NULL
   );
 
 -- 리뷰 테이블
@@ -22,6 +27,6 @@ CREATE TABLE
     place_id uuid NOT NULL REFERENCES places (id) ON DELETE CASCADE,
     content text NOT NULL,
     source_url text NOT NULL,
-    embedding vector (768), -- pgvector 컬럼 (임베딩 768차원)
+    embedding vector (1024),
     created_at TIMESTAMP DEFAULT now () NOT NULL -- 파이썬 float → double precision 매핑
   );
