@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import List, Optional
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -41,3 +42,16 @@ class PlaceResponse(BaseModel):
     # summary: Mapped[Optional[str]] = mapped_column(
     #     TEXT, nullable=True
     # )  # 리뷰 요약 (3-4줄)
+
+
+class PlaceRecommendation(BaseModel):
+    id: UUID
+    title: str
+    address: str
+    categories: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    summary: Optional[str] = None
+    image_url: Optional[str] = None
+    longitude: float
+    latitude: float
+    similarity: float = Field(..., description="0~1 사이 유사도 (1에 가까울수록 유사)")

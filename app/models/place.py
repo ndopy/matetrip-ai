@@ -1,9 +1,16 @@
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID, uuid4
-from sqlalchemy import JSON, TEXT, Float, String
+from datetime import datetime
+from sqlalchemy import JSON, TEXT, Float, String, Integer, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from pgvector.sqlalchemy import VECTOR as VectorColumn
+
+if TYPE_CHECKING:
+    from pgvector import Vector as VECTOR
+else:
+    from pgvector.sqlalchemy import VECTOR
 
 from app.models.base import Base
 
@@ -38,6 +45,17 @@ class Place(Base):
         TEXT, nullable=True
     )  # 장소 대표 이미지 URL
 
-    # reviews: Mapped[list["Review"]] = relationship("Review", back_populates="place")
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # 장소 대표 임베딩 (리뷰 기반 평균 벡터)
+    embedding: Mapped[Optional["VECTOR"]] = mapped_column(
+        VectorColumn(1024), nullable=True
+    )
+
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP, server_default=func.now(), nullable=True
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=True
+    )

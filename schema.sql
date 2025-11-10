@@ -28,5 +28,5 @@ CREATE TABLE
     content text NOT NULL,
     source_url text NOT NULL,
     embedding vector (1024),
-    created_at TIMESTAMP DEFAULT now () NOT NULL -- 파이썬 float → double precision 매핑
+    created_at TIMESTAMP DEFAULT now () NOT NULL
   );

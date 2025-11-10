@@ -10,6 +10,7 @@ from app.service.local_embedding_service import BedrockEmbeddingService
 from app.service.review_service import ReviewService
 from app.service.openai_service import OpenAIService
 from app.service.review_filter_service import ReviewFilterService
+from app.service.place_embedding_service import PlaceEmbeddingService
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
@@ -24,6 +25,7 @@ class PlaceService:
     def __init__(self) -> None:
         self.local_embedding_service = BedrockEmbeddingService()
         self.openai_service = OpenAIService()
+        self.embedding_service = PlaceEmbeddingService()  # 🆕 임베딩 서비스 추가
 
     async def process_place_reviews(self, db: Session, place: Place):
         """
@@ -83,10 +85,19 @@ class PlaceService:
                 logger.info(f"{idx}번째 리뷰 임베딩 생성 완료")
 
             db.commit()
+
+            # 🆕 7. 장소 임베딩 재계산
+            logger.info(f"\n[장소 임베딩 업데이트 시작]")
+            self.embedding_service.refresh_embedding(
+                db=db,
+                place_id=place.id,
+            )
+            logger.info(f"[장소 임베딩 업데이트 완료]")
+
             logger.info(f"\n[배치 처리 완료]")
             logger.info(f"{'*'*80}\n")
 
-            # 7. 카테고리 생성 (카카오 카테고리 참고)
+            # 8. 카테고리 생성 (카카오 카테고리 참고)
             review_contents = [review.content for review in reviews]
             kakao_category_str = (
                 " > ".join(place.categories) if place.categories else ""
@@ -97,12 +108,12 @@ class PlaceService:
                 )
             )
 
-            # 8. 테그 생성
+            # 9. 테그 생성
             tags: List[str] = self.openai_service.generate_tags_from_reviews(
                 review_contents, place.title
             )
 
-            # 9. 요약 생성
+            # 10. 요약 생성
             summary = self.openai_service.generate_summary_from_reviews(
                 review_contents, place.title
             )
