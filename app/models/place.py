@@ -9,6 +9,7 @@ from pgvector.sqlalchemy import VECTOR as VectorColumn
 
 if TYPE_CHECKING:
     from pgvector import Vector as VECTOR
+    from app.models.review import PlaceReview
 else:
     from pgvector.sqlalchemy import VECTOR
 
@@ -51,6 +52,12 @@ class Place(Base):
     # 장소 대표 임베딩 (리뷰 기반 평균 벡터)
     embedding: Mapped[Optional["VECTOR"]] = mapped_column(
         VectorColumn(1024), nullable=True
+    )
+
+    reviews: Mapped[list["PlaceReview"]] = relationship(
+        "PlaceReview",
+        back_populates="place",
+        cascade="all, delete-orphan",
     )
 
     created_at: Mapped[Optional[datetime]] = mapped_column(

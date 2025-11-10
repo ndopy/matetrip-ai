@@ -40,7 +40,7 @@ async def test_full_pipeline():
         logger.info("=" * 80)
 
         # 강남구에서 관광명소 검색 (1개만)
-        district = SEOUL_DISTRICTS[2]  # 강남구
+        district = SEOUL_DISTRICTS[5]  # 강남구
         logger.info(f"\n{district['name']}에서 관광명소 검색 중...")
 
         kakao_places = kakao_service.search_places_by_category(

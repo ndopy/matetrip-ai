@@ -57,7 +57,7 @@ def main():
     # 매주 월요일 오전 2시에 실행
     scheduler.add_job(
         scheduled_collection,
-        CronTrigger(day_of_week="mon", hour=2, minute=0),
+        CronTrigger(day_of_week="mon", hour=2, minute=0, timezone="Asia/Seoul"),
         id="weekly_place_collection",
         name="주간 장소 데이터 수집",
         replace_existing=True,
