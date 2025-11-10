@@ -63,7 +63,11 @@ class OpenAIService:
                 ]
             )
 
-            kakao_hint = f"\n참고로 카카오맵 카테고리는 '{kakao_category}' 입니다." if kakao_category else ""
+            kakao_hint = (
+                f"\n참고로 카카오맵 카테고리는 '{kakao_category}' 입니다."
+                if kakao_category
+                else ""
+            )
 
             prompt = f"""다음은 "{place_title}"에 대한 실제 리뷰들입니다.
 {kakao_hint}

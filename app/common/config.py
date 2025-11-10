@@ -75,8 +75,22 @@ class KakaoLocalConfig(BaseSettings):
     )
 
 
+class BedRockConfig(BaseSettings):
+    AWS_REGION: str = Field(default="")
+    MODEL_ID: str = Field(default="")
+    AWS_ACCESS_KEY_ID: str = Field(default="")
+    AWS_SECRET_ACCESS_KEY: str = Field(default="")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
 embeddingConfig = EmbeddingConfig()
 kakaoLocalConfig = KakaoLocalConfig()
+bedrockConfig = BedRockConfig()

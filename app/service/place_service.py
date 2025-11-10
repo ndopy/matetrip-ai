@@ -6,7 +6,7 @@ from app.models.place import Place
 from app.service.crawl_service import CrawlService
 from app.service.naver_search_service import NaverSearchService
 from app.models.review import PlaceReview
-from app.service.local_embedding_service import LocalEmbeddingService
+from app.service.local_embedding_service import BedrockEmbeddingService
 from app.service.review_service import ReviewService
 from app.service.openai_service import OpenAIService
 from app.service.review_filter_service import ReviewFilterService
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class PlaceService:
 
     def __init__(self) -> None:
-        self.local_embedding_service = LocalEmbeddingService()
+        self.local_embedding_service = BedrockEmbeddingService()
         self.openai_service = OpenAIService()
 
     async def process_place_reviews(self, db: Session, place: Place):
@@ -88,9 +88,13 @@ class PlaceService:
 
             # 7. 카테고리 생성 (카카오 카테고리 참고)
             review_contents = [review.content for review in reviews]
-            kakao_category_str = " > ".join(place.categories) if place.categories else ""
-            categories: List[str] = self.openai_service.generate_categories_from_reviews(
-                review_contents, place.title, kakao_category_str
+            kakao_category_str = (
+                " > ".join(place.categories) if place.categories else ""
+            )
+            categories: List[str] = (
+                self.openai_service.generate_categories_from_reviews(
+                    review_contents, place.title, kakao_category_str
+                )
             )
 
             # 8. 테그 생성

@@ -70,78 +70,11 @@ class PlaceCollector:
 
         for district in SEOUL_DISTRICTS:
             logger.info(f"\n[{district['name']}] 데이터 수집 시작...")
-
-            for category in categories:
-                category_code = CATEGORY_CODES.get(category)
-                if not category_code:
-                    logger.warning(f"알 수 없는 카테고리: {category}")
-                    continue
-
-                logger.info(
-                    f"  - 카테고리: {category} ({category_code}) 검색 중..."
-                )
-
-                # 카카오 API로 장소 검색
-                kakao_places = self.kakao_service.search_places_by_category(
-                    category_code=category_code,
-                    x=district["longitude"],
-                    y=district["latitude"],
-                    radius=5000,  # 5km 반경
-                    max_pages=3,  # 최대 3페이지 (45개)
-                )
-
-                logger.info(f"    검색 결과: {len(kakao_places)}개")
-
-                # DB에 저장
-                for kakao_place in kakao_places:
-                    try:
-                        place_data = self.kakao_service.convert_to_place_data(
-                            kakao_place
-                        )
-
-                        # 중복 체크
-                        if self.place_exists(
-                            place_data["title"], place_data["address"]
-                        ):
-                            self.skipped_count += 1
-                            continue
-
-                        # Place 객체 생성 및 저장
-                        new_place = Place(
-                            title=place_data["title"],
-                            address=place_data["address"],
-                            categories=place_data["categories"],
-                            longitude=place_data["longitude"],
-                            latitude=place_data["latitude"],
-                        )
-
-                        self.db.add(new_place)
-                        self.db.commit()
-                        self.db.refresh(new_place)
-
-                        self.collected_count += 1
-                        logger.info(
-                            f"    ✓ 저장: {place_data['title']} ({place_data['address']})"
-                        )
-
-                        # 리뷰 자동 처리
-                        if process_reviews:
-                            try:
-                                logger.info(f"    → 리뷰 처리 시작...")
-                                await self.place_service.process_place_reviews(
-                                    self.db, new_place
-                                )
-                                self.db.commit()
-                                logger.info(f"    ✓ 리뷰 처리 완료")
-                            except Exception as e:
-                                logger.error(f"    ✗ 리뷰 처리 실패: {e}")
-                                self.error_count += 1
-
-                    except Exception as e:
-                        logger.error(f"    ✗ 저장 실패: {e}")
-                        self.db.rollback()
-                        self.error_count += 1
-                        continue
+            await self._collect_for_district(
+                district=district,
+                categories=categories,
+                process_reviews=process_reviews,
+            )
 
         # 최종 결과 출력
         logger.info("\n" + "=" * 80)
@@ -150,6 +83,86 @@ class PlaceCollector:
         logger.info(f"- 중복 건너뜀: {self.skipped_count}개")
         logger.info(f"- 오류: {self.error_count}개")
         logger.info("=" * 80)
+
+    async def _collect_for_district(
+        self, district: dict, categories: List[str], process_reviews: bool
+    ):
+        for category in categories:
+            await self._collect_for_category(
+                district=district,
+                category=category,
+                process_reviews=process_reviews,
+            )
+
+    async def _collect_for_category(
+        self, district: dict, category: str, process_reviews: bool
+    ):
+        category_code = CATEGORY_CODES.get(category)
+        if not category_code:
+            logger.warning(f"알 수 없는 카테고리: {category}")
+            return
+
+        logger.info(f"  - 카테고리: {category} ({category_code}) 검색 중...")
+
+        kakao_places = self.kakao_service.search_places_by_category(
+            category_code=category_code,
+            x=district["longitude"],
+            y=district["latitude"],
+            radius=5000,
+            max_pages=3,
+        )
+
+        logger.info(f"    검색 결과: {len(kakao_places)}개")
+
+        for kakao_place in kakao_places:
+            await self._handle_place(kakao_place, process_reviews)
+
+    async def _handle_place(self, kakao_place: dict, process_reviews: bool):
+        place_data = self.kakao_service.convert_to_place_data(kakao_place)
+
+        if self.place_exists(place_data["title"], place_data["address"]):
+            self.skipped_count += 1
+            return
+
+        try:
+            new_place = self._create_place(place_data)
+        except Exception as e:
+            self.error_count += 1
+            self.db.rollback()
+            logger.error(f"    ✗ 저장 실패: {e}")
+            return
+
+        self.collected_count += 1
+        logger.info(
+            f"    ✓ 저장: {place_data['title']} ({place_data['address']})"
+        )
+
+        if process_reviews:
+            await self._process_reviews(new_place)
+
+    def _create_place(self, place_data: dict) -> Place:
+        new_place = Place(
+            title=place_data["title"],
+            address=place_data["address"],
+            categories=place_data["categories"],
+            longitude=place_data["longitude"],
+            latitude=place_data["latitude"],
+        )
+
+        self.db.add(new_place)
+        self.db.commit()
+        self.db.refresh(new_place)
+        return new_place
+
+    async def _process_reviews(self, place: Place):
+        logger.info("    → 리뷰 처리 시작...")
+        try:
+            await self.place_service.process_place_reviews(self.db, place)
+            self.db.commit()
+            logger.info("    ✓ 리뷰 처리 완료")
+        except Exception as e:
+            self.error_count += 1
+            logger.error(f"    ✗ 리뷰 처리 실패: {e}")
 
 
 async def main():

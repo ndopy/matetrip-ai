@@ -20,7 +20,7 @@ class KakaoLocalService:
         x: float,
         y: float,
         radius: int = 20000,
-        max_pages: int = 3,
+        max_pages: int = 5,
     ) -> List[Dict]:
         """
         카테고리별로 장소를 검색합니다.
@@ -59,9 +59,7 @@ class KakaoLocalService:
                 )
 
                 if response.status_code != 200:
-                    print(
-                        f"Kakao API Error: {response.status_code} - {response.text}"
-                    )
+                    print(f"Kakao API Error: {response.status_code} - {response.text}")
                     break
 
                 data = response.json()
