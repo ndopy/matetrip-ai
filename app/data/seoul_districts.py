@@ -2,7 +2,7 @@
 
 SEOUL_DISTRICTS = [
     # 테스트용 - 주요 5개 구만 활성화 (강남, 마포, 종로, 송파, 용산)
-    {"name": "강남구", "longitude": 127.0495556, "latitude": 37.514575},
+    {"name": "강남구", "longitude": 127.0495556, "latitude": 37.5145750},
     {"name": "마포구", "longitude": 126.9052778, "latitude": 37.5663889},
     {"name": "종로구", "longitude": 126.9816417, "latitude": 37.5730556},
     {"name": "송파구", "longitude": 127.1079306, "latitude": 37.5145556},

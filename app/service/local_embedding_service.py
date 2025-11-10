@@ -59,7 +59,9 @@ class BedrockEmbeddingService:
                 if embedding:
                     embeddings.append(embedding)
                 else:
-                    log.error(f"임베딩 생성 실패: {text[:50]}...")
+                    log.error(
+                        f"임베딩 생성 실패: 텍스트 길이 {len(text)}, 인덱스 {len(embeddings)}"
+                    )
                     raise ValueError("임베딩 응답이 비어있습니다")
 
             log.info(f"\n[배치 임베딩 완료]")

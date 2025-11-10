@@ -108,7 +108,7 @@ class PlaceService:
                 )
             )
 
-            # 9. 테그 생성
+            # 9. 태그 생성
             tags: List[str] = self.openai_service.generate_tags_from_reviews(
                 review_contents, place.title
             )

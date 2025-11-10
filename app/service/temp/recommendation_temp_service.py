@@ -7,7 +7,7 @@ Provides user-, place-, and location-based place recommendations backed by pgvec
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 from sqlalchemy import CTE, Select, func, literal, or_, select
@@ -231,7 +231,9 @@ class RecommendationTempService:
         try:
             return [float(value) for value in vector]
         except TypeError as exc:  # pragma: no cover
-            raise ValueError("Embedding vector must be iterable") from exc
+            raise ValueError(
+                "Embedding vector must be iterable with numeric values"
+            ) from exc
 
     def _similarity_against_vector(
         self,
@@ -302,4 +304,4 @@ class RecommendationTempService:
     @staticmethod
     def _days_ago(days: int) -> datetime:
         days = max(days, 0)
-        return datetime.utcnow() - timedelta(days=days)
+        return datetime.now(timezone.utc) - timedelta(days=days)

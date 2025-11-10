@@ -18,6 +18,8 @@ class RecommendationRepository:
         user_embedding: Sequence[float],
         limit: int,
     ) -> List[Dict[str, Any]]:
+
+        embedding_literal = self._to_vector_literal(user_embedding)
         embedding_literal = self._to_vector_literal(user_embedding)
 
         sql = text(

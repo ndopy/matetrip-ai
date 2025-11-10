@@ -48,7 +48,7 @@ class ReviewBatchProcessor:
         batch_index: int,
         total_batches: int,
         max_naver_api_calls: int = 20000,
-        region: str = None,
+        region: str | None = None,
     ):
         self.db = db
         self.batch_index = batch_index
@@ -180,9 +180,7 @@ async def main():
 
     # 배치 인덱스 검증
     if args.batch < 0 or args.batch >= args.total_batches:
-        logger.error(
-            f"배치 인덱스는 0~{args.total_batches-1} 범위여야 합니다."
-        )
+        logger.error(f"배치 인덱스는 0~{args.total_batches-1} 범위여야 합니다.")
         return
 
     db = SessionLocal()

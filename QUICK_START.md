@@ -113,7 +113,7 @@ aws ecs run-task \
     --cluster matetrip-cluster \
     --task-definition matetrip-collect-places:1 \
     --launch-type FARGATE \
-    --network-configuration "..."
+    --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
 ```
 
 **Day 1-7**: 리뷰 배치 처리
@@ -233,16 +233,19 @@ docker-compose ps
 ## ⚠️ 주의사항
 
 ### 네이버 API 제한
+
 - **하루 25,000건 제한**
 - 안전하게 20,000건으로 설정
 - 제한 도달 시 자동 중단
 
 ### 실행 시간
+
 - **장소 수집**: 12-18시간
 - **리뷰 배치**: 하루 6-10시간
 - 장기간 실행 → AWS 권장
 
 ### 비용
+
 - **로컬**: 무료 (전기세만)
 - **AWS**: 약 $30 (일주일)
 

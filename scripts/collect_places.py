@@ -152,10 +152,7 @@ class PlaceCollector:
 
     async def _handle_place(self, kakao_place: dict, process_reviews: bool):
         # API 제한 도달 확인
-        if (
-            process_reviews
-            and self.naver_api_call_count >= self.max_naver_api_calls
-        ):
+        if process_reviews and self.naver_api_call_count >= self.max_naver_api_calls:
             self.api_limit_reached = True
             return
 
@@ -210,6 +207,7 @@ class PlaceCollector:
             )
         except Exception as e:
             self.error_count += 1
+            self.db.rollback()
             logger.error(f"    ✗ 리뷰 처리 실패: {e}")
 
 

@@ -22,12 +22,14 @@
 ## 1. 사전 준비사항
 
 ### 필요한 것들
+
 - AWS 계정
 - AWS CLI 설치 및 구성
 - Docker 설치
 - 로컬에서 정상 작동하는 파이프라인 코드
 
 ### AWS CLI 설정
+
 ```bash
 # AWS CLI 설치 확인
 aws --version
@@ -45,6 +47,7 @@ aws configure
 
 1. AWS Console → RDS → Databases → Create database
 2. 설정:
+
    - **Engine**: PostgreSQL 15 이상
    - **Templates**: Free tier or Dev/Test
    - **DB instance identifier**: `matetrip-db`
@@ -72,6 +75,7 @@ aws configure
 ### 2.3 데이터베이스 초기화
 
 RDS 엔드포인트에 접속하여 schema.sql 실행:
+
 ```bash
 # 로컬에서 RDS로 접속 (VPN 또는 Bastion Host 필요)
 psql -h your-rds-endpoint.ap-northeast-2.rds.amazonaws.com \
@@ -171,9 +175,7 @@ ARN을 메모해두세요 (ECS Task Definition에서 사용)
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "secretsmanager:GetSecretValue"
-      ],
+      "Action": ["secretsmanager:GetSecretValue"],
       "Resource": [
         "arn:aws:secretsmanager:ap-northeast-2:YOUR_ACCOUNT_ID:secret:matetrip/*"
       ]
@@ -219,6 +221,7 @@ ARN을 메모해두세요 (ECS Task Definition에서 사용)
 ### 5.3 Bedrock 모델 접근 활성화
 
 AWS Bedrock 콘솔에서:
+
 1. Bedrock → Model access
 2. **amazon.titan-embed-text-v2:0** 모델 활성화
 3. Request access (필요시)
@@ -243,6 +246,7 @@ export IMAGE_TAG=latest
 ```
 
 이 스크립트는 자동으로:
+
 1. Docker 이미지 빌드
 2. ECR 로그인
 3. 이미지 태그 지정
@@ -256,6 +260,7 @@ export IMAGE_TAG=latest
 
 1. AWS Console → EC2 → Security Groups → Create security group
 2. 설정:
+
    - **Name**: `matetrip-ecs-tasks-sg`
    - **Description**: Security group for ECS tasks
    - **VPC**: RDS와 동일한 VPC
@@ -286,6 +291,7 @@ aws ecs create-cluster \
 ```
 
 또는 AWS Console:
+
 1. ECS → Clusters → Create cluster
 2. **Cluster name**: `matetrip-cluster`
 3. **Infrastructure**: AWS Fargate (serverless)
@@ -366,18 +372,14 @@ aws logs put-retention-policy \
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "ecs:RunTask"
-      ],
+      "Action": ["ecs:RunTask"],
       "Resource": [
         "arn:aws:ecs:ap-northeast-2:YOUR_ACCOUNT_ID:task-definition/matetrip-place-collector:*"
       ]
     },
     {
       "Effect": "Allow",
-      "Action": [
-        "iam:PassRole"
-      ],
+      "Action": ["iam:PassRole"],
       "Resource": [
         "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
         "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskRole"
@@ -456,10 +458,12 @@ aws ecs run-task \
     --cluster matetrip-cluster \
     --task-definition matetrip-place-collector:1 \
     --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={
-      subnets=[subnet-xxxxx,subnet-yyyyy],
-      securityGroups=[sg-xxxxx],
-      assignPublicIp=ENABLED
+aws ecs run-task \
+    --cluster matetrip-cluster \
+    --task-definition matetrip-place-collector:1 \
+    --launch-type FARGATE \
+    --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxxxx,subnet-yyyyy],securityGroups=[sg-xxxxx],assignPublicIp=ENABLED}' \
+    --region ap-northeast-2
     }" \
     --region ap-northeast-2
 ```
@@ -473,6 +477,7 @@ aws ecs run-task \
 ### 12.3 모니터링 대시보드 (선택)
 
 CloudWatch에서 다음 메트릭 모니터링:
+
 - ECS Task 실행 상태
 - Task CPU/메모리 사용량
 - 로그에서 에러 패턴 탐지

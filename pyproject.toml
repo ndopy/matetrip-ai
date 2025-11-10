@@ -30,7 +30,7 @@ dependencies = [
     "sentence-transformers>=5.1.2",
     "sqlalchemy[asyncio]>=2.0.44",
     "torch>=2.9.0",
-    "typing>=3.10.0.0",
+
     "uvicorn[standard]>=0.38.0",
     "webdriver-manager>=4.0.2",
 ]

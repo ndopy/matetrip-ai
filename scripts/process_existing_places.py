@@ -36,12 +36,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def process_places(limit: int = 0):
+async def process_places(limit: int | None = None):
     """
     DB에 있는 장소들에 대해 전체 파이프라인 실행
 
     Args:
-        limit: 처리할 장소 개수 제한 (None이면 전체)
+        limit: 처리할 장소 개수 제한 (None 또는 0이면 전체)
     """
     db = SessionLocal()
     place_service = PlaceService()

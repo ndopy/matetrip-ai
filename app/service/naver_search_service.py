@@ -17,6 +17,9 @@ class NaverSearchService:
         self, place_title: str, address: str, category: list[str], display: int = 10
     ) -> list[str]:
 
+        if not place_title or not address:
+            return []
+
         city = extract_city(address)
         query = f"{place_title} {city} 리뷰"
 
@@ -52,6 +55,21 @@ class NaverSearchService:
     def search_place_image(
         self, place_title: str, address: str, display: int = 1
     ) -> str | None:
+        """
+        네이버 이미지 검색 API로 장소 대표 이미지 URL을 가져옵니다.
+
+        Args:
+            place_title: 장소명
+            address: 주소
+            display: 가져올 이미지 개수 (기본값 1)
+
+        Returns:
+            이미지 URL 또는 None
+        """
+        if not place_title or not address:
+            return None
+
+        city = extract_city(address)
         """
         네이버 이미지 검색 API로 장소 대표 이미지 URL을 가져옵니다.
 

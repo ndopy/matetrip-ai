@@ -11,7 +11,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 
 # Install dependencies using uv
-RUN uv pip install --system -r pyproject.toml
+RUN uv sync --frozen --no-dev
 
 # Final stage
 FROM python:3.13-slim

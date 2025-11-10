@@ -35,6 +35,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="장소 임베딩 배치 업데이트",
@@ -80,16 +81,23 @@ def main():
             try:
                 # 진행 상황 표시
                 if idx % 100 == 0:
-                    logger.info(f"\n진행: [{idx}/{len(places)}] ({idx/len(places)*100:.1f}%)")
+                    logger.info(
+                        f"\n진행: [{idx}/{len(places)}] ({idx/len(places)*100:.1f}%)"
+                    )
 
                 logger.info(f"[{idx}/{len(places)}] {place.title} 처리 중...")
 
                 # 리뷰 개수 확인 (DB 조회)
-                review_count = db.query(func.count(PlaceReview.id)).filter(
-                    PlaceReview.place_id == place.id,
-                    PlaceReview.is_deleted == False,
-                    PlaceReview.embedding.isnot(None)
-                ).scalar() or 0
+                review_count = (
+                    db.query(func.count(PlaceReview.id))
+                    .filter(
+                        PlaceReview.place_id == place.id,
+                        PlaceReview.is_deleted.is_(False),
+                        PlaceReview.embedding.isnot(None),
+                    )
+                    .scalar()
+                    or 0
+                )
 
                 # 리뷰가 없는 장소는 스킵
                 if review_count == 0:

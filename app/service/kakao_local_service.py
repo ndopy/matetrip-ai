@@ -109,8 +109,8 @@ class KakaoLocalService:
             "title": kakao_place.get("place_name", ""),
             "address": kakao_place.get("address_name", ""),
             "categories": categories,  # 파싱된 카테고리 배열
-            "longitude": float(kakao_place.get("x", 0)),
-            "latitude": float(kakao_place.get("y", 0)),
+            "longitude": float(kakao_place["x"]) if kakao_place.get("x") else None,
+            "latitude": float(kakao_place["y"]) if kakao_place.get("y") else None,
             "kakao_place_id": kakao_place.get("id", ""),  # 중복 체크용
             "phone": kakao_place.get("phone", ""),
             "place_url": kakao_place.get("place_url", ""),

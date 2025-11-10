@@ -16,8 +16,23 @@ class OpenAIService:
         self.naver_search = NaverSearchService()
 
     def extract_review_urls(
-        self, place_title: str, address: str, category: list[str] = []
+        self, place_title: str, address: str, category: list[str] | None = None
     ) -> List[str]:
+        """
+        네이버 검색 API를 사용하여 실제 리뷰 URL들을 검색합니다.
+        (이전에는 OpenAI가 URL을 생성했지만, 실제로 존재하지 않는 URL이 많았습니다)
+
+        Args:
+            place_title: 장소 이름
+            address: 장소 주소
+            category: 카테고리 이름
+
+        Returns:
+            실제 리뷰 URL 리스트
+        """
+        if category is None:
+            category = []
+        return self.naver_search.search_review_urls(place_title, address, category)
         """
         네이버 검색 API를 사용하여 실제 리뷰 URL들을 검색합니다.
         (이전에는 OpenAI가 URL을 생성했지만, 실제로 존재하지 않는 URL이 많았습니다)

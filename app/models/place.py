@@ -17,7 +17,7 @@ from app.models.base import Base
 
 """
 Mapped[T] : 타입힌트 친화적 문법 (타입힌트 + ORM 매핑)
-ampped_column(실제 DB 컬럼 정의)
+mapped_column(실제 DB 컬럼 정의)
 """
 
 

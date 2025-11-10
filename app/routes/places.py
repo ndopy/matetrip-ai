@@ -40,7 +40,8 @@ async def create_places(
     for place_data in place_list.places:
         statement = select(
             exists().where(
-                Place.title == place_data.title and Place.address == place_data.address
+                (Place.title == place_data.title)
+                & (Place.address == place_data.address)
             )
         )
         is_exists: bool | None = db.scalar(statement)

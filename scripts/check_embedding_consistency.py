@@ -153,7 +153,6 @@ def check_statistics(db: Session):
     logger.info("📊 전체 통계")
     logger.info(f"- 전체 장소 수: {total_places:,}개")
     logger.info(f"- 임베딩 있는 장소: {places_with_embedding:,}개")
-    logger.info(f"- 임베딩 없는 장소: {total_places - places_with_embedding:,}개")
     logger.info(f"- 평균 리뷰 개수: {avg_reviews:.1f}개")
     logger.info(f"- 최근 7일 업데이트: {recent_updates:,}개")
     logger.info("=" * 80)
@@ -223,9 +222,9 @@ def main():
             if inconsistent or missing:
                 logger.info("\n자동 수정 모드 활성화")
                 auto_fix_inconsistencies(db, inconsistent)
+                auto_fix_inconsistencies(db, missing)
             else:
                 logger.info("\n수정할 항목이 없습니다.")
-        else:
             if inconsistent or missing:
                 logger.info(
                     "\n💡 불일치 항목을 수정하려면 --auto-fix 옵션을 사용하세요."

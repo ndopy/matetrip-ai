@@ -24,20 +24,29 @@ class ReviewService:
         """
 
         reviews = []
-        for url, content in crawled_reviews.items():
-            review = PlaceReview(
-                place_id=place_id,
-                content=content,
-                source_url=url,
-            )
-            db.add(review)
-            reviews.append(review)
+        try:
+            for url, content in crawled_reviews.items():
+                if not content or not content.strip():
+                    logger.warning("Skipping empty review content for URL: %s", url)
+                    continue
 
-        if len(reviews) <= 0:
-            return []
+                review = PlaceReview(
+                    place_id=place_id,
+                    content=content,
+                    source_url=url,
+                )
+                db.add(review)
+                reviews.append(review)
 
-        db.commit()
-        logger.info("Reviews saved: %d", len(reviews))
+            if not reviews:
+                return []
+
+            db.commit()
+            logger.info("Reviews saved: %d", len(reviews))
+        except Exception as e:
+            db.rollback()
+            logger.error("Failed to save reviews for place_id %s: %s", place_id, str(e))
+            raise
 
         # todo : dto로
         return reviews
