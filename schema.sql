@@ -8,16 +8,18 @@ DROP TABLE IF EXISTS places;
 
 CREATE TABLE
   places (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid (), -- 앱에서 uuid4() 쓰면 DEFAULT는 빼도 됨
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
     title text NOT NULL,
     address text NOT NULL,
-    categories jsonb NULL, -- list[str] → jsonb
-    tags jsonb NULL, -- Optional[list[str]] → jsonb
-    summary text NULL,
+    categories jsonb NULL, -- list[str] → jsonb (Tour API cat1 대분류)
+    tags jsonb NULL, -- Optional[list[str]] → jsonb (AI 생성 태그)
+    summary text NULL, -- 리뷰 기반 AI 요약
     image_url text NULL, -- 장소 대표 이미지 URL
     longitude double precision NOT NULL,
-    latitude double precision NOT null,
-    created_at TIMESTAMP DEFAULT now () NOT NULL
+    latitude double precision NOT NULL,
+    embedding vector(1024) NULL, -- 장소 대표 임베딩 (리뷰 기반)
+    created_at TIMESTAMP DEFAULT now () NOT NULL,
+    updated_at TIMESTAMP DEFAULT now () NOT NULL
   );
 
 -- 리뷰 테이블

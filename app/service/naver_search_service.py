@@ -13,8 +13,55 @@ class NaverSearchService:
         self.blog_api_url = naverSearchConfig.NAVER_BLOG_SEARCH_URL
         self.image_api_url = naverSearchConfig.NAVER_IMAGE_SEARCH_URL
 
+    def get_place_popularity_score(
+        self, place_title: str, address: str
+    ) -> int:
+        """
+        장소의 인기도를 네이버 블로그 검색 결과 개수로 판단합니다.
+
+        Args:
+            place_title: 장소명
+            address: 주소
+
+        Returns:
+            검색 결과 개수 (total count)
+        """
+        if not place_title or not address:
+            return 0
+
+        city = extract_city(address)
+        query = f"{place_title} {city}"
+
+        header = {
+            "X-Naver-Client-Id": self.client_id,
+            "X-Naver-Client-Secret": self.client_secret,
+        }
+        param = {
+            "query": query,
+            "display": 1,  # 개수만 확인하므로 1개만
+            "sort": "sim"
+        }
+
+        try:
+            response = httpx.get(
+                self.blog_api_url,
+                headers=header,
+                params=param,
+                timeout=10.0,
+            )
+            if response.status_code != 200:
+                return 0
+
+            result: dict = response.json()
+            total_count = result.get("total", 0)
+            return total_count
+
+        except Exception as e:
+            print(f"Popularity Check Error: {e}")
+            return 0
+
     def search_review_urls(
-        self, place_title: str, address: str, category: list[str], display: int = 10
+        self, place_title: str, address: str, category: list[str] = [], display: int = 10
     ) -> list[str]:
 
         if not place_title or not address:

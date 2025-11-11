@@ -75,11 +75,10 @@ async def process_places(limit: int | None = None):
 
             try:
                 # 전체 파이프라인 실행
-                # 1. 이미지 URL 수집
-                # 2. 리뷰 URL 수집
-                # 3. 리뷰 크롤링
-                # 4. 리뷰 임베딩 생성
-                # 5. 태그/요약 생성
+                # 1. 리뷰 URL 수집
+                # 2. 리뷰 크롤링
+                # 3. 리뷰 임베딩 생성
+                # 4. 태그/요약 생성
                 await place_service.process_place_reviews(db, place)
 
                 db.commit()

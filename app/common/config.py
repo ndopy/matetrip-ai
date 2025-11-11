@@ -88,9 +88,24 @@ class BedRockConfig(BaseSettings):
     )
 
 
+class TourAPIConfig(BaseSettings):
+    TOUR_API_KEY: str = Field(default="", description="한국관광공사 Tour API 인증키")
+    TOUR_API_BASE_URL: str = Field(
+        default="https://apis.data.go.kr/B551011/KorService2",
+        description="Tour API Base URL"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
 embeddingConfig = EmbeddingConfig()
 kakaoLocalConfig = KakaoLocalConfig()
 bedrockConfig = BedRockConfig()
+tourAPIConfig = TourAPIConfig()
