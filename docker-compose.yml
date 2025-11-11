@@ -1,3 +1,4 @@
+# 임시 PG VECTOR용 DB 
 services:
   postgres:
     container_name: sqlchemy-test

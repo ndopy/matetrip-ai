@@ -137,17 +137,40 @@ class PlaceCollector:
 
         logger.info(f"  - 카테고리: {category} ({category_code}) 검색 중...")
 
-        kakao_places = self.kakao_service.search_places_by_category(
-            category_code=category_code,
-            x=district["longitude"],
-            y=district["latitude"],
-            radius=5000,
-            max_pages=3,
-        )
+        # 그리드 검색: 한 지역을 4개 영역으로 나눠서 검색 (더 많은 장소 수집)
+        # 중심점 기준으로 동/서/남/북 0.05도씩 이동 (약 5km)
+        grid_offsets = [
+            (0, 0),         # 중심
+            (0.05, 0),      # 동쪽
+            (-0.05, 0),     # 서쪽
+            (0, 0.05),      # 북쪽
+            (0, -0.05),     # 남쪽
+            (0.05, 0.05),   # 북동
+            (0.05, -0.05),  # 남동
+            (-0.05, 0.05),  # 북서
+            (-0.05, -0.05), # 남서
+        ]
 
-        logger.info(f"    검색 결과: {len(kakao_places)}개")
+        all_places = {}  # kakao_place_id를 key로 중복 제거
 
-        for kakao_place in kakao_places:
+        for offset_x, offset_y in grid_offsets:
+            kakao_places = self.kakao_service.search_places_by_category(
+                category_code=category_code,
+                x=district["longitude"] + offset_x,
+                y=district["latitude"] + offset_y,
+                radius=20000,  # 최대 반경 20km
+                max_pages=15,  # 더 많은 페이지 검색 (15페이지 = 225개)
+            )
+
+            # 중복 제거하며 수집
+            for place in kakao_places:
+                place_id = place.get("id")
+                if place_id and place_id not in all_places:
+                    all_places[place_id] = place
+
+        logger.info(f"    검색 결과: {len(all_places)}개 (중복 제거됨)")
+
+        for kakao_place in all_places.values():
             await self._handle_place(kakao_place, process_reviews)
 
     async def _handle_place(self, kakao_place: dict, process_reviews: bool):
@@ -216,12 +239,14 @@ async def main():
     db = SessionLocal()
 
     try:
-        # 전국 장소 수집 (관광명소와 음식점)
+        # 전국 장소 수집 (모든 주요 카테고리)
         # 리뷰는 포함하지 않음 (1단계: 장소만 수집)
         collector = PlaceCollector(db)
 
+        # 더 많은 카테고리를 포함하여 수집
         await collector.collect_and_process(
-            categories=["tourism", "food"], process_reviews=False
+            categories=["tourism", "food", "cafe", "accommodation", "culture"],
+            process_reviews=False,
         )
 
     except Exception as e:
