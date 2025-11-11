@@ -53,15 +53,16 @@ class NaverSearchService:
             return []
 
     def search_place_image(
-        self, place_title: str, address: str, display: int = 1
+        self, place_title: str, address: str, display: int = 10
     ) -> str | None:
         """
         네이버 이미지 검색 API로 장소 대표 이미지 URL을 가져옵니다.
+        여러 검색어를 시도하고, 블로그 이미지를 필터링하여 대표 이미지를 선택합니다.
 
         Args:
             place_title: 장소명
             address: 주소
-            display: 가져올 이미지 개수 (기본값 1)
+            display: 가져올 이미지 개수 (기본값 10)
 
         Returns:
             이미지 URL 또는 None
@@ -70,56 +71,137 @@ class NaverSearchService:
             return None
 
         city = extract_city(address)
-        """
-        네이버 이미지 검색 API로 장소 대표 이미지 URL을 가져옵니다.
 
-        Args:
-            place_title: 장소명
-            address: 주소
-            display: 가져올 이미지 개수 (기본값 1)
-
-        Returns:
-            이미지 URL 또는 None
-        """
-        city = extract_city(address)
-        query = f"{place_title} {city}"
+        # 여러 검색어 시도 (외관/전경이 있는 이미지 우선)
+        search_queries = [
+            f"{place_title} {city} 외관",  # 외관 이미지 우선
+            f"{place_title} {city} 전경",  # 전경 이미지
+            f"{place_title} {city}",       # 기본 검색
+        ]
 
         header = {
             "X-Naver-Client-Id": self.client_id,
             "X-Naver-Client-Secret": self.client_secret,
         }
-        param = {
-            "query": query,
-            "display": display,
-            "sort": "sim",  # 정확도순
-            "filter": "large",  # 큰 이미지만
-        }
 
-        try:
-            response = httpx.get(
-                self.image_api_url,
-                headers=header,
-                params=param,
-                timeout=10.0,
-            )
-            if response.status_code != 200:
-                print(f"Image Search Error: {response.status_code}")
-                return None
+        # 각 검색어로 시도
+        for query in search_queries:
+            param = {
+                "query": query,
+                "display": display,
+                "sort": "sim",  # 정확도순
+                "filter": "large",  # 큰 이미지만
+            }
 
-            result: dict = response.json()
-            items = result.get("items", [])
+            try:
+                response = httpx.get(
+                    self.image_api_url,
+                    headers=header,
+                    params=param,
+                    timeout=10.0,
+                )
+                if response.status_code != 200:
+                    continue
 
-            if items and len(items) > 0:
-                image_url = items[0].get("link")
-                print(f"Naver Image Search: {place_title}의 이미지를 찾았습니다.")
-                return image_url
+                result: dict = response.json()
+                items = result.get("items", [])
 
-            print(f"Naver Image Search: {place_title}의 이미지를 찾지 못했습니다.")
-            return None
+                if not items:
+                    continue
 
-        except Exception as e:
-            print(f"Image Search Error: {e}")
-            return None
+                # 이미지 필터링: 블로그/개인 사진 제외
+                filtered_image = self._filter_best_image(items, place_title)
+
+                if filtered_image:
+                    print(f"Naver Image Search: {place_title}의 이미지를 찾았습니다. (검색어: {query})")
+                    return filtered_image
+
+            except Exception as e:
+                print(f"Image Search Error for '{query}': {e}")
+                continue
+
+        print(f"Naver Image Search: {place_title}의 적절한 이미지를 찾지 못했습니다.")
+        return None
+
+    def _filter_best_image(self, items: list, place_title: str = "") -> str | None:
+        """
+        이미지 리스트에서 가장 적합한 대표 이미지를 선택합니다.
+
+        필터링 기준:
+        1. 블로그 이미지 제외 (blog.naver.com, tistory.com 등)
+        2. 썸네일이 충분히 큰 이미지 우선
+        3. 공식 사이트/포털 이미지 우선
+
+        Args:
+            items: 네이버 이미지 검색 결과 리스트
+            place_title: 장소명 (로깅용)
+
+        Returns:
+            선택된 이미지 URL 또는 None
+        """
+        # 제외할 도메인 (블로그, SNS 등)
+        excluded_domains = [
+            'blog.naver.com',
+            'blog.kakao.com',
+            'm.blog.naver.com',
+            'tistory.com',
+            'instagram.com',
+            'facebook.com',
+            'pbs.twimg.com',  # 트위터 이미지
+        ]
+
+        # 우선순위 도메인 (공식 사이트, 포털 등)
+        priority_domains = [
+            'place.map.kakao.com',
+            'map.naver.com',
+            'search.naver.com',
+            'img1.kakaocdn.net',
+            'phinf.pstatic.net',  # 네이버 공식 이미지
+        ]
+
+        priority_images = []
+        normal_images = []
+
+        for item in items:
+            link = item.get("link", "")
+            sizewidth = item.get("sizewidth", "0")
+            sizeheight = item.get("sizeheight", "0")
+
+            if not link:
+                continue
+
+            # 제외 도메인 체크
+            if any(domain in link for domain in excluded_domains):
+                continue
+
+            # 이미지 크기 체크 (너무 작은 이미지 제외)
+            try:
+                width = int(sizewidth)
+                height = int(sizeheight)
+                if width < 200 or height < 200:  # 최소 200x200
+                    continue
+            except:
+                pass
+
+            # 우선순위 도메인 체크
+            if any(domain in link for domain in priority_domains):
+                priority_images.append(link)
+            else:
+                normal_images.append(link)
+
+        # 우선순위 이미지가 있으면 첫 번째 반환
+        if priority_images:
+            return priority_images[0]
+
+        # 일반 이미지 중 첫 번째 반환
+        if normal_images:
+            return normal_images[0]
+
+        # 필터링된 이미지가 없으면 원본 리스트의 첫 번째 반환
+        if items:
+            return items[0].get("link")
+
+        return None
 
 
 def extract_city(address: str) -> str:

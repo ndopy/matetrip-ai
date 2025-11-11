@@ -124,7 +124,9 @@ class CrawlService:
             return ""
 
         # 최대 길이 제한 (임베딩 토큰 제한 고려)
-        max_length = 8000
+        # AWS Bedrock Titan 임베딩: 최대 8192 토큰
+        # 안전하게 5000자로 제한 (약 6000-7000 토큰)
+        max_length = 5000
         if len(content) > max_length:
             content = content[:max_length]
 
