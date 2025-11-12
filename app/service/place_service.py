@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List
 from sqlalchemy.orm import Session
 
@@ -27,15 +28,33 @@ class PlaceService:
         self.embedding_service = PlaceEmbeddingService()  # Place 임베딩 서비스
         self.review_embedding_service = BedrockEmbeddingService()  # Review 임베딩 서비스
 
-    async def process_place_reviews(self, db: Session, place: Place):
+    async def process_place_reviews(
+        self, db: Session, place: Place, force_update: bool = False
+    ):
         """
         백그라운드에서 장소에 대한 리뷰를 처리하는 함수
         1. naver 검색 API로 리뷰 URL 추출
         2. Crawl4AI로 리뷰 크롤링
         3. 리뷰 저장 및 임베딩 생성
         4. 태그 및 요약 생성
+
+        Args:
+            db: 데이터베이스 세션
+            place: 처리할 장소
+            force_update: True면 임베딩이 있어도 강제로 재처리 (기본값: False)
         """
         try:
+            # 환경 변수 체크
+            env_force_update = os.getenv("FORCE_UPDATE_EMBEDDINGS", "false").lower() == "true"
+            should_force = force_update or env_force_update
+
+            # 이미 임베딩이 있는 장소는 건너뛰기 (force_update가 False인 경우)
+            if not should_force and place.embedding is not None:
+                logger.info(
+                    f"⊘ {place.title} 건너뛰기 (이미 임베딩 존재, embedding dimension: {len(place.embedding)})"
+                )
+                return
+
             logger.info(f"process_place_reviews 시작 : {place.title}")
 
             # 1. naver검색 API로 리뷰 URL 추출

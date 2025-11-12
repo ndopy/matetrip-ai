@@ -34,7 +34,6 @@ from datetime import datetime
 # 프로젝트 루트를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy.orm import Session
 from app.database.database import SessionLocal
 from app.models.place import Place
 from app.service.place_service import PlaceService
@@ -132,10 +131,8 @@ async def process_places(
     try:
         # 처리 대상 장소 조회
         if skip_completed:
-            # tags 또는 summary가 없는 장소만
-            query = db.query(Place).filter(
-                (Place.tags == None) | (Place.summary == None)
-            )
+            # embedding이 없는 장소만 (가장 중요한 조건)
+            query = db.query(Place).filter(Place.embedding == None)
         else:
             # 전체 장소
             query = db.query(Place)
