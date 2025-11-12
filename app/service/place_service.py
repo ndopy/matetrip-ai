@@ -6,11 +6,11 @@ from app.models.place import Place
 from app.service.crawl_service import CrawlService
 from app.service.naver_search_service import NaverSearchService
 from app.models.review import PlaceReview
-from app.service.local_embedding_service import BedrockEmbeddingService
 from app.service.review_service import ReviewService
-from app.service.openai_service import OpenAIService
+from app.service.bedrock_llm_service import BedrockLLMService
 from app.service.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
+from app.service.local_embedding_service import BedrockEmbeddingService
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 class PlaceService:
 
     def __init__(self) -> None:
-        self.local_embedding_service = BedrockEmbeddingService()
-        self.openai_service = OpenAIService()
-        self.embedding_service = PlaceEmbeddingService()  # 🆕 임베딩 서비스 추가
+        self.llm_service = BedrockLLMService()  # LLM 서비스
+        self.embedding_service = PlaceEmbeddingService()  # Place 임베딩 서비스
+        self.review_embedding_service = BedrockEmbeddingService()  # Review 임베딩 서비스
 
     async def process_place_reviews(self, db: Session, place: Place):
         """
@@ -53,7 +53,7 @@ class PlaceService:
 
             # 3. 광고성 리뷰 필터링 (키워드 기반)
             filtered_reviews = review_filter_service.filter_reviews(
-                review_contents, place.title, use_ai=False  # AI 필터링은 비용 발생
+                review_contents, place.title, use_ai=False
             )
 
             if not filtered_reviews:
@@ -67,41 +67,49 @@ class PlaceService:
             if not reviews:
                 return
 
-            # 5. 임베딩 생성
-            texts = [str(review.content) for review in reviews]
-            embeddings = self.local_embedding_service.create_embeddings_batch(texts)
+            db.commit()
+            logger.info(f"{len(reviews)}개의 리뷰 저장 완료")
+
+            # 5. 리뷰 임베딩 생성 (검색 정확도용 - 긍정/부정 비율 보존)
+            logger.info("\n[리뷰 임베딩 생성 시작]")
+            review_contents = [review.content for review in reviews]
+            embeddings = self.review_embedding_service.create_embeddings_batch(
+                review_contents
+            )
 
             for idx, (review, embedding) in enumerate(zip(reviews, embeddings), 1):
                 setattr(review, "embedding", embedding)
-                logger.info(f"{idx}번째 리뷰 임베딩 생성 완료")
+                logger.info(f"  {idx}/{len(reviews)} 리뷰 임베딩 완료")
 
             db.commit()
+            logger.info(f"[리뷰 임베딩 생성 완료]")
 
-            # 6. 장소 임베딩 재계산
-            logger.info(f"\n[장소 임베딩 업데이트 시작]")
-            self.embedding_service.refresh_embedding(
-                db=db,
-                place_id=place.id,
-            )
-            logger.info(f"[장소 임베딩 업데이트 완료]")
-
-            logger.info(f"\n[배치 처리 완료]")
-            logger.info(f"{'*'*80}\n")
-
-            # 7. 태그 생성
-            review_contents = [review.content for review in reviews]
-            tags: List[str] = self.openai_service.generate_tags_from_reviews(
-                review_contents, place.title
-            )
-
-            # 8. 요약 생성
-            summary = self.openai_service.generate_summary_from_reviews(
+            # 6. 태그 및 요약 생성 (사용자 표시용)
+            logger.info("\n[태그 및 요약 생성 시작]")
+            result = self.llm_service.generate_tags_and_summary(
                 review_contents, place.title
             )
 
             # Tour API 카테고리는 이미 저장되어 있으므로 업데이트하지 않음
-            place.tags = tags
-            place.summary = summary
+            place.tags = result.get("tags", [])
+            place.summary = result.get("summary", "")
+            db.commit()
+            logger.info(f"태그: {place.tags}")
+            if place.summary:
+                logger.info(f"요약: {place.summary[:100]}...")
+            else:
+                logger.info("요약: (생성 실패)")
+
+            # 7. 장소 임베딩 생성 (리뷰 임베딩들의 평균 - 검색 정확도용)
+            logger.info(f"\n[장소 임베딩 생성 시작]")
+            self.embedding_service.refresh_embedding(
+                db=db,
+                place_id=place.id,
+            )
+            logger.info(f"[장소 임베딩 생성 완료]")
+
+            logger.info(f"\n[배치 처리 완료]")
+            logger.info(f"{'*'*80}\n")
 
         except Exception:
             logger.error(f"장소 리뷰 처리 중 오류 발생: {place.title}", exc_info=True)

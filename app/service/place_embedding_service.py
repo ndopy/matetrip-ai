@@ -1,9 +1,9 @@
 """
-장소 임베딩 서비스 (단순 평균 기반)
+장소 임베딩 서비스 (하이브리드 방식)
 
-리뷰 임베딩을 모두 모아 평균을 내고, 필요 시 임베딩을 비우는 방식으로 동작합니다.
-여기서는 임베딩을 위한 추가 컬럼(embedding_sum, last_embedding_update 등)을 두지 않고
-`places.embedding` 하나만 유지합니다.
+리뷰 임베딩들의 평균을 계산하여 places.embedding에 저장합니다.
+- place.embedding: 리뷰 임베딩 평균 (검색 정확도 - 긍정/부정 비율 보존)
+- place.summary: LLM 요약 (사용자 표시용)
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class PlaceEmbeddingService:
-    """리뷰 임베딩을 평균내어 장소 임베딩을 생성/갱신하는 서비스."""
+    """리뷰 임베딩 평균을 계산하여 장소 임베딩을 생성/갱신하는 서비스."""
 
     def __init__(self, *, minimum_reviews: int = 1) -> None:
         self.minimum_reviews = minimum_reviews
@@ -35,7 +35,8 @@ class PlaceEmbeddingService:
     # ------------------------------------------------------------------
     def refresh_embedding(self, db: Session, place_id: UUID) -> List[float] | None:
         """
-        리뷰 임베딩을 다시 모아 평균을 계산합니다. 리뷰가 threshold 미만이면 임베딩을 삭제합니다.
+        리뷰 임베딩들의 평균을 계산하여 places.embedding을 업데이트합니다.
+        리뷰가 minimum_reviews 미만이면 임베딩을 삭제합니다.
         """
         place = self._get_place(db, place_id)
         review_vectors = self._fetch_review_embeddings(db, place_id)
@@ -52,12 +53,15 @@ class PlaceEmbeddingService:
             db.commit()
             return None
 
+        # 리뷰 임베딩들의 평균 계산
         averaged_vector = self._mean_vector(review_vectors)
         place.embedding = PgVector(averaged_vector)
         db.commit()
 
         logger.info(
-            "Updated embedding for %s (reviews=%s)", place.title, len(review_vectors)
+            "✓ Updated embedding for %s (reviews=%s)",
+            place.title,
+            len(review_vectors),
         )
         return averaged_vector
 
@@ -116,6 +120,7 @@ class PlaceEmbeddingService:
     def _fetch_review_embeddings(
         self, db: Session, place_id: UUID
     ) -> List[List[float]]:
+        """리뷰 임베딩들을 가져옵니다."""
         stmt = (
             select(PlaceReview.embedding)
             .where(
@@ -130,6 +135,7 @@ class PlaceEmbeddingService:
 
     @staticmethod
     def _mean_vector(vectors: Sequence[Sequence[float]]) -> list[float]:
+        """벡터들의 평균을 계산합니다."""
         matrix = np.array(vectors, dtype=np.float32)
         return np.mean(matrix, axis=0).tolist()
 

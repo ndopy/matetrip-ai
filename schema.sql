@@ -17,7 +17,7 @@ CREATE TABLE
     image_url text NULL, -- 장소 대표 이미지 URL
     longitude double precision NOT NULL,
     latitude double precision NOT NULL,
-    embedding vector(1024) NULL, -- 장소 대표 임베딩 (리뷰 기반)
+    embedding vector (1024) NULL, -- 장소 대표 임베딩 (리뷰 기반)
     created_at TIMESTAMP DEFAULT now () NOT NULL,
     updated_at TIMESTAMP DEFAULT now () NOT NULL
   );
@@ -29,6 +29,7 @@ CREATE TABLE
     place_id uuid NOT NULL REFERENCES places (id) ON DELETE CASCADE,
     content text NOT NULL,
     source_url text NOT NULL,
-    embedding vector (1024),
+    embedding vector (1024) NULL, -- 리뷰 임베딩 (검색 정확도 향상용)
+    is_deleted boolean DEFAULT false NOT NULL,
     created_at TIMESTAMP DEFAULT now () NOT NULL
   );
