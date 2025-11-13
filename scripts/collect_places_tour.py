@@ -321,15 +321,14 @@ async def main():
         )
 
         # 주요 카테고리 수집
-        # tourism: 관광지, culture: 문화시설, food: 음식점
-        # leisure: 레포츠, shopping: 쇼핑
+        # tourism: 관광지, leisure: 레포츠, festival: 축제/공연/행사, course: 여행코스
+        # 제외: food(음식점), shopping(쇼핑), accommodation(숙박), culture(문화시설)
         await collector.collect_and_process(
             categories=[
-                "tourism",    # 관광지 (핵심)
-                "culture",    # 문화시설 (핵심)
-                "food",       # 음식점
-                "leisure",    # 레포츠
-                "shopping",   # 쇼핑
+                "tourism",    # 관광지 (핵심) - 유명 관광명소만
+                "leisure",    # 레포츠 - 액티비티, 체험 관광
+                "festival",   # 축제/공연/행사 - 유명 행사만
+                "course",     # 여행코스 - 추천 관광 코스
             ]
         )
 
