@@ -13,9 +13,10 @@ Mock 테스트만 실행:
 
 import logging
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict
+from unittest.mock import AsyncMock, patch
+from typing import List, Optional
 
+from app.schemas.routes import Coordinate, POICoordinate, RouteSummary
 from app.service.route_optimization_service import RouteOptimizationService
 from app.service.kakao_mobility_service import KakaoMobilityService
 
@@ -23,11 +24,17 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
+def build_poi_coordinates(data: List[dict]) -> List[POICoordinate]:
+    """Pydantic POI 객체 리스트 생성 헬퍼."""
+    return [POICoordinate(**entry) for entry in data]
+
+
 # ============================================================================
 # Mock 데이터 기반 단위 테스트 (API 호출 없음)
 # ============================================================================
 
-def create_mock_distance_matrix(n: int) -> List[List[Dict]]:
+
+def create_mock_distance_matrix(n: int) -> List[List[Optional[RouteSummary]]]:
     """
     테스트용 거리 매트릭스 생성
 
@@ -46,13 +53,21 @@ def create_mock_distance_matrix(n: int) -> List[List[Dict]]:
             else:
                 # 거리와 시간은 인덱스 차이에 비례하도록 설정
                 distance = abs(i - j) * 1000  # 미터
-                duration = abs(i - j) * 300   # 초 (5분)
-                row.append({
-                    "duration": duration,
-                    "distance": distance,
-                    "origin": {"lng": 127.0 + i * 0.01, "lat": 37.5 + i * 0.01},
-                    "destination": {"lng": 127.0 + j * 0.01, "lat": 37.5 + j * 0.01}
-                })
+                duration = abs(i - j) * 300  # 초 (5분)
+                origin = Coordinate(
+                    longitude=127.0 + i * 0.01, latitude=37.5 + i * 0.01
+                )
+                destination = Coordinate(
+                    longitude=127.0 + j * 0.01, latitude=37.5 + j * 0.01
+                )
+                row.append(
+                    RouteSummary(
+                        duration=duration,
+                        distance=distance,
+                        origin=origin,
+                        destination=destination,
+                    )
+                )
         matrix.append(row)
     return matrix
 
@@ -61,11 +76,13 @@ def create_mock_distance_matrix(n: int) -> List[List[Dict]]:
 async def test_optimize_route_with_3_pois():
     """3개 POI 최적화 테스트"""
     # Given: 3개의 POI 데이터
-    poi_list = [
-        {"id": "poi-a", "longitude": 127.0, "latitude": 37.5},
-        {"id": "poi-b", "longitude": 127.01, "latitude": 37.51},
-        {"id": "poi-c", "longitude": 127.02, "latitude": 37.52}
-    ]
+    poi_list = build_poi_coordinates(
+        [
+            {"id": "poi-a", "longitude": 127.0, "latitude": 37.5},
+            {"id": "poi-b", "longitude": 127.01, "latitude": 37.51},
+            {"id": "poi-c", "longitude": 127.02, "latitude": 37.52},
+        ]
+    )
 
     # Mock distance matrix (3x3)
     mock_matrix = create_mock_distance_matrix(3)
@@ -73,96 +90,113 @@ async def test_optimize_route_with_3_pois():
     # When: RouteOptimizationService의 optimize_route 호출 (mock 사용)
     service = RouteOptimizationService()
 
-    with patch.object(service.mobility_service, 'get_distance_matrix',
-                     new_callable=AsyncMock, return_value=mock_matrix):
+    with patch.object(
+        service.mobility_service,
+        "get_distance_matrix",
+        new_callable=AsyncMock,
+        return_value=mock_matrix,
+    ):
         result = await service.optimize_route(poi_list)
 
     # Then: 결과 검증
-    assert "optimized_poi_order" in result
-    assert "total_duration" in result
-    assert "total_distance" in result
-    assert len(result["optimized_poi_order"]) == 3
-    assert result["total_duration"] > 0
-    assert result["total_distance"] > 0
+    assert len(result.ids) == 3
+    assert set(result.ids) == {poi.id for poi in poi_list}
+    assert result.total_duration > 0
+    assert result.total_distance > 0
+    assert len(result.routes) == len(result.ids) - 1
 
-    # 각 POI가 order 필드를 가지고 있는지 확인
-    for poi in result["optimized_poi_order"]:
-        assert "order" in poi
-        assert poi["order"] >= 0
+    for route in result.routes:
+        assert route.duration > 0
+        assert route.distance > 0
 
-    logger.info(f"✅ 3개 POI 최적화 결과: {[p['id'] for p in result['optimized_poi_order']]}")
-    logger.info(f"   총 시간: {result['total_duration']}초, 총 거리: {result['total_distance']}m")
+    logger.info(f"✅ 3개 POI 최적화 결과: {result.ids}")
+    logger.info(
+        f"   총 시간: {result.total_duration}초, 총 거리: {result.total_distance}m"
+    )
 
 
 @pytest.mark.asyncio
 async def test_optimize_route_with_fixed_start():
     """시작 지점 고정 최적화 테스트"""
     # Given: 4개의 POI, 0번을 시작 지점으로 고정
-    poi_list = [
-        {"id": "start", "longitude": 127.0, "latitude": 37.5},
-        {"id": "poi-1", "longitude": 127.01, "latitude": 37.51},
-        {"id": "poi-2", "longitude": 127.02, "latitude": 37.52},
-        {"id": "poi-3", "longitude": 127.03, "latitude": 37.53}
-    ]
+    poi_list = build_poi_coordinates(
+        [
+            {"id": "start", "longitude": 127.0, "latitude": 37.5},
+            {"id": "poi-1", "longitude": 127.01, "latitude": 37.51},
+            {"id": "poi-2", "longitude": 127.02, "latitude": 37.52},
+            {"id": "poi-3", "longitude": 127.03, "latitude": 37.53},
+        ]
+    )
 
     mock_matrix = create_mock_distance_matrix(4)
 
     # When: 시작 지점을 0번으로 고정
     service = RouteOptimizationService()
 
-    with patch.object(service.mobility_service, 'get_distance_matrix',
-                     new_callable=AsyncMock, return_value=mock_matrix):
+    with patch.object(
+        service.mobility_service,
+        "get_distance_matrix",
+        new_callable=AsyncMock,
+        return_value=mock_matrix,
+    ):
         result = await service.optimize_route(poi_list, start_index=0)
 
     # Then: 첫 번째 POI가 "start"인지 확인
-    assert result["optimized_poi_order"][0]["id"] == "start"
-    assert result["optimized_poi_order"][0]["order"] == 0
+    assert result.ids[0] == "start"
+    assert len(result.routes) == len(result.ids) - 1
 
-    logger.info(f"✅ 시작 지점 고정 최적화: {[p['id'] for p in result['optimized_poi_order']]}")
+    logger.info(f"✅ 시작 지점 고정 최적화: {result.ids}")
 
 
 @pytest.mark.asyncio
 async def test_optimize_route_with_fixed_start_and_end():
     """시작과 종료 지점 고정 최적화 테스트 (왕복)"""
     # Given: 5개의 POI, 0번을 시작이자 종료 지점으로 고정
-    poi_list = [
-        {"id": "hotel", "longitude": 127.0, "latitude": 37.5},
-        {"id": "restaurant", "longitude": 127.01, "latitude": 37.51},
-        {"id": "museum", "longitude": 127.02, "latitude": 37.52},
-        {"id": "cafe", "longitude": 127.03, "latitude": 37.53},
-        {"id": "park", "longitude": 127.04, "latitude": 37.54}
-    ]
+    poi_list = build_poi_coordinates(
+        [
+            {"id": "hotel", "longitude": 127.0, "latitude": 37.5},
+            {"id": "restaurant", "longitude": 127.01, "latitude": 37.51},
+            {"id": "museum", "longitude": 127.02, "latitude": 37.52},
+            {"id": "cafe", "longitude": 127.03, "latitude": 37.53},
+            {"id": "park", "longitude": 127.04, "latitude": 37.54},
+        ]
+    )
 
     mock_matrix = create_mock_distance_matrix(5)
 
     # When: 시작과 종료를 모두 0번으로 고정 (왕복)
     service = RouteOptimizationService()
 
-    with patch.object(service.mobility_service, 'get_distance_matrix',
-                     new_callable=AsyncMock, return_value=mock_matrix):
+    with patch.object(
+        service.mobility_service,
+        "get_distance_matrix",
+        new_callable=AsyncMock,
+        return_value=mock_matrix,
+    ):
         result = await service.optimize_route(poi_list, start_index=0, end_index=0)
 
     # Then: 첫 번째와 마지막 POI가 모두 "hotel"인지 확인
-    assert result["optimized_poi_order"][0]["id"] == "hotel"
-    assert result["optimized_poi_order"][-1]["id"] == "hotel"
+    assert result.ids[0] == "hotel"
+    assert result.ids[-1] == "hotel"
 
-    logger.info(f"✅ 왕복 최적화: {[p['id'] for p in result['optimized_poi_order']]}")
+    logger.info(f"✅ 왕복 최적화: {result.ids}")
 
 
 @pytest.mark.asyncio
 async def test_optimize_empty_poi_list():
     """빈 POI 리스트 처리 테스트"""
     # Given: 빈 리스트
-    poi_list = []
+    poi_list: List[POICoordinate] = []
 
     # When
     service = RouteOptimizationService()
     result = await service.optimize_route(poi_list)
 
     # Then
-    assert result["optimized_poi_order"] == []
-    assert result["total_duration"] == 0
-    assert result["total_distance"] == 0
+    assert result.ids == []
+    assert result.routes == []
+    assert result.total_duration == 0
+    assert result.total_distance == 0
 
     logger.info("✅ 빈 POI 리스트 처리 성공")
 
@@ -171,23 +205,28 @@ async def test_optimize_empty_poi_list():
 async def test_optimize_single_poi():
     """단일 POI 처리 테스트"""
     # Given: 1개의 POI
-    poi_list = [
-        {"id": "only-one", "longitude": 127.0, "latitude": 37.5}
-    ]
+    poi_list = build_poi_coordinates(
+        [{"id": "only-one", "longitude": 127.0, "latitude": 37.5}]
+    )
 
     # When
     service = RouteOptimizationService()
     mock_matrix = create_mock_distance_matrix(1)
 
-    with patch.object(service.mobility_service, 'get_distance_matrix',
-                     new_callable=AsyncMock, return_value=mock_matrix):
+    with patch.object(
+        service.mobility_service,
+        "get_distance_matrix",
+        new_callable=AsyncMock,
+        return_value=mock_matrix,
+    ):
         result = await service.optimize_route(poi_list)
 
     # Then
-    assert len(result["optimized_poi_order"]) == 1
-    assert result["optimized_poi_order"][0]["id"] == "only-one"
-    assert result["total_duration"] == 0
-    assert result["total_distance"] == 0
+    assert len(result.ids) == 1
+    assert result.ids[0] == "only-one"
+    assert result.routes == []
+    assert result.total_duration == 0
+    assert result.total_distance == 0
 
     logger.info("✅ 단일 POI 처리 성공")
 
@@ -197,26 +236,36 @@ async def test_tsp_brute_force_algorithm():
     """TSP 완전 탐색 알고리즘 테스트 (8개 이하)"""
     # Given: 5개 POI (완전 탐색 사용)
     n = 5
-    poi_list = [
-        {"id": f"poi-{i}", "longitude": 127.0 + i * 0.01, "latitude": 37.5 + i * 0.01}
-        for i in range(n)
-    ]
+    poi_list = build_poi_coordinates(
+        [
+            {
+                "id": f"poi-{i}",
+                "longitude": 127.0 + i * 0.01,
+                "latitude": 37.5 + i * 0.01,
+            }
+            for i in range(n)
+        ]
+    )
 
     mock_matrix = create_mock_distance_matrix(n)
 
     # When
     service = RouteOptimizationService()
 
-    with patch.object(service.mobility_service, 'get_distance_matrix',
-                     new_callable=AsyncMock, return_value=mock_matrix):
+    with patch.object(
+        service.mobility_service,
+        "get_distance_matrix",
+        new_callable=AsyncMock,
+        return_value=mock_matrix,
+    ):
         result = await service.optimize_route(poi_list)
 
     # Then: 모든 POI가 포함되어야 함
-    result_ids = set(poi["id"] for poi in result["optimized_poi_order"])
-    expected_ids = set(poi["id"] for poi in poi_list)
+    result_ids = set(result.ids)
+    expected_ids = {poi.id for poi in poi_list}
     assert result_ids == expected_ids
 
-    logger.info(f"✅ TSP 완전 탐색 (5개): {[p['id'] for p in result['optimized_poi_order']]}")
+    logger.info(f"TSP 완전 탐색 (5개): {result.ids}")
 
 
 @pytest.mark.asyncio
@@ -224,26 +273,36 @@ async def test_tsp_greedy_algorithm():
     """TSP Greedy 알고리즘 테스트 (9개 이상)"""
     # Given: 10개 POI (Greedy 사용)
     n = 10
-    poi_list = [
-        {"id": f"poi-{i}", "longitude": 127.0 + i * 0.01, "latitude": 37.5 + i * 0.01}
-        for i in range(n)
-    ]
+    poi_list = build_poi_coordinates(
+        [
+            {
+                "id": f"poi-{i}",
+                "longitude": 127.0 + i * 0.01,
+                "latitude": 37.5 + i * 0.01,
+            }
+            for i in range(n)
+        ]
+    )
 
     mock_matrix = create_mock_distance_matrix(n)
 
     # When
     service = RouteOptimizationService()
 
-    with patch.object(service.mobility_service, 'get_distance_matrix',
-                     new_callable=AsyncMock, return_value=mock_matrix):
+    with patch.object(
+        service.mobility_service,
+        "get_distance_matrix",
+        new_callable=AsyncMock,
+        return_value=mock_matrix,
+    ):
         result = await service.optimize_route(poi_list)
 
     # Then: 모든 POI가 포함되어야 함
-    result_ids = set(poi["id"] for poi in result["optimized_poi_order"])
-    expected_ids = set(poi["id"] for poi in poi_list)
+    result_ids = set(result.ids)
+    expected_ids = {poi.id for poi in poi_list}
     assert result_ids == expected_ids
 
-    logger.info(f"✅ TSP Greedy (10개): {[p['id'] for p in result['optimized_poi_order']]}")
+    logger.info(f"TSP Greedy (10개): {result.ids}")
 
 
 @pytest.mark.asyncio
@@ -272,6 +331,7 @@ async def test_calculate_path_cost():
 # 통합 테스트 (실제 카카오 모빌리티 API 호출)
 # ============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_real_api_optimize_route():
@@ -283,26 +343,32 @@ async def test_real_api_optimize_route():
     - API 호출 제한이 있으므로 신중하게 실행
     """
     # Given: 서울 강남 지역의 실제 좌표
-    poi_list = [
-        {"id": "gangnam", "longitude": 127.0276, "latitude": 37.4979},
-        {"id": "coex", "longitude": 127.0594, "latitude": 37.5126},
-        {"id": "bongeunsa", "longitude": 127.0566, "latitude": 37.5147}
-    ]
+    poi_list = build_poi_coordinates(
+        [
+            {"id": "gangnam", "longitude": 127.0276, "latitude": 37.4979},
+            {"id": "coex", "longitude": 127.0594, "latitude": 37.5126},
+            {"id": "bongeunsa", "longitude": 127.0566, "latitude": 37.5147},
+        ]
+    )
 
     # When: 실제 API 호출
     service = RouteOptimizationService()
     result = await service.optimize_route(poi_list)
 
     # Then
-    assert len(result["optimized_poi_order"]) == 3
-    assert result["total_duration"] > 0
-    assert result["total_distance"] > 0
+    assert len(result.ids) == 3
+    assert result.total_duration > 0
+    assert result.total_distance > 0
 
     logger.info("=" * 60)
     logger.info("🌐 실제 API 테스트 결과:")
-    logger.info(f"   최적 경로: {[p['id'] for p in result['optimized_poi_order']]}")
-    logger.info(f"   총 시간: {result['total_duration']}초 ({result['total_duration']/60:.1f}분)")
-    logger.info(f"   총 거리: {result['total_distance']}m ({result['total_distance']/1000:.2f}km)")
+    logger.info(f"   최적 경로: {result.ids}")
+    logger.info(
+        f"   총 시간: {result.total_duration}초 ({result.total_duration/60:.1f}분)"
+    )
+    logger.info(
+        f"   총 거리: {result.total_distance}m ({result.total_distance/1000:.2f}km)"
+    )
     logger.info("=" * 60)
 
 
@@ -314,7 +380,7 @@ async def test_real_api_distance_matrix():
     coordinates = [
         (127.0276, 37.4979),  # 강남역
         (127.0594, 37.5126),  # 코엑스
-        (127.0566, 37.5147)   # 봉은사
+        (127.0566, 37.5147),  # 봉은사
     ]
 
     # When
@@ -332,15 +398,16 @@ async def test_real_api_distance_matrix():
 
     # 나머지는 유효한 값이어야 함
     assert matrix[0][1] is not None
-    assert matrix[0][1]["duration"] > 0
-    assert matrix[0][1]["distance"] > 0
+    assert matrix[0][1].duration > 0
+    assert matrix[0][1].distance > 0
 
     logger.info("=" * 60)
     logger.info("🌐 거리 매트릭스 생성 성공:")
     for i in range(len(matrix)):
         for j in range(len(matrix[i])):
-            if matrix[i][j]:
-                logger.info(f"   [{i}→{j}] {matrix[i][j]['duration']}초, {matrix[i][j]['distance']}m")
+            summary = matrix[i][j]
+            if summary:
+                logger.info(f"   [{i}→{j}] {summary.duration}초, {summary.distance}m")
     logger.info("=" * 60)
 
 

@@ -11,7 +11,7 @@ CREATE TABLE
     id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
     title text NOT NULL,
     address text NOT NULL,
-    categories jsonb NULL, -- list[str] → jsonb (Tour API cat1 대분류)
+    category text NULL,
     tags jsonb NULL, -- Optional[list[str]] → jsonb (AI 생성 태그)
     summary text NULL, -- 리뷰 기반 AI 요약
     image_url text NULL, -- 장소 대표 이미지 URL
