@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Optional
 from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.heuristics import solve_tsp_simulated_annealing
 
+from app.schemas.routes import RouteSummary
 from app.service.kakao_mobility_service import KakaoMobilityService
 from app.common.config import kakaoMobilityConfig
 
@@ -66,7 +67,7 @@ class RouteOptimizationService:
 
     def _solve_tsp(
         self,
-        distance_matrix: List[List[Optional[Dict]]],
+        distance_matrix: List[List[Optional[RouteSummary]]],
         start_index: Optional[int] = None,
         end_index: Optional[int] = None,
     ) -> Tuple[List[int], float, float]:
@@ -96,7 +97,7 @@ class RouteOptimizationService:
                 else:
                     route_info = distance_matrix[i][j]
                     if route_info is not None:
-                        duration_matrix[i][j] = route_info["duration"]
+                        duration_matrix[i][j] = route_info.duration
                     else:
                         duration_matrix[i][j] = 1e9  # 경로가 없는 경우
 
@@ -148,8 +149,8 @@ class RouteOptimizationService:
 
             route_info = distance_matrix[from_idx][to_idx]
             if route_info:
-                total_duration += route_info["duration"]
-                total_distance += route_info["distance"]
+                total_duration += route_info.duration
+                total_distance += route_info.distance
             else:
                 # 경로 정보가 없으면 오류
                 print(f"경로 정보 없음: {from_idx} -> {to_idx}")

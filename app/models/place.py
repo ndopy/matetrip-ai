@@ -35,7 +35,7 @@ class Place(Base):
 
     title: Mapped[str] = mapped_column(TEXT, nullable=False)
     address: Mapped[str] = mapped_column(TEXT, nullable=False)
-    categories: Mapped[list[str]] = mapped_column(JSONB, nullable=True)
+    category: Mapped[str] = mapped_column(TEXT, nullable=True)
     tags: Mapped[Optional[list[str]]] = mapped_column(
         JSONB, nullable=True
     )  # 장소 태그 (예: ["맛집", "분위기좋음", "데이트"])

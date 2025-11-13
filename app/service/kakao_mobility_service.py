@@ -1,7 +1,8 @@
 import httpx
 import asyncio
-from typing import List, Dict, Optional, Tuple
+from typing import List, Optional, Tuple
 from app.common.config import kakaoMobilityConfig
+from app.schemas.routes import Coordinate, RouteSummary
 
 
 class KakaoMobilityService:
@@ -11,14 +12,15 @@ class KakaoMobilityService:
         self.api_key = kakaoMobilityConfig.KAKAO_MOBILITY_API_KEY
         self.directions_url = kakaoMobilityConfig.KAKAO_MOBILITY_DIRECTIONS_URL
 
+    # 참고 : https://developers.kakaomobility.com/docs/navi-api/waypoints/#response
     async def get_route_info(
         self,
-        origin_lng: float,
-        origin_lat: float,
-        destination_lng: float,
-        destination_lat: float,
+        origin_longitude: float,
+        origin_latitude: float,
+        destination_longitude: float,
+        destination_latitude: float,
         priority: str = "RECOMMEND",
-    ) -> Optional[Dict]:
+    ) -> Optional[RouteSummary]:
         """
         두 지점 간의 경로 정보를 조회합니다.
 
@@ -30,7 +32,7 @@ class KakaoMobilityService:
             priority: 경로 우선순위 (RECOMMEND, TIME, DISTANCE)
 
         Returns:
-            경로 정보 딕셔너리 (duration: 소요시간(초), distance: 거리(미터))
+            경로 요약 객체 (duration: 소요시간(초), distance: 거리(미터))
         """
         headers = {
             "Authorization": f"KakaoAK {self.api_key}",
@@ -38,8 +40,8 @@ class KakaoMobilityService:
         }
 
         params = {
-            "origin": f"{origin_lng},{origin_lat}",
-            "destination": f"{destination_lng},{destination_lat}",
+            "origin": f"{origin_longitude},{origin_latitude}",
+            "destination": f"{destination_longitude},{destination_latitude}",
             "priority": priority,
         }
 
@@ -58,14 +60,19 @@ class KakaoMobilityService:
                 data = response.json()
 
                 # 첫 번째 경로의 요약 정보 추출
-                if data.get("routes") and len(data["routes"]) > 0:
+                if data["routes"] and len(data["routes"]) > 0:
                     summary = data["routes"][0]["summary"]
-                    return {
-                        "duration": summary["duration"],  # 소요시간(초)
-                        "distance": summary["distance"],  # 거리(미터)
-                        "origin": {"lng": origin_lng, "lat": origin_lat},
-                        "destination": {"lng": destination_lng, "lat": destination_lat},
-                    }
+                    return RouteSummary(
+                        duration=summary["duration"],
+                        distance=summary["distance"],
+                        origin=Coordinate(
+                            longitude=origin_longitude, latitude=origin_latitude
+                        ),
+                        destination=Coordinate(
+                            longitude=destination_longitude,
+                            latitude=destination_latitude,
+                        ),
+                    )
 
                 return None
 
@@ -75,7 +82,7 @@ class KakaoMobilityService:
 
     async def get_distance_matrix(
         self, coordinates: List[Tuple[float, float]], priority: str = "RECOMMEND"
-    ) -> List[List[Optional[Dict]]]:
+    ) -> List[List[Optional[RouteSummary]]]:
         """
         여러 좌표 간의 거리/시간 매트릭스를 생성합니다.
 
@@ -84,10 +91,12 @@ class KakaoMobilityService:
             priority: 경로 우선순위
 
         Returns:
-            N×N 매트릭스 (각 셀은 {"duration": 초, "distance": 미터} 또는 None)
+            NxN 매트릭스 (각 셀은 RouteSummary 또는 None)
         """
         n = len(coordinates)
-        matrix = [[None for _ in range(n)] for _ in range(n)]
+        matrix: List[List[Optional[RouteSummary]]] = [
+            [None for _ in range(n)] for _ in range(n)
+        ]
 
         # 비동기로 모든 경로 조회 (대각선 제외)
         tasks = []
@@ -119,17 +128,21 @@ class KakaoMobilityService:
         self,
         i: int,
         j: int,
-        origin_lng: float,
-        origin_lat: float,
-        destination_lng: float,
-        destination_lat: float,
+        origin_longitude: float,
+        origin_lattitude: float,
+        destination_longitude: float,
+        destination_latitude: float,
         priority: str,
-    ) -> Tuple[int, int, Optional[Dict]]:
+    ) -> Tuple[int, int, Optional[RouteSummary]]:
         """
         인덱스와 함께 경로 정보를 반환하는 헬퍼 함수
         """
         route_info = await self.get_route_info(
-            origin_lng, origin_lat, destination_lng, destination_lat, priority
+            origin_longitude,
+            origin_lattitude,
+            destination_longitude,
+            destination_latitude,
+            priority,
         )
         return (i, j, route_info)
 
@@ -150,7 +163,7 @@ class KakaoMobilityService:
 
         duration_matrix = []
         for row in distance_matrix:
-            duration_row = [cell.get("duration") if cell else None for cell in row]
+            duration_row = [cell.duration if cell else None for cell in row]
             duration_matrix.append(duration_row)
 
         return duration_matrix
