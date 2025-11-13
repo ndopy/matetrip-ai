@@ -73,7 +73,8 @@ class TourPlaceCollector:
 
         # 카테고리별 인기도 기준
         self.food_min_popularity_score = (
-            food_min_popularity_score if food_min_popularity_score is not None
+            food_min_popularity_score
+            if food_min_popularity_score is not None
             else min_popularity_score
         )
 
@@ -111,10 +112,14 @@ class TourPlaceCollector:
         logger.info(f"  - 품질 필터링: {'ON' if self.enable_quality_filter else 'OFF'}")
         if self.enable_quality_filter:
             logger.info(f"  - 최소 품질 점수: {self.min_quality_score}점")
-        logger.info(f"  - 인기도 필터링: {'ON' if self.enable_popularity_filter else 'OFF'}")
+        logger.info(
+            f"  - 인기도 필터링: {'ON' if self.enable_popularity_filter else 'OFF'}"
+        )
         if self.enable_popularity_filter:
             logger.info(f"  - 일반 카테고리 최소 리뷰: {self.min_popularity_score}개")
-            logger.info(f"  - 음식점 카테고리 최소 리뷰: {self.food_min_popularity_score}개")
+            logger.info(
+                f"  - 음식점 카테고리 최소 리뷰: {self.food_min_popularity_score}개"
+            )
         if self.process_reviews:
             logger.info(f"네이버 API 제한: {self.max_naver_api_calls}건")
         logger.info("=" * 80)
@@ -169,9 +174,7 @@ class TourPlaceCollector:
                 region=region, area_code=area_code, category=category
             )
 
-    async def _collect_for_category(
-        self, region: str, area_code: str, category: str
-    ):
+    async def _collect_for_category(self, region: str, area_code: str, category: str):
         """특정 카테고리의 데이터 수집"""
         content_type_id = TourAPIService.CONTENT_TYPES.get(category)
 
@@ -179,7 +182,9 @@ class TourPlaceCollector:
             logger.warning(f"알 수 없는 카테고리: {category}")
             return
 
-        logger.info(f"  - 카테고리: {category} (contentTypeId={content_type_id}) 검색 중...")
+        logger.info(
+            f"  - 카테고리: {category} (contentTypeId={content_type_id}) 검색 중..."
+        )
 
         # Tour API에서 전체 페이지 수집 (최대 10페이지 = 1000개)
         tour_items = self.tour_service.search_all_pages(
@@ -196,7 +201,10 @@ class TourPlaceCollector:
     async def _handle_place(self, tour_item: dict, category: str):
         """개별 장소 처리 (품질 검증 포함)"""
         # API 제한 도달 확인
-        if self.process_reviews and self.naver_api_call_count >= self.max_naver_api_calls:
+        if (
+            self.process_reviews
+            and self.naver_api_call_count >= self.max_naver_api_calls
+        ):
             self.api_limit_reached = True
             return
 
@@ -204,7 +212,9 @@ class TourPlaceCollector:
         if self.enable_quality_filter:
             is_quality, reason = self.tour_service.is_quality_place(tour_item)
             if not is_quality:
-                logger.debug(f"    ✗ 품질 필터링: {tour_item.get('title', 'Unknown')} - {reason}")
+                logger.debug(
+                    f"    ✗ 품질 필터링: {tour_item.get('title', 'Unknown')} - {reason}"
+                )
                 self.quality_filtered_count += 1
                 return
 
@@ -219,7 +229,8 @@ class TourPlaceCollector:
         # 2단계: 인기도 검증 (네이버 API 기반) - 선택적
         # 카테고리별 최소 인기도 기준 적용
         required_popularity = (
-            self.food_min_popularity_score if category == "food"
+            self.food_min_popularity_score
+            if category == "food"
             else self.min_popularity_score
         )
 
@@ -260,8 +271,7 @@ class TourPlaceCollector:
 
         self.collected_count += 1
         logger.info(
-            f"    ✓ 저장: {place_data['title']} "
-            f"(품질점수: {quality_score}점)"
+            f"    ✓ 저장: {place_data['title']} " f"(품질점수: {quality_score}점)"
         )
 
         # 리뷰 처리 (선택)
@@ -316,19 +326,18 @@ async def main():
             enable_quality_filter=True,  # 품질 필터링 활성화
             min_quality_score=70,  # 최소 품질 점수 70점 (상향)
             enable_popularity_filter=True,  # 인기도 필터링 활성화
-            min_popularity_score=150,  # 최소 리뷰 150개 (초유명 관광명소만)
-            food_min_popularity_score=200,  # 음식점은 더 엄격하게 200개 (초유명 맛집만)
+            min_popularity_score=250,  # 최소 리뷰 150개 (초유명 관광명소만)
+            food_min_popularity_score=1000,  # 음식점은 더 엄격하게 200개 (초유명 맛집만)
         )
 
         # 주요 카테고리 수집
-        # tourism: 관광지, leisure: 레포츠, festival: 축제/공연/행사, course: 여행코스
-        # 제외: food(음식점), shopping(쇼핑), accommodation(숙박), culture(문화시설)
+        # tourism: 관광지, leisure: 레포츠, course: 여행코스
+        # 제외: food(음식점), shopping(쇼핑), accommodation(숙박), culture(문화시설), festival(축제)
         await collector.collect_and_process(
             categories=[
-                "tourism",    # 관광지 (핵심) - 유명 관광명소만
-                "leisure",    # 레포츠 - 액티비티, 체험 관광
-                "festival",   # 축제/공연/행사 - 유명 행사만
-                "course",     # 여행코스 - 추천 관광 코스
+                "tourism",  # 관광지 (핵심) - 유명 관광명소만
+                "leisure",  # 레포츠 - 액티비티, 체험 관광
+                "course",  # 여행코스 - 추천 관광 코스
             ]
         )
 

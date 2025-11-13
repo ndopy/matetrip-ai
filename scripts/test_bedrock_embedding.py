@@ -7,11 +7,10 @@ AWS Bedrock Titan Embedding 모델 테스트 스크립트
 
 import sys
 import os
+from app.service.bedrock_embedding_service import BedrockEmbeddingService
 
 # 프로젝트 루트를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from service.bedrock_embedding_service import BedrockEmbeddingService
 
 
 def test_single_embedding():

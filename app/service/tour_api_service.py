@@ -29,13 +29,8 @@ class TourAPIService:
     # 컨텐츠 타입 (contenttypeid)
     CONTENT_TYPES = {
         "tourism": "12",  # 관광지
-        "culture": "14",  # 문화시설
-        "festival": "15",  # 축제/공연/행사
         "course": "25",  # 여행코스
         "leisure": "28",  # 레포츠
-        "accommodation": "32",  # 숙박
-        "shopping": "38",  # 쇼핑
-        "food": "39",  # 음식점
     }
 
     # 지역코드 (areaCode)

@@ -11,7 +11,7 @@ from app.service.review_service import ReviewService
 from app.service.bedrock_llm_service import BedrockLLMService
 from app.service.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
-from service.bedrock_embedding_service import BedrockEmbeddingService
+from app.service.bedrock_embedding_service import BedrockEmbeddingService
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
