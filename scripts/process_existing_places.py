@@ -18,6 +18,7 @@ import os
 import asyncio
 import logging
 import argparse
+import time
 from typing import List
 
 # 프로젝트 루트를 Python 경로에 추가
@@ -45,12 +46,12 @@ async def process_places(limit: int | None = None):
     """
     db = SessionLocal()
     place_service = PlaceService()
+    # ⬇️ 전체 함수 시작 시각
+    start_time = time.time()
 
     try:
         # 이미지 URL, 태그, 요약이 없는 장소들 조회
-        query = db.query(Place).filter(
-            (Place.image_url == None) | (Place.tags == None) | (Place.summary == None)
-        )
+        query = db.query(Place).filter((Place.tags == None) | (Place.summary == None))
 
         if limit:
             query = query.limit(limit)
@@ -75,11 +76,10 @@ async def process_places(limit: int | None = None):
 
             try:
                 # 전체 파이프라인 실행
-                # 1. 이미지 URL 수집
-                # 2. 리뷰 URL 수집
-                # 3. 리뷰 크롤링
-                # 4. 리뷰 임베딩 생성
-                # 5. 태그/요약 생성
+                # 1. 리뷰 URL 수집
+                # 2. 리뷰 크롤링
+                # 3. 리뷰 임베딩 생성
+                # 4. 태그/요약 생성
                 await place_service.process_place_reviews(db, place)
 
                 db.commit()
@@ -99,6 +99,10 @@ async def process_places(limit: int | None = None):
         logger.info("전체 파이프라인 처리 완료!")
         logger.info(f"- 성공: {success_count}개")
         logger.info(f"- 실패: {fail_count}개")
+        total_elapsed = time.time() - start_time
+        logger.info(
+            f"- 총 소요 시간: {total_elapsed:.2f}초 " f"({total_elapsed/60:.1f}분)"
+        )
         logger.info("=" * 80)
 
     except Exception as e:

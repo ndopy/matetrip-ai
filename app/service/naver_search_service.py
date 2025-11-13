@@ -13,8 +13,53 @@ class NaverSearchService:
         self.blog_api_url = naverSearchConfig.NAVER_BLOG_SEARCH_URL
         self.image_api_url = naverSearchConfig.NAVER_IMAGE_SEARCH_URL
 
+    def get_place_popularity_score(self, place_title: str, address: str) -> int:
+        """
+        장소의 인기도를 네이버 블로그 검색 결과 개수로 판단합니다.
+
+        Args:
+            place_title: 장소명
+            address: 주소
+
+        Returns:
+            검색 결과 개수 (total count)
+        """
+        if not place_title or not address:
+            return 0
+
+        city = extract_city(address)
+        query = f"{place_title} {city}"
+
+        header = {
+            "X-Naver-Client-Id": self.client_id,
+            "X-Naver-Client-Secret": self.client_secret,
+        }
+        param = {"query": query, "display": 1, "sort": "sim"}  # 개수만 확인하므로 1개만
+
+        try:
+            response = httpx.get(
+                self.blog_api_url,
+                headers=header,
+                params=param,
+                timeout=10.0,
+            )
+            if response.status_code != 200:
+                return 0
+
+            result: dict = response.json()
+            total_count = result.get("total", 0)
+            return total_count
+
+        except Exception as e:
+            print(f"Popularity Check Error: {e}")
+            return 0
+
     def search_review_urls(
-        self, place_title: str, address: str, category: list[str], display: int = 10
+        self,
+        place_title: str,
+        address: str,
+        category: list[str] = [],
+        display: int = 10,
     ) -> list[str]:
 
         if not place_title or not address:
@@ -76,7 +121,7 @@ class NaverSearchService:
         search_queries = [
             f"{place_title} {city} 외관",  # 외관 이미지 우선
             f"{place_title} {city} 전경",  # 전경 이미지
-            f"{place_title} {city}",       # 기본 검색
+            f"{place_title} {city}",  # 기본 검색
         ]
 
         header = {
@@ -113,7 +158,9 @@ class NaverSearchService:
                 filtered_image = self._filter_best_image(items, place_title)
 
                 if filtered_image:
-                    print(f"Naver Image Search: {place_title}의 이미지를 찾았습니다. (검색어: {query})")
+                    print(
+                        f"Naver Image Search: {place_title}의 이미지를 찾았습니다. (검색어: {query})"
+                    )
                     return filtered_image
 
             except Exception as e:
@@ -141,22 +188,22 @@ class NaverSearchService:
         """
         # 제외할 도메인 (블로그, SNS 등)
         excluded_domains = [
-            'blog.naver.com',
-            'blog.kakao.com',
-            'm.blog.naver.com',
-            'tistory.com',
-            'instagram.com',
-            'facebook.com',
-            'pbs.twimg.com',  # 트위터 이미지
+            "blog.naver.com",
+            "blog.kakao.com",
+            "m.blog.naver.com",
+            "tistory.com",
+            "instagram.com",
+            "facebook.com",
+            "pbs.twimg.com",  # 트위터 이미지
         ]
 
         # 우선순위 도메인 (공식 사이트, 포털 등)
         priority_domains = [
-            'place.map.kakao.com',
-            'map.naver.com',
-            'search.naver.com',
-            'img1.kakaocdn.net',
-            'phinf.pstatic.net',  # 네이버 공식 이미지
+            "place.map.kakao.com",
+            "map.naver.com",
+            "search.naver.com",
+            "img1.kakaocdn.net",
+            "phinf.pstatic.net",  # 네이버 공식 이미지
         ]
 
         priority_images = []
@@ -180,7 +227,7 @@ class NaverSearchService:
                 height = int(sizeheight)
                 if width < 200 or height < 200:  # 최소 200x200
                     continue
-            except:
+            except (ValueError, TypeError):
                 pass
 
             # 우선순위 도메인 체크

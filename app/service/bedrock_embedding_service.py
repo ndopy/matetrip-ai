@@ -29,6 +29,48 @@ class BedrockEmbeddingService:
         self.model_id = bedrockConfig.MODEL_ID
         log.info("[AWS Bedrock 임베딩 서비스 초기화 완료]\n")
 
+    def create_embedding(self, text: str) -> List[float]:
+        """
+        단일 텍스트를 받아서 임베딩 벡터를 반환
+        """
+        if not text or len(text.strip()) == 0:
+            raise ValueError("텍스트가 비어있습니다")
+
+        try:
+            # 토큰 제한 처리: 안전하게 5000자로 제한
+            truncated_text = self._truncate_text(text, max_length=5000)
+
+            if len(text) != len(truncated_text):
+                log.warning(
+                    f"텍스트가 너무 길어서 잘렸습니다. "
+                    f"원본: {len(text)}자 → 자른 후: {len(truncated_text)}자"
+                )
+
+            # Amazon Titan Embeddings 요청 body
+            body = json.dumps({"inputText": truncated_text})
+
+            # Bedrock API 호출
+            response = self.bedrock_runtime.invoke_model(
+                modelId=self.model_id,
+                body=body,
+                contentType="application/json",
+                accept="application/json",
+            )
+
+            # 응답 파싱
+            response_body = json.loads(response["body"].read())
+            embedding = response_body.get("embedding")
+
+            if not embedding:
+                raise ValueError("임베딩 응답이 비어있습니다")
+
+            log.info(f"임베딩 생성 완료 (차원: {len(embedding)})")
+            return embedding
+
+        except Exception as e:
+            log.error(f"Error creating embedding: {e}")
+            raise
+
     def create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """
         텍스트 배열을 받아서 임베딩 벡터 배열을 반환

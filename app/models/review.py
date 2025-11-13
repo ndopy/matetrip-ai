@@ -37,9 +37,5 @@ class PlaceReview(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.now(), nullable=False
     )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=True
-    )
-
     # Relationship
     place: Mapped["Place"] = relationship("Place", back_populates="reviews")
