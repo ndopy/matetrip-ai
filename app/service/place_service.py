@@ -55,7 +55,7 @@ class PlaceService:
             # 이미 임베딩이 있는 장소는 건너뛰기 (force_update가 False인 경우)
             if not should_force and place.embedding is not None:
                 logger.info(
-                    f"⊘ {place.title} 건너뛰기 (이미 임베딩 존재, embedding dimension: {len(place.embedding)})"
+                    f"⊘ {place.title} 건너뛰기 (이미 임베딩 존재)"
                 )
                 return
 
@@ -118,8 +118,10 @@ class PlaceService:
             place.summary = result.get("summary", "")
             db.commit()
             logger.info(f"태그: {place.tags}")
-            if place.summary:
-                logger.info(f"요약: {place.summary[:100]}...")
+            summary = place.summary
+            if summary:
+                summary_preview = summary[:100] if len(summary) > 100 else summary
+                logger.info(f"요약: {summary_preview}...")
             else:
                 logger.info("요약: (생성 실패)")
 

@@ -43,6 +43,7 @@ class OptimizeRouteRequest(BaseModel):
     """경로 최적화 요청"""
 
     poi_list: List[POICoordinate] = Field(..., description="최적화할 POI 리스트")
+    # start ... ...    end
     start_index: Optional[int] = Field(None, description="시작 지점 인덱스 (고정)")
     end_index: Optional[int] = Field(None, description="종료 지점 인덱스 (고정)")
 
