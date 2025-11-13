@@ -204,7 +204,7 @@ class RouteOptimizationService:
             "poiIds": optimized_poi_ids,
         }
 
-        if api_key:
+        if api_key is not None:
             payload["apiKey"] = api_key
 
         try:

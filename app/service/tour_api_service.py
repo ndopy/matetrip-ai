@@ -110,7 +110,6 @@ class TourAPIService:
                 logger.error(f"Tour API Error: {response.status_code}")
                 logger.error(f"Response: {response.text}")
                 logger.error(f"URL: {url}")
-                logger.error(f"Params: {params}")
                 return []
 
             data = response.json()

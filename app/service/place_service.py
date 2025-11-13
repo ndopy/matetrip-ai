@@ -11,7 +11,7 @@ from app.service.review_service import ReviewService
 from app.service.bedrock_llm_service import BedrockLLMService
 from app.service.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
-from app.service.local_embedding_service import BedrockEmbeddingService
+from service.bedrock_embedding_service import BedrockEmbeddingService
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
@@ -26,7 +26,9 @@ class PlaceService:
     def __init__(self) -> None:
         self.llm_service = BedrockLLMService()  # LLM 서비스
         self.embedding_service = PlaceEmbeddingService()  # Place 임베딩 서비스
-        self.review_embedding_service = BedrockEmbeddingService()  # Review 임베딩 서비스
+        self.review_embedding_service = (
+            BedrockEmbeddingService()
+        )  # Review 임베딩 서비스
 
     async def process_place_reviews(
         self, db: Session, place: Place, force_update: bool = False
@@ -45,7 +47,9 @@ class PlaceService:
         """
         try:
             # 환경 변수 체크
-            env_force_update = os.getenv("FORCE_UPDATE_EMBEDDINGS", "false").lower() == "true"
+            env_force_update = (
+                os.getenv("FORCE_UPDATE_EMBEDDINGS", "false").lower() == "true"
+            )
             should_force = force_update or env_force_update
 
             # 이미 임베딩이 있는 장소는 건너뛰기 (force_update가 False인 경우)

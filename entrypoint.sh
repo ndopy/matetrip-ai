@@ -30,7 +30,7 @@ sleep 5
 
 # 스크립트 시작 (백그라운드)
 log "Starting processing script..."
-# 배치 크기를 환경 변수로 제어 (기본값: 20)
+# 배치 크기를 환경 변수로 제어 (기본값: 5)
 BATCH_SIZE=${BATCH_SIZE:-5}
 log "Batch size: $BATCH_SIZE"
 python scripts/process_existing_places_parallel.py --batch-size $BATCH_SIZE > >(sed 's/^/[SCRIPT] /') 2>&1 &

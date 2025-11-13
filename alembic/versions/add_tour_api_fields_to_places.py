@@ -10,6 +10,7 @@ Revises:
 Create Date: 2025-01-11
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -19,33 +20,22 @@ def upgrade():
     places 테이블에 Tour API 관련 필드 추가
     """
     # Tour API의 contentId
-    op.add_column(
-        "places",
-        sa.Column("tour_api_id", sa.String(50), nullable=True)
-    )
+    op.add_column("places", sa.Column("tour_api_id", sa.String(50), nullable=True))
 
     # 데이터 출처
     op.add_column(
         "places",
         sa.Column(
-            "data_source",
-            sa.String(20),
-            nullable=False,
-            server_default="kakao_local"
-        )
+            "data_source", sa.String(20), nullable=False, server_default="kakao_local"
+        ),
     )
 
     # Tour API의 contenttypeid
-    op.add_column(
-        "places",
-        sa.Column("content_type_id", sa.String(10), nullable=True)
-    )
+    op.add_column("places", sa.Column("content_type_id", sa.String(10), nullable=True))
 
     # 인덱스 생성
     op.create_index("idx_places_tour_api_id", "places", ["tour_api_id"])
     op.create_index("idx_places_data_source", "places", ["data_source"])
-
-    print("✓ Tour API 필드 추가 완료!")
 
 
 def downgrade():
@@ -61,4 +51,4 @@ def downgrade():
     op.drop_column("places", "data_source")
     op.drop_column("places", "tour_api_id")
 
-    print("✓ 롤백 완료!")
+    op.drop_column("places", "tour_api_id")

@@ -11,7 +11,7 @@ import os
 # 프로젝트 루트를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.service.local_embedding_service import BedrockEmbeddingService
+from service.bedrock_embedding_service import BedrockEmbeddingService
 
 
 def test_single_embedding():
@@ -77,7 +77,7 @@ def test_batch_embedding():
         test_texts = [
             "경복궁은 서울의 대표적인 관광지입니다.",
             "남산타워에서 보는 야경이 아름답습니다.",
-            "북촌한옥마을은 전통 한옥이 잘 보존되어 있습니다."
+            "북촌한옥마을은 전통 한옥이 잘 보존되어 있습니다.",
         ]
 
         print(f"입력 텍스트 개수: {len(test_texts)}개")
@@ -109,7 +109,9 @@ def test_batch_embedding():
 
             return True
         else:
-            print(f"\n⚠️  임베딩 개수가 맞지 않습니다. (예상: {len(test_texts)}, 실제: {len(embeddings)})")
+            print(
+                f"\n⚠️  임베딩 개수가 맞지 않습니다. (예상: {len(test_texts)}, 실제: {len(embeddings)})"
+            )
             return False
 
     except Exception as e:

@@ -3,6 +3,7 @@ import asyncio
 from typing import List, Dict, Optional, Tuple
 from app.common.config import kakaoMobilityConfig
 
+
 class KakaoMobilityService:
     """카카오 모빌리티 API를 사용한 경로 조회 서비스"""
 
@@ -16,7 +17,7 @@ class KakaoMobilityService:
         origin_lat: float,
         destination_lng: float,
         destination_lat: float,
-        priority: str = "RECOMMEND"
+        priority: str = "RECOMMEND",
     ) -> Optional[Dict]:
         """
         두 지점 간의 경로 정보를 조회합니다.
@@ -33,26 +34,25 @@ class KakaoMobilityService:
         """
         headers = {
             "Authorization": f"KakaoAK {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         params = {
             "origin": f"{origin_lng},{origin_lat}",
             "destination": f"{destination_lng},{destination_lat}",
-            "priority": priority
+            "priority": priority,
         }
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    self.directions_url,
-                    headers=headers,
-                    params=params,
-                    timeout=10.0
+                    self.directions_url, headers=headers, params=params, timeout=10.0
                 )
 
                 if response.status_code != 200:
-                    print(f"Kakao Mobility API Error: {response.status_code} - {response.text}")
+                    print(
+                        f"Kakao Mobility API Error: {response.status_code} - {response.text}"
+                    )
                     return None
 
                 data = response.json()
@@ -64,7 +64,7 @@ class KakaoMobilityService:
                         "duration": summary["duration"],  # 소요시간(초)
                         "distance": summary["distance"],  # 거리(미터)
                         "origin": {"lng": origin_lng, "lat": origin_lat},
-                        "destination": {"lng": destination_lng, "lat": destination_lat}
+                        "destination": {"lng": destination_lng, "lat": destination_lat},
                     }
 
                 return None
@@ -74,9 +74,7 @@ class KakaoMobilityService:
             return None
 
     async def get_distance_matrix(
-        self,
-        coordinates: List[Tuple[float, float]],
-        priority: str = "RECOMMEND"
+        self, coordinates: List[Tuple[float, float]], priority: str = "RECOMMEND"
     ) -> List[List[Optional[Dict]]]:
         """
         여러 좌표 간의 거리/시간 매트릭스를 생성합니다.
@@ -96,12 +94,17 @@ class KakaoMobilityService:
         for i in range(n):
             for j in range(n):
                 if i != j:  # 같은 지점은 제외
-                    tasks.append(self._get_route_with_indices(
-                        i, j,
-                        coordinates[i][0], coordinates[i][1],
-                        coordinates[j][0], coordinates[j][1],
-                        priority
-                    ))
+                    tasks.append(
+                        self._get_route_with_indices(
+                            i,
+                            j,
+                            coordinates[i][0],
+                            coordinates[i][1],
+                            coordinates[j][0],
+                            coordinates[j][1],
+                            priority,
+                        )
+                    )
 
         # 모든 API 호출 병렬 실행
         results = await asyncio.gather(*tasks)
@@ -120,22 +123,18 @@ class KakaoMobilityService:
         origin_lat: float,
         destination_lng: float,
         destination_lat: float,
-        priority: str
+        priority: str,
     ) -> Tuple[int, int, Optional[Dict]]:
         """
         인덱스와 함께 경로 정보를 반환하는 헬퍼 함수
         """
         route_info = await self.get_route_info(
-            origin_lng, origin_lat,
-            destination_lng, destination_lat,
-            priority
+            origin_lng, origin_lat, destination_lng, destination_lat, priority
         )
         return (i, j, route_info)
 
     async def get_duration_matrix_only(
-        self,
-        coordinates: List[Tuple[float, float]],
-        priority: str = "RECOMMEND"
+        self, coordinates: List[Tuple[float, float]], priority: str = "RECOMMEND"
     ) -> List[List[Optional[float]]]:
         """
         거리 매트릭스에서 소요시간만 추출한 간단한 매트릭스 반환
@@ -151,10 +150,7 @@ class KakaoMobilityService:
 
         duration_matrix = []
         for row in distance_matrix:
-            duration_row = [
-                cell["duration"] if cell else None
-                for cell in row
-            ]
+            duration_row = [cell.get("duration") if cell else None for cell in row]
             duration_matrix.append(duration_row)
 
         return duration_matrix
