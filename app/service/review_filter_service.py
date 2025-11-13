@@ -23,7 +23,7 @@ class ReviewFilterService:
             aws_access_key_id=bedrockConfig.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=bedrockConfig.AWS_SECRET_ACCESS_KEY,
         )
-        self.model_id = bedrockConfig.BEDROCK_CLAUDE_MODEL_ID
+        self.model_id = bedrockConfig.BEDROCK_LLM_MODEL_ID
 
         # 광고성 키워드 (부동산, 분양, 임대 등)
         self.spam_keywords = [

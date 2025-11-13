@@ -76,11 +76,26 @@ class KakaoLocalConfig(BaseSettings):
 
 
 class BedRockConfig(BaseSettings):
-    AWS_REGION: str = Field(default="")
-    MODEL_ID: str = Field(default="")
-    BEDROCK_CLAUDE_MODEL_ID: str = Field(default="")
-    AWS_ACCESS_KEY_ID: str = Field(default="")
-    AWS_SECRET_ACCESS_KEY: str = Field(default="")
+    AWS_REGION: str = Field(
+        default="ap-northeast-2",
+        description="AWS Region"
+    )
+    BEDROCK_EMBEDDING_MODEL_ID: str = Field(
+        default="amazon.titan-embed-text-v2:0",
+        description="Amazon Titan Test Embeddings Model ID"
+    )
+    BEDROCK_LLM_MODEL_ID: str = Field(
+        default="amazon.nova-lite-v1:0",
+        description="Amazon Nova Lite Model ID"
+    )
+    AWS_ACCESS_KEY_ID: str = Field(
+        default="",
+        description="AWS Access Key"
+    )
+    AWS_SECRET_ACCESS_KEY: str = Field(
+        default="",
+        description="AWS Secret Key"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -124,6 +139,21 @@ class KakaoMobilityConfig(BaseSettings):
         extra="ignore",
     )
 
+class NestJSConfig(BaseSettings):
+    # validation_alias를 사용하면 .env 파일의 변수명(NESTJS_SERVER_URL)을 
+    # 파이썬 변수명(NESTJS_BACKEND_URL)으로 매핑해줍니다.
+    NESTJS_BACKEND_URL: str = Field(
+        default="http://localhost:3000", #http://13.125.171.175:3000
+        validation_alias="NESTJS_SERVER_URL",
+        description="NestJS Backend Base URL"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )   
+
 
 openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
@@ -133,3 +163,10 @@ kakaoLocalConfig = KakaoLocalConfig()
 bedrockConfig = BedRockConfig()
 tourAPIConfig = TourAPIConfig()
 kakaoMobilityConfig = KakaoMobilityConfig()
+nestJSConfig = NestJSConfig()
+
+if not nestJSConfig.NESTJS_BACKEND_URL:
+    raise ValueError("❌ 오류: .env 파일에 NESTJS_SERVER_URL이 설정되지 않았습니다.")
+
+if not bedrockConfig.AWS_ACCESS_KEY_ID or not bedrockConfig.AWS_SECRET_ACCESS_KEY:
+    raise ValueError("❌ 오류: .env 파일에 AWS 자격 증명(Access Key/Secret Key)이 없습니다.")

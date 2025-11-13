@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+from langchain_core.tools import tool
+
 from app.schemas.routes import (
     OptimizeRouteRequest,
     POICoordinate,
@@ -16,6 +18,7 @@ service = RouteOptimizationService()
 
 
 @router.post("/route", response_model=RouteOptimizeResponse)
+@tool
 async def optimize_route(request: OptimizeRouteRequest):
     """
     POI 리스트를 최적화 (TSP 알고리즘 사용).
