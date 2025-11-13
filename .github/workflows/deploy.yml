@@ -1,0 +1,13 @@
+name: deploy
+on:
+  push:
+    branches: ["dev"]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: self-hosted
+    concurrency:
+      group: deploy-matetrip-ai
+      cancel-in-progress: true
+    steps:
+      - run: bash ~/app/matetrip-ai/deploy.sh
