@@ -192,6 +192,10 @@ class CrawlService:
 
     def _refine_content(self, content: str) -> str:
         """
+        크롤링된 컨텐츠를 정제합니다.
+        - 네비게이션, 메뉴, 헤더, 푸터 등 불필요한 부분 제거
+        - 본문만 추출
+
         Args:
             content: 원본 컨텐츠
 
@@ -201,18 +205,166 @@ class CrawlService:
         if not content:
             return ""
 
-        # 여러 개의 공백을 하나로 축소
+        import re
+
+        # 0. 네이버 블로그 특화: 본문 시작점 찾기
+        # 네이버 블로그는 네비게이션이 앞쪽에 많이 포함되므로 본문 시작점을 찾습니다.
+        content = self._extract_naver_blog_content(content)
+
+        # 1. 이미지 마크다운 제거 (링크 제거보다 먼저 수행)
+        # ![alt](URL) -> 제거
+        content = re.sub(r'!\[.*?\]\(.*?\)', '', content)
+        # 남은 ! 기호 제거 (이미지 마크다운 잔여물)
+        content = re.sub(r'!\s*', '', content)
+
+        # 2. 모든 마크다운 링크를 텍스트만 남기고 제거
+        # [텍스트](URL) -> 텍스트
+        content = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', content)
+
+        # 3. 빈 링크 제거 (텍스트 없는 링크)
+        # [](URL) -> 제거
+        content = re.sub(r'\[\]\(.*?\)', '', content)
+
+        # 4. 마크다운 헤더 기호 제거
+        # # 제목, ## 제목 -> 제목
+        content = re.sub(r'#+\s*', '', content)
+
+        # 5. 마크다운 강조 기호 제거
+        # **굵게**, *기울임* -> 굵게, 기울임
+        content = re.sub(r'\*\*', '', content)
+        content = re.sub(r'\*', '', content)
+        content = re.sub(r'__', '', content)
+        content = re.sub(r'_', '', content)
+
+        # 6. 네비게이션 관련 텍스트 블록 제거
+        nav_patterns = [
+            r'로그인이 필요합니다\..*?검색',  # 네이버 블로그 상단 메뉴
+            r'MY메뉴 열기.*?본문 바로가기',  # MY메뉴 블록
+            r'본문 기타 기능.*?신고하기',  # 본문 기타 기능 블록
+            r'이웃추가톡톡.*?이웃추가하고',  # 이웃추가 블록
+            r'닫기\s*카테고리.*?닫기',  # 카테고리 블록
+            r'공감\s*\d+\s*칭찬.*?슬픔\s*\d+',  # 공감 버튼 블록 (반복 제거)
+        ]
+
+        for pattern in nav_patterns:
+            content = re.sub(pattern, '', content, flags=re.DOTALL)
+
+        # 7. 네비게이션 키워드가 포함된 짧은 라인 제거
+        lines = content.split('\n')
+        filtered_lines = []
+        nav_keywords = [
+            '내소식', '이웃목록', '통계', '클립만들기', '글쓰기', 'My Menu',
+            '블로그팀', '공식블로그', '마켓', '장바구니', '블로그 앱',
+            '카테고리 이동', 'PC버전으로 보기', '블로그 고객센터',
+            '이웃추가', '공감', '칭찬', '댓글', '취소', '닫기공유'
+        ]
+
+        for line in lines:
+            line = line.strip()
+            # 짧은 라인(<20자)에 네비게이션 키워드가 있으면 제거
+            if len(line) < 20 and any(kw in line for kw in nav_keywords):
+                continue
+            filtered_lines.append(line)
+
+        content = '\n'.join(filtered_lines)
+
+        # 8. 연속된 줄바꿈을 하나로
+        content = re.sub(r'\n\s*\n+', '\n\n', content)
+
+        # 9. 여러 개의 공백을 하나로 축소
         content = " ".join(content.split())
 
-        # 너무 짧은 컨텐츠는 제외
+        # 10. 너무 짧은 컨텐츠는 제외
         if len(content) < 50:
             return ""
 
-        # 최대 길이 제한 (임베딩 토큰 제한 고려)
+        # 11. 최대 길이 제한 (임베딩 토큰 제한 고려)
         # AWS Bedrock Titan 임베딩: 최대 8192 토큰
         # 안전하게 5000자로 제한 (약 6000-7000 토큰)
         max_length = 5000
         if len(content) > max_length:
             content = content[:max_length]
+
+        return content
+
+    def _extract_naver_blog_content(self, content: str) -> str:
+        """
+        네이버 블로그 컨텐츠에서 본문 부분만 추출합니다.
+        네비게이션/메뉴가 많이 포함되므로 본문 시작점을 찾아 그 이전 부분을 제거합니다.
+
+        Args:
+            content: 원본 컨텐츠
+
+        Returns:
+            본문만 추출된 컨텐츠
+        """
+        import re
+
+        # 네이버 블로그 본문 시작 패턴들
+        # 이 패턴들이 나오면 그 이후부터 본문으로 간주
+        content_start_patterns = [
+            r'> 매장정보',  # 맛집 리뷰의 매장정보 섹션
+            r'> 외관',      # 맛집 리뷰의 외관 섹션
+            r'> 내부',      # 맛집 리뷰의 내부 섹션
+            r'📍\s*위치',   # 위치 정보
+            r'📍\s*주소',   # 주소 정보
+            r'⏰\s*영업시간', # 영업시간
+        ]
+
+        # 패턴을 찾아서 가장 빨리 나오는 위치부터 본문으로 간주
+        earliest_pos = len(content)
+
+        for pattern in content_start_patterns:
+            match = re.search(pattern, content)
+            if match and match.start() < earliest_pos:
+                earliest_pos = match.start()
+
+        # 본문 시작점을 찾았으면 그 이후만 반환
+        if earliest_pos < len(content):
+            content = content[earliest_pos:]
+
+        # 블로그 하단의 태그/해시태그 섹션 제거
+        # "맛집" 키워드가 여러 번 나오는 태그 섹션 찾기
+        # 예: "서울여행 경복궁맛집 경복궁밥집 광화문맛집..."
+
+        # 1. "맛집"이 3회 이상 나오는 구간을 태그 섹션으로 간주하고 제거
+        # 문장 끝(.)이나 감탄사(!) 이후에 "맛집"이 반복되면 그 이후 제거
+        split_markers = [
+            r'\.\s*​',  # 마침표 + zero-width space
+            r'\.\s+[가-힣]+맛집',  # 마침표 + 맛집 키워드
+            r'이에요\.\s*​',  # "이에요." + zero-width space
+        ]
+
+        for marker in split_markers:
+            parts = re.split(marker, content, maxsplit=1)
+            if len(parts) > 1:
+                # 분리된 뒷부분에 "맛집"이 3개 이상 있으면 태그 섹션으로 간주
+                if parts[1].count('맛집') >= 3:
+                    content = parts[0]
+                    break
+
+        # 2. 마지막 문단이 태그 섹션인지 확인
+        # "맛집", "데이트", "코스" 등의 키워드가 밀집된 경우
+        lines = content.split('\n')
+        if lines:
+            last_line = lines[-1].strip()
+            # 태그 키워드 카운트
+            tag_keywords = ['맛집', '데이트', '코스', '여행', '근처', '추천']
+            keyword_count = sum(last_line.count(kw) for kw in tag_keywords)
+
+            # 마지막 라인에 태그 키워드가 5개 이상 또는
+            # 단어가 15개 이상이고 평균 단어 길이가 짧으면 태그로 간주
+            words = last_line.split()
+            if keyword_count >= 5 or (len(words) > 15 and sum(len(w) for w in words) / len(words) < 7):
+                lines = lines[:-1]
+                content = '\n'.join(lines)
+
+        # 3. "새글을 받아보세요", "닫기" 등 블로그 하단 요소 제거
+        footer_patterns = [
+            r'\s*새글을 받아보세요.*?$',
+            r'\s*닫기\s*$',
+        ]
+        for pattern in footer_patterns:
+            content = re.sub(pattern, '', content, flags=re.DOTALL)
 
         return content

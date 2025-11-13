@@ -17,7 +17,6 @@ class BedrockLLMService:
         logger.info(f"\n[AWS Bedrock LLM 서비스 초기화]")
         logger.info(f"AWS Region: {bedrockConfig.AWS_REGION}")
 
-        # Claude 3 Haiku 사용 (빠르고 저렴)
         self.model_id = "anthropic.claude-3-haiku-20240307-v1:0"
         logger.info(f"Model ID: {self.model_id}\n")
 
@@ -74,17 +73,14 @@ class BedrockLLMService:
 {{"tags": ["태그1", "태그2", "태그3"], "summary": "요약 내용..."}}"""
 
             # Claude API 호출
-            body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 2000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "temperature": 0.3,
-            })
+            body = json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 2000,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                }
+            )
 
             response = self.bedrock_runtime.invoke_model(
                 modelId=self.model_id,
@@ -197,17 +193,14 @@ class BedrockLLMService:
 {{"categories": ["카테고리1", "카테고리2"]}}"""
 
             # Claude API 호출
-            body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 500,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "temperature": 0.2,
-            })
+            body = json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 500,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.2,
+                }
+            )
 
             response = self.bedrock_runtime.invoke_model(
                 modelId=self.model_id,

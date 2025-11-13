@@ -47,10 +47,16 @@ logger = logging.getLogger(__name__)
 
 
 async def process_single_place(
-    place: Place, idx: int, total: int
+    place_id: str, place_title: str, idx: int, total: int
 ) -> bool:
     """
     단일 장소 처리 (각 태스크마다 새 DB 세션 생성)
+
+    Args:
+        place_id: 장소 ID (UUID)
+        place_title: 장소 제목 (로그용)
+        idx: 인덱스
+        total: 전체 개수
 
     Returns:
         bool: 성공 여부
@@ -60,6 +66,12 @@ async def process_single_place(
         # 각 태스크마다 새 DB 세션 생성
         db = SessionLocal()
         place_service = PlaceService()
+
+        # 새 세션에서 place 재조회
+        place = db.query(Place).filter(Place.id == place_id).first()
+        if not place:
+            logger.error(f"✗ [{idx}/{total}] 장소를 찾을 수 없습니다: {place_id}")
+            return False
 
         logger.info(f"[{idx}/{total}] {place.title} 처리 시작...")
 
@@ -71,7 +83,7 @@ async def process_single_place(
         return True
 
     except Exception as e:
-        logger.error(f"✗ [{idx}/{total}] {place.title} 실패: {e}")
+        logger.error(f"✗ [{idx}/{total}] {place_title} 실패: {e}")
         if db:
             db.rollback()
         return False
@@ -81,7 +93,7 @@ async def process_single_place(
 
 
 async def process_batch(
-    places_batch: List[tuple],  # [(place, idx, total), ...]
+    places_batch: List[tuple],  # [(place_id, place_title, idx, total), ...]
     batch_num: int,
     total_batches: int,
 ) -> tuple[int, int]:
@@ -97,8 +109,8 @@ async def process_batch(
 
     # 각 장소마다 독립적인 태스크 생성
     tasks = [
-        process_single_place(place, idx, total)
-        for place, idx, total in places_batch
+        process_single_place(place_id, place_title, idx, total)
+        for place_id, place_title, idx, total in places_batch
     ]
 
     # 병렬 실행
@@ -156,11 +168,11 @@ async def process_places(
         # 시작 시간 기록
         start_time = datetime.now()
 
-        # 배치 단위로 나누기
+        # 배치 단위로 나누기 (place_id, place_title, idx, total 전달)
         batches = []
         for i in range(0, total, batch_size):
             batch = [
-                (place, idx + 1, total)
+                (place.id, place.title, idx + 1, total)
                 for idx, place in enumerate(places[i : i + batch_size], start=i)
             ]
             batches.append(batch)

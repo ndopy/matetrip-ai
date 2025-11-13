@@ -9,12 +9,13 @@ import asyncio
 
 import uvicorn
 
-from app.routes import places
+from app.routes import places, optimization
 
 
 app = FastAPI()
 
 app.include_router(places.router)
+app.include_router(optimization.router)
 
 
 @app.get("/")

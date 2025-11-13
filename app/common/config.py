@@ -78,6 +78,7 @@ class KakaoLocalConfig(BaseSettings):
 class BedRockConfig(BaseSettings):
     AWS_REGION: str = Field(default="")
     MODEL_ID: str = Field(default="")
+    BEDROCK_CLAUDE_MODEL_ID: str = Field(default="")
     AWS_ACCESS_KEY_ID: str = Field(default="")
     AWS_SECRET_ACCESS_KEY: str = Field(default="")
 
@@ -102,6 +103,28 @@ class TourAPIConfig(BaseSettings):
     )
 
 
+class KakaoMobilityConfig(BaseSettings):
+    KAKAO_MOBILITY_API_KEY: str = Field(default="", description="Kakao Mobility REST API Key")
+    KAKAO_MOBILITY_DIRECTIONS_URL: str = Field(
+        default="https://apis-navi.kakaomobility.com/v1/directions",
+        description="Kakao Mobility Directions API URL"
+    )
+    NESTJS_SERVER_URL: str = Field(
+        default="http://localhost:3000",
+        description="NestJS 백엔드 서버 URL"
+    )
+    NESTJS_API_KEY: str = Field(
+        default="",
+        description="NestJS API 호출 시 사용할 인증 키 (선택사항)"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
@@ -109,3 +132,4 @@ embeddingConfig = EmbeddingConfig()
 kakaoLocalConfig = KakaoLocalConfig()
 bedrockConfig = BedRockConfig()
 tourAPIConfig = TourAPIConfig()
+kakaoMobilityConfig = KakaoMobilityConfig()
