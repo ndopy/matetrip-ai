@@ -44,6 +44,11 @@ class TourPlaceCollector:
         max_naver_api_calls: int = 20000,
         region_filter: Optional[str] = None,
         process_reviews: bool = False,
+        min_quality_score: int = 50,
+        min_popularity_score: int = 30,
+        enable_quality_filter: bool = True,
+        enable_popularity_filter: bool = True,
+        food_min_popularity_score: Optional[int] = None,
     ):
         self.db = db
         self.tour_service = TourAPIService()
@@ -52,11 +57,25 @@ class TourPlaceCollector:
         self.collected_count = 0
         self.skipped_count = 0
         self.error_count = 0
+        self.quality_filtered_count = 0
+        self.popularity_filtered_count = 0
         self.naver_api_call_count = 0
         self.max_naver_api_calls = max_naver_api_calls
         self.region_filter = region_filter
         self.process_reviews = process_reviews
         self.api_limit_reached = False
+
+        # 품질 필터링 설정
+        self.min_quality_score = min_quality_score
+        self.min_popularity_score = min_popularity_score
+        self.enable_quality_filter = enable_quality_filter
+        self.enable_popularity_filter = enable_popularity_filter
+
+        # 카테고리별 인기도 기준
+        self.food_min_popularity_score = (
+            food_min_popularity_score if food_min_popularity_score is not None
+            else min_popularity_score
+        )
 
     def place_exists(self, title: str, address: str) -> bool:
         """장소가 이미 DB에 존재하는지 확인 (title + address 기준)"""
@@ -87,6 +106,15 @@ class TourPlaceCollector:
         logger.info(f"대상 지역: {region_name} ({len(regions)}개 지역)")
         logger.info(f"대상 카테고리: {categories}")
         logger.info(f"리뷰 처리: {'ON' if self.process_reviews else 'OFF'}")
+        logger.info("")
+        logger.info("품질 필터링 설정:")
+        logger.info(f"  - 품질 필터링: {'ON' if self.enable_quality_filter else 'OFF'}")
+        if self.enable_quality_filter:
+            logger.info(f"  - 최소 품질 점수: {self.min_quality_score}점")
+        logger.info(f"  - 인기도 필터링: {'ON' if self.enable_popularity_filter else 'OFF'}")
+        if self.enable_popularity_filter:
+            logger.info(f"  - 일반 카테고리 최소 리뷰: {self.min_popularity_score}개")
+            logger.info(f"  - 음식점 카테고리 최소 리뷰: {self.food_min_popularity_score}개")
         if self.process_reviews:
             logger.info(f"네이버 API 제한: {self.max_naver_api_calls}건")
         logger.info("=" * 80)
@@ -101,13 +129,31 @@ class TourPlaceCollector:
             await self._collect_for_region(region=region, categories=categories)
 
         # 최종 결과 출력
+        total_processed = (
+            self.collected_count
+            + self.skipped_count
+            + self.quality_filtered_count
+            + self.popularity_filtered_count
+            + self.error_count
+        )
+
         logger.info("\n" + "=" * 80)
         logger.info("데이터 수집 완료!")
-        logger.info(f"- 새로 수집: {self.collected_count}개")
-        logger.info(f"- 중복 건너뜀: {self.skipped_count}개")
-        logger.info(f"- 오류: {self.error_count}개")
+        logger.info(f"- 총 처리: {total_processed}개")
+        logger.info(f"- ✓ 새로 수집: {self.collected_count}개")
+        logger.info(f"- ⊘ 중복 건너뜀: {self.skipped_count}개")
+        if self.enable_quality_filter:
+            logger.info(f"- ✗ 품질 필터링: {self.quality_filtered_count}개")
+        if self.enable_popularity_filter:
+            logger.info(f"- ✗ 인기도 필터링: {self.popularity_filtered_count}개")
+        logger.info(f"- ✗ 오류: {self.error_count}개")
+
+        if total_processed > 0:
+            acceptance_rate = (self.collected_count / total_processed) * 100
+            logger.info(f"\n수집률: {acceptance_rate:.1f}%")
+
         if self.process_reviews:
-            logger.info(f"- 네이버 API 호출 수: {self.naver_api_call_count}건")
+            logger.info(f"\n네이버 API 호출 수: {self.naver_api_call_count}건")
         logger.info("=" * 80)
 
     async def _collect_for_region(self, region: str, categories: List[str]):
@@ -145,31 +191,63 @@ class TourPlaceCollector:
         logger.info(f"    검색 결과: {len(tour_items)}개")
 
         for tour_item in tour_items:
-            await self._handle_place(tour_item)
+            await self._handle_place(tour_item, category)
 
-    async def _handle_place(self, tour_item: dict):
-        """개별 장소 처리"""
+    async def _handle_place(self, tour_item: dict, category: str):
+        """개별 장소 처리 (품질 검증 포함)"""
         # API 제한 도달 확인
         if self.process_reviews and self.naver_api_call_count >= self.max_naver_api_calls:
             self.api_limit_reached = True
             return
 
+        # 1단계: 기본 품질 체크 (Tour API 데이터 기반)
+        if self.enable_quality_filter:
+            is_quality, reason = self.tour_service.is_quality_place(tour_item)
+            if not is_quality:
+                logger.debug(f"    ✗ 품질 필터링: {tour_item.get('title', 'Unknown')} - {reason}")
+                self.quality_filtered_count += 1
+                return
+
         # Tour API 데이터를 Place 형식으로 변환
         place_data = self.tour_service.convert_to_place_data(tour_item)
-
-        # 필수 필드 검증
-        if not place_data["title"] or not place_data["address"]:
-            logger.warning(f"    ✗ 필수 정보 누락: {tour_item}")
-            return
-
-        # 좌표 검증 (위도/경도가 0이면 스킵)
-        if place_data["longitude"] == 0.0 or place_data["latitude"] == 0.0:
-            logger.warning(f"    ✗ 좌표 정보 없음: {place_data['title']}")
-            return
 
         # 중복 확인 (title + address 기준)
         if self.place_exists(place_data["title"], place_data["address"]):
             self.skipped_count += 1
+            return
+
+        # 2단계: 인기도 검증 (네이버 API 기반) - 선택적
+        # 카테고리별 최소 인기도 기준 적용
+        required_popularity = (
+            self.food_min_popularity_score if category == "food"
+            else self.min_popularity_score
+        )
+
+        if self.enable_popularity_filter:
+            popularity_score = self.naver_service.get_place_popularity_score(
+                place_data["title"], place_data["address"]
+            )
+
+            if popularity_score < required_popularity:
+                logger.debug(
+                    f"    ✗ 인기도 필터링: {place_data['title']} "
+                    f"(리뷰 {popularity_score}개 < 최소 {required_popularity}개, 카테고리: {category})"
+                )
+                self.popularity_filtered_count += 1
+                return
+
+            logger.debug(
+                f"    ✓ 인기도 통과: {place_data['title']} (리뷰 {popularity_score}개, 카테고리: {category})"
+            )
+
+        # 3단계: 품질 점수 계산 (선택적, 로깅용)
+        quality_score = self.tour_service.calculate_quality_score(tour_item)
+        if self.enable_quality_filter and quality_score < self.min_quality_score:
+            logger.debug(
+                f"    ✗ 품질 점수 필터링: {place_data['title']} "
+                f"(점수 {quality_score} < 최소 {self.min_quality_score})"
+            )
+            self.quality_filtered_count += 1
             return
 
         try:
@@ -182,7 +260,8 @@ class TourPlaceCollector:
 
         self.collected_count += 1
         logger.info(
-            f"    ✓ 저장: {place_data['title']} ({place_data['address']})"
+            f"    ✓ 저장: {place_data['title']} "
+            f"(품질점수: {quality_score}점)"
         )
 
         # 리뷰 처리 (선택)
@@ -230,10 +309,15 @@ async def main():
 
     try:
         # Tour API 기반 전국 관광지 수집
-        # 리뷰는 별도로 처리 (1단계: 장소만 수집)
+        # 품질 필터링을 통해 진짜 유명한 장소만 수집
         collector = TourPlaceCollector(
             db=db,
             process_reviews=False,  # 리뷰는 나중에 별도 스크립트로 처리
+            enable_quality_filter=True,  # 품질 필터링 활성화
+            min_quality_score=70,  # 최소 품질 점수 70점 (상향)
+            enable_popularity_filter=True,  # 인기도 필터링 활성화
+            min_popularity_score=150,  # 최소 리뷰 150개 (초유명 관광명소만)
+            food_min_popularity_score=200,  # 음식점은 더 엄격하게 200개 (초유명 맛집만)
         )
 
         # 주요 카테고리 수집

@@ -7,6 +7,7 @@
 - 상세 정보 조회 (이미지, 주소 등)
 """
 
+import re
 import logging
 from typing import Dict, List, Optional, cast
 
@@ -347,3 +348,132 @@ class TourAPIService:
         )
 
         return all_items
+
+    def is_quality_place(self, tour_data: Dict) -> tuple[bool, str]:
+        """
+        Tour API 데이터의 기본 품질을 검증합니다.
+
+        Args:
+            tour_data: Tour API 응답 데이터
+
+        Returns:
+            (is_quality, reason) - 품질 여부와 이유
+        """
+        # 1. 필수 필드 체크
+        title = tour_data.get("title", "").strip()
+        addr1 = tour_data.get("addr1", "").strip()
+
+        if not title:
+            return False, "제목 없음"
+        if not addr1:
+            return False, "주소 없음"
+
+        # 2. 좌표 정보 체크
+        mapx = tour_data.get("mapx", "")
+        mapy = tour_data.get("mapy", "")
+
+        try:
+            longitude = float(mapx) if mapx else 0.0
+            latitude = float(mapy) if mapy else 0.0
+        except (ValueError, TypeError):
+            return False, "좌표 정보 오류"
+
+        if longitude == 0.0 or latitude == 0.0:
+            return False, "좌표 정보 없음"
+
+        # 한국 좌표 범위 체크 (위도: 33~43, 경도: 124~132)
+        if not (33.0 <= latitude <= 43.0 and 124.0 <= longitude <= 132.0):
+            return False, "좌표 범위 벗어남"
+
+        # 3. 이미지 체크
+        firstimage = tour_data.get("firstimage", "").strip()
+        firstimage2 = tour_data.get("firstimage2", "").strip()
+
+        if not firstimage and not firstimage2:
+            return False, "이미지 없음"
+
+        # 4. 제목 품질 체크
+        # 너무 짧거나 의미 없는 제목 제외
+        if len(title) < 2:
+            return False, "제목이 너무 짧음"
+
+        # 특수문자만 있는 제목 제외
+
+        if re.match(r"^[\W\d_]+$", title):
+            return False, "제목이 특수문자/숫자만 포함"
+
+        # 5. 제외할 키워드 체크
+        excluded_keywords = [
+            "폐업",
+            "영업종료",
+            "철거",
+            "공사중",
+            "임시휴업",
+            "테스트",
+            "test",
+            "샘플",
+            "sample",
+        ]
+        title_lower = title.lower()
+        for keyword in excluded_keywords:
+            if keyword in title_lower:
+                return False, f"제외 키워드 포함: {keyword}"
+
+        return True, "통과"
+
+    def calculate_quality_score(self, tour_data: Dict) -> int:
+        """
+        장소의 품질 점수를 계산합니다 (0-100점)
+
+        점수 구성:
+        - 기본 정보 완성도: 40점
+        - 이미지 품질: 30점
+        - 카테고리 정보: 20점
+        - 기타: 10점
+
+        Args:
+            tour_data: Tour API 응답 데이터
+
+        Returns:
+            품질 점수 (0-100)
+        """
+        score = 0
+
+        # 1. 기본 정보 완성도 (40점)
+        if tour_data.get("title", "").strip():
+            score += 10
+        if tour_data.get("addr1", "").strip():
+            score += 10
+        if tour_data.get("addr2", "").strip():  # 상세주소
+            score += 5
+        if tour_data.get("tel", "").strip():  # 전화번호
+            score += 10
+        if tour_data.get("homepage", "").strip():  # 홈페이지
+            score += 5
+
+        # 2. 이미지 품질 (30점)
+        firstimage = tour_data.get("firstimage", "").strip()
+        firstimage2 = tour_data.get("firstimage2", "").strip()
+
+        if firstimage:
+            score += 20  # 원본 이미지
+        if firstimage2:
+            score += 10  # 썸네일 이미지
+
+        # 3. 카테고리 정보 (20점)
+        if tour_data.get("cat1"):  # 대분류
+            score += 7
+        if tour_data.get("cat2"):  # 중분류
+            score += 7
+        if tour_data.get("cat3"):  # 소분류
+            score += 6
+
+        # 4. 기타 (10점)
+        overview = tour_data.get("overview", "").strip()
+        if overview:
+            if len(overview) > 100:  # 충분한 설명
+                score += 10
+            elif len(overview) > 50:
+                score += 5
+
+        return min(score, 100)  # 최대 100점
