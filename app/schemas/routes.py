@@ -24,7 +24,7 @@ class POICoordinate(BaseModel):
 
     id: str = Field(..., description="POI 고유 ID")
     longitude: float = Field(..., ge=-180, le=180, description="경도")
-    laitude: float = Field(..., ge=-90, le=90, description="위도")
+    latitude: float = Field(..., ge=-90, le=90, description="위도")
 
 
 class RouteOptimizeResponse(BaseModel):

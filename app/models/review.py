@@ -32,7 +32,7 @@ class PlaceReview(Base):
     source_url: Mapped[str] = mapped_column(TEXT, nullable=False, unique=True)
     embedding: Mapped[Optional[Vector]] = mapped_column(Vector(1024), nullable=True)
 
-    # 🆕 소프트 삭제 필드
+    # 소프트 삭제 필드
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(

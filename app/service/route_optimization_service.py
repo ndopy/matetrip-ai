@@ -83,7 +83,13 @@ class RouteOptimizationService:
 
         duration_matrix = self._build_duration_matrix(distance_matrix)
 
-        manager = pywrapcp.RoutingIndexManager(n, 1, start_index or 0)
+        start = start_index if start_index is not None else 0
+        if end_index is not None and end_index != start:
+            # start != end
+            manager = pywrapcp.RoutingIndexManager(n, 1, start, end_index)
+        else:
+            # start = end, or no end
+            manager = pywrapcp.RoutingIndexManager(n, 1, start)
         routing = pywrapcp.RoutingModel(manager)
 
         def distance_callback(from_index, to_index):
