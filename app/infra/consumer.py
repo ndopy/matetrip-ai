@@ -35,48 +35,62 @@ if (_raw_profile_queue is None) or (_raw_behavior_queue is None):
 profile_queue: Final[str] = _raw_profile_queue
 behavior_queue: Final[str] = _raw_behavior_queue
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
 
 def consume_profile_embedding(channel, method, properties, body):
+    logger.info(f"[profile_embedding] 메시지 수신: {body[:100]}...")
     message = parse_message(body, profile_queue, ProfileEmbeddingReqMessage)
     if message:
         try:
             handle_profile_embedding_test(message)
             channel.basic_ack(delivery_tag=method.delivery_tag)
+            logger.info(f"[profile_embedding] 메시지 처리 완료")
         except Exception as e:
             logger.warning(f"[profile_embedding] 처리 중 오류 발생: {e}")
             channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     else:
+        logger.warning(f"[profile_embedding] 메시지 파싱 실패")
         channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
 def consume_behavior_embedding(channel, method, properties, body):
-    message = parse_message(body, "behavior_embedding", BehaviorEmbeddingReqMessage)
+    logger.info(f"[behavior_embedding] 메시지 수신: {body[:100]}...")
+    message = parse_message(body, behavior_queue, BehaviorEmbeddingReqMessage)
     if message:
         try:
             handle_behavior_embedding_test(message)
             channel.basic_ack(delivery_tag=method.delivery_tag)
+            logger.info(f"[behavior_embedding] 메시지 처리 완료")
         except Exception as e:
             logger.warning(f"[behavior_embedding] 처리 중 오류 발생: {e}")
             channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     else:
+        logger.warning(f"[behavior_embedding] 메시지 파싱 실패")
         channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
 def create_consumer():
-
+    logger.info(f"RabbitMQ 연결 시도: {rabbitmq_url}")
     params = pika.URLParameters(rabbitmq_url)
     params.blocked_connection_timeout = 300  # 5min
 
     try:
         connection = pika.BlockingConnection(params)
         channel = connection.channel()
+        logger.info("RabbitMQ 연결 성공")
     except pika.exceptions.AMQPConnectionError as e:
         logger.error(f"RabbitMQ 연결 실패", exc_info=True)
         raise
 
     channel.queue_declare(queue=profile_queue, durable=True)
+    logger.info(f"큐 선언 완료: {profile_queue}")
     channel.basic_consume(
         queue=profile_queue,
         on_message_callback=consume_profile_embedding,
@@ -84,6 +98,7 @@ def create_consumer():
     )
 
     channel.queue_declare(queue=behavior_queue, durable=True)
+    logger.info(f"큐 선언 완료: {behavior_queue}")
     channel.basic_consume(
         queue=behavior_queue,
         on_message_callback=consume_behavior_embedding,

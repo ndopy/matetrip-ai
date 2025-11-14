@@ -36,6 +36,10 @@ def parse_message(
         )
         return None
 
+    # NestJS에서 {pattern, data} 형태로 보내므로 data 필드 추출
+    if isinstance(json_payload, dict) and "data" in json_payload:
+        json_payload = json_payload["data"]
+
     try:
         return model(**json_payload)
     except ValidationError as exc:
