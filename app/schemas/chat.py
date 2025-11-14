@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Any, List
+from pydantic import BaseModel, Field
+from typing import Any, List, Literal
 
 class ChatRequest(BaseModel):
     query: str
@@ -20,3 +20,14 @@ class ChatResponse(BaseModel):
     """
     response: str
     tool_data: List[ToolCallData] = []
+
+class IntentClassifier(BaseModel):
+    """
+    라우터 AI가 반환할 Pydantic 모델 (JSON 양식) 정의
+    """
+    intent: Literal["TOOL_USE", "CONVERSATION"] = Field(
+        description=(
+            "Classify as 'TOOL_USE' if the user needs new info (search, create).\n"
+            "Classify as 'CONVERSATION' for simple chat or follow-ups about the last response."
+        )
+    )
