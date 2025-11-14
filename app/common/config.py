@@ -108,7 +108,7 @@ class TourAPIConfig(BaseSettings):
     TOUR_API_KEY: str = Field(default="", description="한국관광공사 Tour API 인증키")
     TOUR_API_BASE_URL: str = Field(
         default="https://apis.data.go.kr/B551011/KorService2",
-        description="Tour API Base URL"
+        description="Tour API Base URL",
     )
 
     model_config = SettingsConfigDict(
@@ -119,18 +119,18 @@ class TourAPIConfig(BaseSettings):
 
 
 class KakaoMobilityConfig(BaseSettings):
-    KAKAO_MOBILITY_API_KEY: str = Field(default="", description="Kakao Mobility REST API Key")
+    KAKAO_MOBILITY_API_KEY: str = Field(
+        default="", description="Kakao Mobility REST API Key"
+    )
     KAKAO_MOBILITY_DIRECTIONS_URL: str = Field(
         default="https://apis-navi.kakaomobility.com/v1/directions",
-        description="Kakao Mobility Directions API URL"
+        description="Kakao Mobility Directions API URL",
     )
     NESTJS_SERVER_URL: str = Field(
-        default="http://localhost:3000",
-        description="NestJS 백엔드 서버 URL"
+        default="http://localhost:3000", description="NestJS 백엔드 서버 URL"
     )
     NESTJS_API_KEY: str = Field(
-        default="",
-        description="NestJS API 호출 시 사용할 인증 키 (선택사항)"
+        default="", description="NestJS API 호출 시 사용할 인증 키 (선택사항)"
     )
 
     model_config = SettingsConfigDict(
@@ -153,6 +153,19 @@ class NestJSConfig(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )   
+
+
+class RabbitMQConfig(BaseSettings):
+    RABBITMQ_HOST: str = Field(default="localhost")
+    RABBITMQ_PORT: int = Field(default=5672)
+    RABBITMQ_USER: str = Field(default="guest")
+    RABBITMQ_PASSWORD: str = Field(default="guest")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 openaiConfig = OpenAIConfig()
