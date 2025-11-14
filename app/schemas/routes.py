@@ -1,4 +1,3 @@
-from pyexpat import model
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -24,8 +23,8 @@ class POICoordinate(BaseModel):
     """최적화 대상 POI 좌표 정보."""
 
     id: str = Field(..., description="POI 고유 ID")
-    longitude: float = Field(..., description="경도")
-    latitude: float = Field(..., description="위도")
+    longitude: float = Field(..., ge=-180, le=180, description="경도")
+    laitude: float = Field(..., ge=-90, le=90, description="위도")
 
 
 class RouteOptimizeResponse(BaseModel):
