@@ -53,6 +53,7 @@ class PlaceService:
             should_force = force_update or env_force_update
 
             # 이미 임베딩이 있는 장소는 건너뛰기 (force_update가 False인 경우)
+            # 이거 나중에 수정하기 (처음 장소 수집에서만 제외)
             if not should_force and place.embedding is not None:
                 logger.info(f"⊘ {place.title} 건너뛰기 (이미 임베딩 존재)")
                 return

@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
+from pydantic import ConfigDict
 from sqlalchemy import TEXT, ForeignKey, TIMESTAMP, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
@@ -39,3 +40,5 @@ class PlaceReview(Base):
     )
     # Relationship
     place: Mapped["Place"] = relationship("Place", back_populates="reviews")
+
+    model_config = ConfigDict(from_attributes=True)

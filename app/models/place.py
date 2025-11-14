@@ -1,6 +1,7 @@
 from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
+from pydantic import ConfigDict
 from sqlalchemy import JSON, TEXT, Float, String, Integer, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,3 +67,5 @@ class Place(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=True
     )
+
+    model_config = ConfigDict(from_attributes=True)

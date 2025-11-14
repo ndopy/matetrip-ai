@@ -1,77 +1,34 @@
-import json
-from json.decoder import JSONDecodeError
 import os
-from typing import Optional, Type, TypeVar
-
 import pika
-from pydantic import BaseModel, Field, ValidationError
+import pika.exceptions
 
-
-class Profile_embedding_req_message(BaseModel):
-    user_id: str
-
-
-class Behavior_embedding_req_message(BaseModel):
-    user_id: str = Field(..., min_length=1)
-    title: str = Field(..., min_length=1)
-    address: str = Field(..., min_length=1)
-    longitude: float = Field(..., ge=-180.0, le=180.0)
-    latitude: float = Field(..., ge=-90.0, le=90.0)
-
-
-# "여기에는 BaseModel을 상속한 어떤 Pydantic 모델 타입이 들어올 거야"라는 걸 타입 시스템에 알려주는 장치.
-MessageT = TypeVar("MessageT", bound=BaseModel)
-
-
-# Todo : 나중에
-def parse_message(
-    body: bytes,
-    queue_name: str,
-    model: Type[MessageT],  # 타입은 이거 호출하는 쪽에서 정해주는거임
-) -> Optional[MessageT]:
-
-    data = body.decode("utf-8").strip()
-
-    if not data:
-        print(f"[Q: {queue_name}] 빈 메시지를 받았습니다. 스킵할게요")
-        return None
-
-    try:
-        json_payload = json.loads(data)
-    except JSONDecodeError as exc:
-        print(f"[Q: {queue_name}] 유효하지 않은 JSON 형식입니다. ({exc}): {data!r}")
-        return None
-
-    try:
-        return model(**json_payload)
-    except ValidationError as exc:
-        print(f"[Q: {queue_name}] JSON_PAYLOAD 필드 검증 실패: {exc}")
-        return None
-
-
-def handle_profile_embedding_test(message: Profile_embedding_req_message) -> None:
-    # Profile 임베딩 시작
-    print(f"[profile_embedding] Processing user_id={message.user_id}")
-
-
-def handle_behavior_embedding_test(message: Behavior_embedding_req_message) -> None:
-    # Behavior 임베딩 시작
-    print(
-        "[behavior_embedding] Processing "
-        f"user_id={message.user_id}, title={message.title}"
-    )
+from infra.messaging_handler import (
+    handle_behavior_embedding_test,
+    handle_profile_embedding_test,
+    parse_message,
+)
+from infra.rabbitmq_schema import (
+    Behavior_embedding_req_message,
+    Profile_embedding_req_message,
+)
 
 
 def consume_profile_embedding(channel, method, properties, body):
     message = parse_message(body, "profile_embedding", Profile_embedding_req_message)
     if message:
-        handle_profile_embedding_test(message)
+        try:
+            handle_profile_embedding_test(message)
+        except Exception as e:
+            print(f"[profile_embedding] 처리 중 오류 발생: {e}")
 
 
 def consume_behavior_embedding(channel, method, properties, body):
     message = parse_message(body, "behavior_embedding", Behavior_embedding_req_message)
     if message:
-        handle_behavior_embedding_test(message)
+        try:
+            handle_behavior_embedding_test(message)
+        except Exception as e:
+            print(f"[behavior_embedding] 처리 중 오류 발생: {e}")
 
 
 def create_consumer():
@@ -79,31 +36,41 @@ def create_consumer():
     params = pika.URLParameters(rabbitmq_url)
     params.blocked_connection_timeout = 300  # 5min
 
-    connection = pika.BlockingConnection(params)
-    channel = connection.channel()
+    try:
+        connection = pika.BlockingConnection(params)
+        channel = connection.channel()
+    except pika.exceptions.AMQPConnectionError as e:
+        print(f"RabbitMQ 연결 실패: {e}")
+        raise
 
     channel.queue_declare(queue="profile_embedding", durable=True)
     channel.basic_consume(
         queue="profile_embedding",
         on_message_callback=consume_profile_embedding,
-        auto_ack=True,
+        auto_ack=False,
     )
 
     channel.queue_declare(queue="behavior_embedding", durable=True)
     channel.basic_consume(
         queue="behavior_embedding",
         on_message_callback=consume_behavior_embedding,
-        auto_ack=True,
+        auto_ack=False,
     )
 
     return connection, channel
 
 
 def main():
-    connection = None
-    connection, channel = create_consumer()
-    print("Started consuming...")
-    channel.start_consuming()
+    try:
+        connection, channel = create_consumer()
+        print("Started consuming...")
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        print("컨슈머를 중단합니다...")
+    finally:
+        if connection and connection.is_open:
+            connection.close()
+            print("연결이 종료되었습니다.")
 
 
 if __name__ == "__main__":

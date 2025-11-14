@@ -67,7 +67,7 @@ class RouteOptimizationService:
         end_index: Optional[int] = None,
     ) -> Tuple[List[int], float, float, List[RouteSummary]]:
         """
-        python-tsp 라이브러리를 사용하여 TSP 문제를 해결
+        OR-Tools 라이브러리를 사용하여 TSP 문제를 해결
 
         Args:
             distance_matrix: Distance/duration 정보 between POIs
