@@ -40,7 +40,7 @@ def consume_profile_embedding(channel, method, properties, body):
         try:
             handle_profile_embedding_test(message)
         except Exception as e:
-            print(f"[profile_embedding] 처리 중 오류 발생: {e}")
+            logger.warning(f"[profile_embedding] 처리 중 오류 발생: {e}")
             channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     else:
         channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
@@ -53,7 +53,7 @@ def consume_behavior_embedding(channel, method, properties, body):
             handle_behavior_embedding_test(message)
             channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
-            print(f"[behavior_embedding] 처리 중 오류 발생: {e}")
+            logger.warning(f"[behavior_embedding] 처리 중 오류 발생: {e}")
             channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
     else:
         channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
@@ -92,14 +92,14 @@ def main():
     connection = channel = None
     try:
         connection, channel = create_consumer()
-        print("Started consuming...")
+        logger.info("Started consuming...")
         channel.start_consuming()
     except KeyboardInterrupt:
-        print("컨슈머를 중단합니다...")
+        logger.warning("컨슈머를 중단합니다...")
     finally:
         if connection and connection.is_open:
             connection.close()
-            print("연결이 종료되었습니다.")
+            logger.info("연결이 종료되었습니다.")
 
 
 if __name__ == "__main__":
