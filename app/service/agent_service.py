@@ -1,9 +1,7 @@
 import json
 import re
 
-from langchain_core.runnables.history import RunnableWithMessageHistory
-
-from app.schemas.chat import ToolCallData
+from app.schemas.chat import ChatRequest, ToolCallData
 from app.core.constants import TOOL_ACTION_MAP
 
 def safe_json_load(text: str):
@@ -21,18 +19,20 @@ def remove_thinking_tags(text: str) -> str:
     # <thinking>으로 시작해서 </thinking>으로 끝나는 모든 내용 제거
     return re.sub(r'<thinking>.*?</thinking>', '', text, flags=re.DOTALL).strip()
 
-def get_agent_response(agent: RunnableWithMessageHistory, query: str, session_id: str) -> dict:
+def get_agent_response(agent, request: ChatRequest, history: list) -> dict:
     """
     사용자 쿼리와 세션 ID를 받아,
     대화형 응답과 구조화된 도구 데이터를 함께 반환
     """
-    #chat_history = get_session_history(session_id)
-
     # agent.invoke()는 모든 실행 정보를 담은 dict를 반환
     result = agent.invoke(
-        {"input": query},
-        config={"configurable": {"session_id": session_id}}#, "return_intermediate_steps": True}
+        { 
+            "input": request.query,
+            "chat_history": history
+        },
     )
+
+    print(result)
 
     # 4. 결과 파싱
     # 4-1. AI 답변 텍스트

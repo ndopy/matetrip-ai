@@ -16,9 +16,8 @@ router = APIRouter(prefix="/optimization", tags=["optimization"])
 
 service = RouteOptimizationService()
 
-
-@router.post("/route", response_model=RouteOptimizeResponse)
 @tool
+@router.post("/route", response_model=RouteOptimizeResponse)
 async def optimize_route(request: OptimizeRouteRequest):
     """
     POI 리스트를 최적화 (TSP 알고리즘 사용).

@@ -77,7 +77,7 @@ class KakaoLocalConfig(BaseSettings):
 
 class BedRockConfig(BaseSettings):
     AWS_REGION: str = Field(
-        default="ap-northeast-2",
+        default="us-east-1",
         description="AWS Region"
     )
     BEDROCK_EMBEDDING_MODEL_ID: str = Field(
