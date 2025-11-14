@@ -6,11 +6,15 @@ from typing import Final
 
 import pika
 import pika.exceptions
+from dotenv import load_dotenv
 
 # Allow running this module directly via `python app/infra/consumer.py`
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load environment variables from .env file
+load_dotenv(PROJECT_ROOT / ".env")
 
 from app.infra.messaging_handler import (
     handle_behavior_embedding_test,
@@ -39,6 +43,7 @@ def consume_profile_embedding(channel, method, properties, body):
     if message:
         try:
             handle_profile_embedding_test(message)
+            channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logger.warning(f"[profile_embedding] 처리 중 오류 발생: {e}")
             channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
