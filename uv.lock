@@ -1259,7 +1259,11 @@ wheels = [
 
 [[package]]
 name = "langchain-core"
+<<<<<<< HEAD
 version = "1.0.5"
+=======
+version = "1.0.4"
+>>>>>>> 24289e5b3cd348ad9731fb3d26230e3f791d77d2
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpatch" },
@@ -1270,9 +1274,15 @@ dependencies = [
     { name = "tenacity" },
     { name = "typing-extensions" },
 ]
+<<<<<<< HEAD
 sdist = { url = "https://files.pythonhosted.org/packages/d9/61/c356e19525a210baf960968dbfb03ee38a05e05ddb41efeb32abfcb4e360/langchain_core-1.0.5.tar.gz", hash = "sha256:7ecbad9a60dde626252733a9c18c7377f4468cfe00465ffa99f5e9c6cb9b82d2", size = 778259, upload-time = "2025-11-14T16:59:27.277Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/ee/aaf2343a35080154c82ceb110e03dd00f15459bc72e518df51724cbc41a9/langchain_core-1.0.5-py3-none-any.whl", hash = "sha256:d24c0cf12cfcd96dd4bd479aa91425f3a6652226cd824228ae422a195067b74e", size = 471506, upload-time = "2025-11-14T16:59:25.629Z" },
+=======
+sdist = { url = "https://files.pythonhosted.org/packages/93/35/147544d3422464d13a8ef88f9e25cff25e02c985eb44f8c106503f56ad50/langchain_core-1.0.4.tar.gz", hash = "sha256:086d408bcbeedecb0b152201e0163b85e7a6d9b26e11a75cc577b7371291df4e", size = 776329, upload-time = "2025-11-07T22:30:45.669Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/ac/7032e5eb1c147a3d8e0a21a70e77d7efbd6295c8ce4833b90f6ff1750da9/langchain_core-1.0.4-py3-none-any.whl", hash = "sha256:53caa351d9d73b56f5d9628980f36851cfa725977508098869fdc2d246da43b3", size = 471198, upload-time = "2025-11-07T22:30:44.003Z" },
+>>>>>>> 24289e5b3cd348ad9731fb3d26230e3f791d77d2
 ]
 
 [[package]]
@@ -1550,7 +1560,6 @@ dependencies = [
     { name = "langchain-aws" },
     { name = "langchain-community" },
     { name = "langchain-core" },
-    { name = "logger" },
     { name = "logging" },
     { name = "loguru" },
     { name = "numpy" },
@@ -1588,8 +1597,12 @@ requires-dist = [
     { name = "langchain", specifier = ">=1.0.5" },
     { name = "langchain-aws", specifier = ">=1.0.0" },
     { name = "langchain-community", specifier = ">=0.4.1" },
+<<<<<<< HEAD
     { name = "langchain-core", specifier = ">=1.0.5" },
     { name = "logger", specifier = ">=1.4" },
+=======
+    { name = "langchain-core", specifier = ">=1.0.4" },
+>>>>>>> 24289e5b3cd348ad9731fb3d26230e3f791d77d2
     { name = "logging", specifier = ">=0.4.9.6" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "numpy", specifier = ">=2.3.4" },
