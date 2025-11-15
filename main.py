@@ -17,8 +17,8 @@ app.add_middleware(
         "http://localhost:3000",  # http://13.125.171.175:3000     # 백엔드 주소
     ],
     allow_credentials=True,  # 쿠키 전송 허용
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.include_router(places.router)

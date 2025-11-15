@@ -134,7 +134,7 @@ class BehaviorRepository:
 
     def get_weighted_place_embeddings(
         self,
-        user_id: str,
+        user_id: UUID,
         days: int = 90,
     ) -> List[WeightedPlaceEmbeddingDto]:
         """
@@ -156,7 +156,7 @@ class BehaviorRepository:
             )
             .join(Place, UserBehaviorEvent.place_id == Place.id)
             .where(
-                UserBehaviorEvent.user_id == UUID(user_id),
+                UserBehaviorEvent.user_id == user_id,
                 UserBehaviorEvent.place_id.isnot(None),
                 Place.embedding.isnot(None),
                 UserBehaviorEvent.created_at > cutoff_date,

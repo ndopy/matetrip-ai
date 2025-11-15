@@ -363,7 +363,7 @@ ALTER TABLE poi
     ADD CONSTRAINT fk_poi_planday
         FOREIGN KEY (plan_day_id) REFERENCES plan_day (id) ON DELETE CASCADE,
     ADD CONSTRAINT fk_poi_creator
-        FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE restrict,
+        FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE RESTRICT,
     ADD CONSTRAINT uq_poi_schedule UNIQUE (plan_day_id, sequence);
 
 
@@ -382,7 +382,7 @@ ALTER TABLE review
     ADD CONSTRAINT fk_review_reviewer FOREIGN KEY (reviewer_id) REFERENCES users (id) ON DELETE RESTRICT,
     ADD CONSTRAINT fk_review_reviewee FOREIGN KEY (reviewee_id) REFERENCES users (id) ON DELETE RESTRICT;
 
-ALTER TABLE Notification
+ALTER TABLE notification
     ADD CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
 
 

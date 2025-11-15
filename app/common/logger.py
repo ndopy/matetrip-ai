@@ -1,6 +1,6 @@
 from loguru import logger
 
-
+logger.remove()  # 기본 stderr 핸들러 제거
 logger = logger
 # Configure logging
 logger.add(

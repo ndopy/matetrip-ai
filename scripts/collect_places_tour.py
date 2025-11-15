@@ -93,7 +93,7 @@ class TourPlaceCollector:
             "울산": RegionGroupType.GYEONGSANG.value,
             "전남": RegionGroupType.JEOLLA.value,
             "전북": RegionGroupType.JEOLLA.value,
-            "세종": RegionGroupType.JEOLLA.value,
+            "세종": RegionGroupType.CHUNGCHEONG.value,
             "충남": RegionGroupType.CHUNGCHEONG.value,
             "충북": RegionGroupType.CHUNGCHEONG.value,
             "대전": RegionGroupType.CHUNGCHEONG.value,

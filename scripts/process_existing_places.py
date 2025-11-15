@@ -50,7 +50,7 @@ async def process_places(limit: int | None = None):
     start_time = time.time()
 
     try:
-        # 이미지 URL, 태그, 요약이 없는 장소들 조회
+        # 태그 또는 요약이 없는 장소들 조회
         query = db.query(Place).filter((Place.tags == None) | (Place.summary == None))
 
         if limit:

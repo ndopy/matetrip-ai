@@ -4,11 +4,11 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
-from service.crawling.crawl_service import CrawlService
-from service.crawling.naver_search_service import NaverSearchService
+from app.service.crawling.crawl_service import CrawlService
+from app.service.crawling.naver_search_service import NaverSearchService
 from app.service.review_service import ReviewService
 from app.service.bedrock_llm_service import BedrockLLMService
-from service.crawling.review_filter_service import ReviewFilterService
+from app.service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
 from app.service.bedrock_embedding_service import BedrockEmbeddingService
 from app.schemas.review import ReviewContentDto, SavedReviewDto
@@ -32,9 +32,7 @@ class PlaceService:
             BedrockEmbeddingService()
         )  # Review 임베딩 서비스
 
-    async def process_place_reviews(
-        self, place: Place, force_update: bool = False
-    ):
+    async def process_place_reviews(self, place: Place, force_update: bool = False):
         """
         백그라운드에서 장소에 대한 리뷰를 처리하는 함수
         1. naver 검색 API로 리뷰 URL 추출
@@ -62,9 +60,7 @@ class PlaceService:
             logger.info(f"process_place_reviews 시작 : {place.title}")
 
             # 1. naver검색 API로 리뷰 URL 추출
-            review_urls = naver_service.search_review_urls(
-                place.title, place.address, []
-            )
+            review_urls = naver_service.search_review_urls(place.title, place.address)
             logger.info(f"{len(review_urls)}개의 리뷰를 찾았습니다")
 
             if not review_urls:

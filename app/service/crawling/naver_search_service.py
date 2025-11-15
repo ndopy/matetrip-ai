@@ -1,9 +1,12 @@
+import logging
 import httpx
 
 from app.common.config import NaverSearchConfig
 
 
 naverSearchConfig = NaverSearchConfig()
+
+logger = logging.getLogger(__name__)
 
 
 class NaverSearchService:
@@ -17,7 +20,6 @@ class NaverSearchService:
         self,
         place_title: str,
         address: str,
-        category: list[str] = [],
         display: int = 10,
     ) -> list[str]:
 
@@ -50,10 +52,10 @@ class NaverSearchService:
             urls = [
                 item.get("link") for item in items if item.get("link")
             ]  # 리스트 컴프레핸션 문법은 없으면 빈 배열 반환해서 예외 처리 x
-            print(f"Naver Search Service: {len(urls)}개의 URL을 찾았습니다.")
+            logger.info(f"Naver Search Service: {len(urls)}개의 URL을 찾았습니다.")
             return urls
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Naver Blog search failed: {e}", exc_info=True)
             return []
 
 

@@ -2,6 +2,12 @@ import os
 import sys
 from pathlib import Path
 from typing import Final
+
+# 임시 Test용 : `python app/infra/consumer.py`로 바로 실행될 수 있도록
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from app.common.logger import logger
 
 import pika
@@ -17,12 +23,6 @@ from schemas.rabbitmq_schema import (
     BehaviorEmbeddingReqMessage,
     ProfileEmbeddingReqMessage,
 )
-
-
-# 임시 Test용 : `python app/infra/consumer.py`로 바로 실행될 수 있도록
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Load environment variables from .env file
 load_dotenv(PROJECT_ROOT / ".env")
@@ -85,6 +85,7 @@ def create_consumer():
     logger.info(f"RabbitMQ 연결 시도: {rabbitmq_url}")
     params = pika.URLParameters(rabbitmq_url)
     params.blocked_connection_timeout = 300  # 5min
+    params.heartbeat = 60  # 1분마다 heartbeat
 
     try:
         connection = pika.BlockingConnection(params)
@@ -109,6 +110,7 @@ def create_consumer():
         on_message_callback=consume_behavior_embedding,
         auto_ack=False,
     )
+    channel.basic_qos(prefetch_count=1)
 
     return connection, channel
 

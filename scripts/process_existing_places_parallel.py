@@ -144,7 +144,7 @@ async def process_places(
         # 처리 대상 장소 조회
         if skip_completed:
             # embedding이 없는 장소만 (가장 중요한 조건)
-            query = db.query(Place).filter(Place.embedding == None)
+            query = db.query(Place).filter(Place.embedding.is_(None))
         else:
             # 전체 장소
             query = db.query(Place)

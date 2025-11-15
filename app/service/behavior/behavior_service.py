@@ -68,10 +68,14 @@ class BehaviorService:
             days: 최근 N일 (기본 7 -> 실제 서비스는 길게 하는게 좋을 듯 90일 정도)
         """
         log.info(f"[행동 임베딩 재생성 시작]")
+        try:
+            user_uuid = UUID(user_id)
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Invalid user_id format: {e}")
 
         # 1. 사용자의 최근 행동에서 장소 임베딩과 가중치 가져오기
         weighted_places: List[WeightedPlaceEmbeddingDto] = (
-            self.repository.get_weighted_place_embeddings(user_id, days)
+            self.repository.get_weighted_place_embeddings(user_uuid, days)
         )
 
         if not weighted_places:

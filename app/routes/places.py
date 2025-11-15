@@ -69,7 +69,7 @@ async def naver_search_test(
 ):
 
     urls: list[str] = naver_search_service.search_review_urls(
-        create_place.title, create_place.address, []
+        create_place.title, create_place.address
     )
     print(urls)
 

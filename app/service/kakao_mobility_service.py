@@ -1,8 +1,11 @@
+import logging
 import httpx
 import asyncio
 from typing import List, Optional, Tuple
 from app.common.config import kakaoMobilityConfig
 from app.schemas.routes import Coordinate, RouteSummary
+
+logger = logging.getLogger(__name__)
 
 
 class KakaoMobilityService:
@@ -25,10 +28,10 @@ class KakaoMobilityService:
         두 지점 간의 경로 정보를 조회합니다.
 
         Args:
-            origin_lng: 출발지 경도
-            origin_lat: 출발지 위도
-            destination_lng: 도착지 경도
-            destination_lat: 도착지 위도
+            origin_longitude: 출발지 경도
+            origin_latitude: 출발지 위도
+            destination_longitude: 도착지 경도
+            destination_latitude: 도착지 위도
             priority: 경로 우선순위 (RECOMMEND, TIME, DISTANCE)
 
         Returns:
@@ -52,7 +55,7 @@ class KakaoMobilityService:
                 )
 
                 if response.status_code != 200:
-                    print(
+                    logger.error(
                         f"Kakao Mobility API Error: {response.status_code} - {response.text}"
                     )
                     return None
@@ -119,7 +122,7 @@ class KakaoMobilityService:
         try:
             results = await asyncio.gather(*tasks)
         except Exception as exc:
-            print(f"Kakao Mobility matrix task 실패: {exc}")
+            logger.exception(f"Kakao Mobility matrix task 실패: {exc}")
             raise
 
         # 결과를 매트릭스에 채우기
