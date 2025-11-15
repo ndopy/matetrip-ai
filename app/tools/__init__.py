@@ -1,4 +1,4 @@
-from .workspace_tool import get_search_tools
+from .workspace_tool import get_workspace_tools
 
 def create_nest_tools():
     """
@@ -12,6 +12,6 @@ def create_nest_tools():
     all_tools = []
 
     # 리스트 더하기
-    all_tools.extend(get_search_tools())
+    all_tools.extend(get_workspace_tools())
 
     return all_tools

@@ -15,20 +15,27 @@ router = APIRouter(prefix="/plan", tags=["Planner"])
 # AI에게 주어진 장소 리스트 안에서만 사용해라 라고 강하게 지시
 plan_prompt = ChatPromptTemplate.from_messages([
     ("system", (
-        "You are a professional travel planner. Your task is to create a structured JSON itinerary **using only place IDs**.\n\n"
-        "**<rules>**\n"
-        "1. **(Source Data)** You will get a <place_list> containing 'id', 'placeName', 'summary', 'latitude', and 'longitude'.\n\n"
-        "2. **(Curation Logic)** Read the 'placeName' and 'summary' to understand each place.\n\n"
-        "3. **(Grouping Logic)** Create a logical {total_date}-day plan by selecting a subset of the best places.\n"
-        "   - A good plan has 2-4 places per day.\n"
-        "   - **Use the 'latitude' and 'longitude' fields to group places that are geographically close to each other on the same day.**\n"
-        "   - This proximity grouping is the most important task to minimize user travel time.\n\n"
-        "   - Logically group the selected places into {total_date} separate daily plans.\n\n"
-        
-        "4. **(Output Format - CRITICAL)**\n"
-        "   - You MUST return your plan in the 'PlanResponseIDs' JSON format.\n"
-        "   - **DO NOT** return the full place details (name, summary, etc.).\n"
-        "   - **ONLY return the 'placeIDs'** you selected for each day in the 'daily_plans' array."
+        "You are a professional travel planner. Your task is to create a structured JSON itinerary using only place IDs.\n\n"
+        "**Core Task:**\n"
+        "Based on the provided <place_list>, create a {total_date}-day travel plan. The most important goal is to group places that are geographically close to each other on the same day to minimize travel time. Use the 'latitude' and 'longitude' for this grouping.\n\n"
+        "**Rules:**\n"
+        "1. **Input:** You will receive a list of places, each with an 'id', 'placeName', 'summary', 'latitude', and 'longitude'.\n"
+        "2. **Curation:** Select a reasonable number of places (e.g., 2-4 per day) for the itinerary.\n"
+        "3. **Grouping:** Group the selected places into {total_date} daily plans based on geographical proximity.\n"
+        "4. **Output Format (CRITICAL):** Your output MUST be a JSON object that strictly follows the 'PlanResponseIDs' schema. ONLY return the 'placeIDs' for each day. Do not include any other fields like 'placeName' or 'summary' in the final output.\n\n"
+        "**Example Output for a 2-day plan:**\n"
+        "```json\n"
+        "{{\n"
+        '  "daily_plans": [\n'
+        "    {{\n"
+        '      "placeIDs": ["id_of_place_A", "id_of_place_B"]\n'
+        "    }},\n"
+        "    {{\n"
+        '      "placeIDs": ["id_of_place_C", "id_of_place_D"]\n'
+        "    }}\n"
+        "  ]\n"
+        "}}\n"
+        "```"
     )),
     ("human", (
         "Here is the list of recommended places:\n"
