@@ -6,7 +6,7 @@ from app.common.config import nestJSConfig
 
 BASE_URL = nestJSConfig.NESTJS_BACKEND_URL
 
-def get_search_tools(headers: dict):
+def get_search_tools():
     """
     [장소 검색 도구 모음]
     """
@@ -27,7 +27,6 @@ def get_search_tools(headers: dict):
                 response = client.get(
                     f"{BASE_URL}/workspace/search",
                     params={"keyword": keyword},
-                    headers=headers
                 )
 
                 response.raise_for_status()
