@@ -1,0 +1,13 @@
+# .github/workflows/deploy.yml
+
+name: deploy-ai
+on:
+  push: { branches: ["dev"] }   # AI 레포에서 배포 기준 브랜치에 맞게 수정
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    concurrency: { group: deploy-ai, cancel-in-progress: true }
+    steps:
+      - run: bash ~/app/matetrip-ai/deploy.sh
