@@ -31,6 +31,7 @@ class TourAPIService:
         "tourism": "12",  # 관광지
         "course": "25",  # 여행코스
         "leisure": "28",  # 레포츠
+        "accommodation": "32",  # 숙박
     }
 
     # 지역코드 (areaCode)

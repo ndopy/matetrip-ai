@@ -2,11 +2,13 @@ from typing import Optional, List, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
 from pydantic import ConfigDict
-from sqlalchemy import JSON, TEXT, Float, String, Integer, TIMESTAMP, func
+from sqlalchemy import TEXT, Float, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID, ENUM
 from pgvector.sqlalchemy import VECTOR as VectorColumn
+
+from app.enums import RegionGroupType
 
 if TYPE_CHECKING:
     from pgvector import Vector as VECTOR
@@ -49,6 +51,16 @@ class Place(Base):
 
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # 지역 그룹
+    region: Mapped[Optional[str]] = mapped_column(
+        ENUM(
+            *[region.value for region in RegionGroupType],
+            name="region_group_type",
+            create_type=False,
+        ),
+        nullable=True,
+    )
 
     # 장소 대표 임베딩 (리뷰 기반 평균 벡터)
     embedding: Mapped[Optional["VECTOR"]] = mapped_column(
