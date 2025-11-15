@@ -17,7 +17,7 @@ class BedrockEmbeddingService:
     def __init__(self):
         log.info(f"\n[AWS Bedrock 임베딩 서비스 초기화]")
         log.info(f"AWS Region: {bedrockConfig.AWS_REGION}")
-        log.info(f"Model ID: {bedrockConfig.MODEL_ID}\n")
+        log.info(f"Model ID: {bedrockConfig.BEDROCK_EMBEDDING_MODEL_ID}\n")
 
         # AWS Bedrock Runtime 클라이언트 생성
         self.bedrock_runtime = boto3.client(
@@ -26,7 +26,7 @@ class BedrockEmbeddingService:
             aws_access_key_id=bedrockConfig.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=bedrockConfig.AWS_SECRET_ACCESS_KEY,
         )
-        self.model_id = bedrockConfig.MODEL_ID
+        self.model_id = bedrockConfig.BEDROCK_EMBEDDING_MODEL_ID
         log.info("[AWS Bedrock 임베딩 서비스 초기화 완료]\n")
 
     def create_embedding(self, text: str) -> List[float]:
@@ -147,16 +147,16 @@ class BedrockEmbeddingService:
 
         # 마지막 마침표, 느낌표, 물음표 위치 찾기
         last_sentence_end = max(
-            truncated.rfind('.'),
-            truncated.rfind('!'),
-            truncated.rfind('?'),
-            truncated.rfind('。'),  # 일본어
-            truncated.rfind('．'),
+            truncated.rfind("."),
+            truncated.rfind("!"),
+            truncated.rfind("?"),
+            truncated.rfind("。"),  # 일본어
+            truncated.rfind("．"),
         )
 
         # 문장 끝을 찾았으면 그 위치까지만
         if last_sentence_end > max_length * 0.8:  # 80% 이상 위치에서 찾은 경우만
-            return truncated[:last_sentence_end + 1]
+            return truncated[: last_sentence_end + 1]
 
         # 못 찾았으면 그냥 자르기
         return truncated

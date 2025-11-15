@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
+from pydantic import ConfigDict
 from sqlalchemy import TEXT, ForeignKey, TIMESTAMP, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
@@ -31,11 +32,13 @@ class PlaceReview(Base):
     source_url: Mapped[str] = mapped_column(TEXT, nullable=False, unique=True)
     embedding: Mapped[Optional[Vector]] = mapped_column(Vector(1024), nullable=True)
 
-    # 🆕 소프트 삭제 필드
+    # 소프트 삭제 필드
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.now(), nullable=False
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
     # Relationship
     place: Mapped["Place"] = relationship("Place", back_populates="reviews")
+
+    model_config = ConfigDict(from_attributes=True)

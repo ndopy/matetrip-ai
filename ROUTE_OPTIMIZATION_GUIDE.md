@@ -28,7 +28,7 @@ KAKAO_MOBILITY_API_KEY=your-kakao-mobility-api-key-here
 
 # NestJS Backend Server (POI 최적화 브로드캐스트용)
 NESTJS_SERVER_URL=http://localhost:3000
-NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
+NESTJS_API_KEY=your-nestjs-api-key-here
 ```
 
 ## 🚀 사용 방법
@@ -40,6 +40,7 @@ NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
 **POST** `/optimization/route`
 
 **Request Body:**
+
 ```json
 {
   "poi_list": [
@@ -50,21 +51,22 @@ NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
     },
     {
       "id": "poi-uuid-2",
-      "longitude": 127.0300,
-      "latitude": 37.5000
+      "longitude": 127.03,
+      "latitude": 37.5
     },
     {
       "id": "poi-uuid-3",
-      "longitude": 127.0250,
-      "latitude": 37.4950
+      "longitude": 127.025,
+      "latitude": 37.495
     }
   ],
-  "start_index": 0,  // 선택: 시작 지점 고정 (0번 인덱스)
-  "end_index": null   // 선택: 종료 지점 고정
+  "start_index": 0, // 선택: 시작 지점 고정 (0번 인덱스)
+  "end_index": null // 선택: 종료 지점 고정
 }
 ```
 
 **Response:**
+
 ```json
 {
   "optimized_poi_order": [
@@ -76,19 +78,19 @@ NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
     },
     {
       "id": "poi-uuid-3",
-      "longitude": 127.0250,
-      "latitude": 37.4950,
+      "longitude": 127.025,
+      "latitude": 37.495,
       "order": 1
     },
     {
       "id": "poi-uuid-2",
-      "longitude": 127.0300,
-      "latitude": 37.5000,
+      "longitude": 127.03,
+      "latitude": 37.5,
       "order": 2
     }
   ],
-  "total_duration": 1234,  // 총 소요시간(초)
-  "total_distance": 12345  // 총 거리(미터)
+  "total_duration": 1234, // 총 소요시간(초)
+  "total_distance": 12345 // 총 거리(미터)
 }
 ```
 
@@ -97,6 +99,7 @@ NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
 **POST** `/optimization/route/broadcast`
 
 **Request Body:**
+
 ```json
 {
   "workspace_id": "workspace-uuid-123",
@@ -109,8 +112,8 @@ NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
     },
     {
       "id": "poi-uuid-2",
-      "longitude": 127.0300,
-      "latitude": 37.5000
+      "longitude": 127.03,
+      "latitude": 37.5
     }
   ],
   "start_index": null,
@@ -119,6 +122,7 @@ NESTJS_API_KEY=your-nestjs-api-key-here  # 선택사항
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -240,6 +244,7 @@ asyncio.run(optimize_and_broadcast())
 **구현 방식:**
 
 1. **소규모 (8개 이하)**: 완전 탐색 (Brute Force)
+
    - 모든 순열을 탐색하여 최적해 보장
    - 시간 복잡도: O(n!)
 

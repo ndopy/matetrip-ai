@@ -60,7 +60,7 @@ class KakaoMobilityService:
                 data = response.json()
 
                 # 첫 번째 경로의 요약 정보 추출
-                if data["routes"] and len(data["routes"]) > 0:
+                if data.get("routes") and len(data["routes"]) > 0:
                     summary = data["routes"][0]["summary"]
                     return RouteSummary(
                         duration=summary["duration"],
@@ -115,8 +115,12 @@ class KakaoMobilityService:
                         )
                     )
 
-        # 모든 API 호출 병렬 실행
-        results = await asyncio.gather(*tasks)
+        # 모든 API 호출 병렬 실행 (하나라도 실패하면 예외 전파)
+        try:
+            results = await asyncio.gather(*tasks)
+        except Exception as exc:
+            print(f"Kakao Mobility matrix task 실패: {exc}")
+            raise
 
         # 결과를 매트릭스에 채우기
         for i, j, route_info in results:
@@ -129,7 +133,7 @@ class KakaoMobilityService:
         i: int,
         j: int,
         origin_longitude: float,
-        origin_lattitude: float,
+        origin_latitude: float,
         destination_longitude: float,
         destination_latitude: float,
         priority: str,
@@ -139,7 +143,7 @@ class KakaoMobilityService:
         """
         route_info = await self.get_route_info(
             origin_longitude,
-            origin_lattitude,
+            origin_latitude,
             destination_longitude,
             destination_latitude,
             priority,
