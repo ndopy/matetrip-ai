@@ -5,6 +5,10 @@ from sqlalchemy import text, select, func
 from sqlalchemy.orm import Session
 
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
+from app.models.user import User  # noqa: F401
+
+# Place를 import하기 전에 PlaceReview를 먼저 import (relationship 초기화를 위해)
+from app.models.review import PlaceReview  # noqa: F401
 from app.models.place import Place
 
 
@@ -129,6 +133,7 @@ class BehaviorRepository:
         """
         사용자의 최근 행동에서 장소 임베딩과 가중치를 가져옴
         (행동 임베딩 계산용)
+        최근 days일 동안에 수행한 행동 로그를 바탕으로 행동에 연관된 장소정보와 임베딩을 불러옴
         """
         cutoff_date = datetime.now() - timedelta(days=days)
 
