@@ -339,10 +339,6 @@ ALTER TABLE profile
     ADD CONSTRAINT fk_profile_image
         FOREIGN KEY (profile_image_id) REFERENCES binary_content (id) ON DELETE SET NULL;
 
-ALTER TABLE profile_embedding
-    ADD CONSTRAINT  fk_profile_embedding_profile
-        FOREIGN KEY (profile_id) REFERENCES profile (id) ON DELETE SET NULL;
-
 ALTER TABLE post
     ADD CONSTRAINT fk_post_writer
         FOREIGN KEY (writer_id) REFERENCES users (id) ON DELETE RESTRICT;

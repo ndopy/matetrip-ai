@@ -74,10 +74,13 @@ class Place(Base):
     )
 
     created_at: Mapped[Optional[datetime]] = mapped_column(
-        TIMESTAMP, server_default=func.now(), nullable=True
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=True
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
-        TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=True
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
     )
 
     model_config = ConfigDict(from_attributes=True)

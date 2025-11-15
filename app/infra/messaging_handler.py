@@ -47,6 +47,12 @@ def parse_message(
         )
         return None
 
+    if not isinstance(json_payload, dict):
+        log.warning(
+            f"[Q: {queue_name}] dict 형태가 아닌 payload입니다: {json_payload!r}"
+        )
+        return None
+
     # NestJS에서 {pattern, data} 형태로 보내므로 data 필드 추출
     if isinstance(json_payload, dict) and "data" in json_payload:
         json_payload = json_payload["data"]

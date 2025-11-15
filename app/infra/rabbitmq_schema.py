@@ -4,11 +4,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class ProfileEmbeddingReqMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    user_id: str = Field(..., alias="userId", min_length=35)
+    user_id: str = Field(..., alias="userId", min_length=36)
 
 
 class BehaviorEventData(BaseModel):
     """행동 이벤트 상세 데이터"""
+
     model_config = ConfigDict(populate_by_name=True)
 
     place_id: str | None = Field(None, alias="placeId")
@@ -20,6 +21,7 @@ class BehaviorEventData(BaseModel):
 
 class BehaviorEmbeddingReqMessage(BaseModel):
     """RabbitMQ로 받는 행동 이벤트 메시지"""
+
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(..., alias="userId", min_length=1)

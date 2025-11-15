@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import numpy as np
 from sqlalchemy.orm import Session
@@ -73,7 +73,9 @@ class BehaviorEmbeddingService:
         weighted_places = self.repository.get_weighted_place_embeddings(user_id, days)
 
         if not weighted_places:
-            log.warning(f"[행동 임베딩 재생성 실패] 사용자의 행동 데이터가 없습니다. user_id={user_id}")
+            log.warning(
+                f"[행동 임베딩 재생성 실패] 사용자의 행동 데이터가 없습니다. user_id={user_id}"
+            )
             return
 
         # 2. 시간 기반 감쇠 적용 (최근 행동에 더 높은 가중치)
@@ -88,7 +90,8 @@ class BehaviorEmbeddingService:
         for place in weighted_places:
             # 시간 감쇠 계산
             created_at = place["created_at"]
-            days_ago = (datetime.now() - created_at).days
+            days_ago = (datetime.now(timezone.utc) - created_at).days
+
             decay_factor = 0.95 ** (days_ago / 7)  # 주당 5% 감소
 
             # 최종 가중치 = 행동 가중치 × 시간 감쇠
@@ -98,7 +101,9 @@ class BehaviorEmbeddingService:
             place_embedding = place["place_embedding"]
             if isinstance(place_embedding, str):
                 # 문자열로 저장된 경우 파싱
-                place_embedding = [float(x) for x in place_embedding.strip("[]").split(",")]
+                place_embedding = [
+                    float(x) for x in place_embedding.strip("[]").split(",")
+                ]
 
             weighted_embeddings.append((place_embedding, final_weight))
             total_weight += abs(final_weight)  # 부정 가중치도 고려
@@ -112,7 +117,9 @@ class BehaviorEmbeddingService:
 
         # 3. 가중평균 계산
         if total_weight == 0:
-            log.warning(f"[행동 임베딩 재생성 실패] 총 가중치가 0입니다. user_id={user_id}")
+            log.warning(
+                f"[행동 임베딩 재생성 실패] 총 가중치가 0입니다. user_id={user_id}"
+            )
             return
 
         # 각 임베딩에 가중치를 곱하고 합산
@@ -147,10 +154,14 @@ class BehaviorEmbeddingService:
             f"categories={list(aggregated_stats['category_scores'].keys())}"
         )
 
-    def get_user_behavior_embedding(self, user_id: str) -> Optional[UserBehaviorEmbedding]:
+    def get_user_behavior_embedding(
+        self, user_id: str
+    ) -> Optional[UserBehaviorEmbedding]:
         """사용자의 행동 임베딩 조회"""
         return self.repository.get_behavior_embedding(user_id)
 
-    def get_user_recent_events(self, user_id: str, limit: int = 50) -> List[UserBehaviorEvent]:
+    def get_user_recent_events(
+        self, user_id: str, limit: int = 50
+    ) -> List[UserBehaviorEvent]:
         """사용자의 최근 행동 이벤트 조회"""
         return self.repository.get_user_behavior_events(user_id, limit)

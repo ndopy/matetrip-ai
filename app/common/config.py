@@ -162,11 +162,12 @@ bedrockConfig = BedRockConfig()
 tourAPIConfig = TourAPIConfig()
 kakaoMobilityConfig = KakaoMobilityConfig()
 nestJSConfig = NestJSConfig()
+rabbitMQConfig = RabbitMQConfig()
 
 if not nestJSConfig.NESTJS_BACKEND_URL:
-    raise ValueError("❌ 오류: .env 파일에 NESTJS_SERVER_URL이 설정되지 않았습니다.")
+    raise ValueError("오류: .env 파일에 NESTJS_SERVER_URL이 설정되지 않았습니다.")
 
 if not bedrockConfig.AWS_ACCESS_KEY_ID or not bedrockConfig.AWS_SECRET_ACCESS_KEY:
     raise ValueError(
-        "❌ 오류: .env 파일에 AWS 자격 증명(Access Key/Secret Key)이 없습니다."
+        "오류: .env 파일에 AWS 자격 증명(Access Key/Secret Key)이 없습니다."
     )

@@ -36,7 +36,7 @@ class PlaceReview(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.now(), nullable=False
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
     # Relationship
     place: Mapped["Place"] = relationship("Place", back_populates="reviews")
