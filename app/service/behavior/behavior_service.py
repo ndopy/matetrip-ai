@@ -5,15 +5,19 @@ from uuid import UUID
 import numpy as np
 from sqlalchemy.orm import Session
 
-from app.common.embedding_utils import EmbeddingUtils
 from app.repository.behavior_repository import BehaviorRepository
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
-from app.schemas.behavior import SaveBehaviorEventDto
+from app.schemas.behavior import (
+    SaveBehaviorEventDto,
+    UserEventResDto,
+    WeightedPlaceEmbeddingDto,
+)
+from enums.user_behavior import BehaviorEventType
 
 log = logging.getLogger(__name__)
 
 
-class BehaviorEmbeddingService:
+class BehaviorService:
     """
     사용자 행동 기반 임베딩 생성 및 관리 서비스
     """
@@ -29,8 +33,6 @@ class BehaviorEmbeddingService:
 
         Returns:
             저장된 이벤트 ID
-
-
         """
         # TODO: Commit 너무 자주날려서 한번에 모아서 날리는 방법이 python에서 뭔지 알아보기
         # 1. 이벤트 저장
@@ -68,7 +70,9 @@ class BehaviorEmbeddingService:
         log.info(f"[행동 임베딩 재생성 시작]")
 
         # 1. 사용자의 최근 행동에서 장소 임베딩과 가중치 가져오기
-        weighted_places = self.repository.get_weighted_place_embeddings(user_id, days)
+        weighted_places: List[WeightedPlaceEmbeddingDto] = (
+            self.repository.get_weighted_place_embeddings(user_id, days)
+        )
 
         if not weighted_places:
             log.warning(
@@ -87,23 +91,21 @@ class BehaviorEmbeddingService:
 
         for place in weighted_places:
             # 시간 감쇠 계산
-            created_at = place["created_at"]
+            created_at = place.created_at
             days_ago = (datetime.now(timezone.utc) - created_at).days
 
             decay_factor = 0.95 ** (days_ago / 7)  # 주당 5% 감소
 
             # 최종 가중치 = 행동 가중치 × 시간 감쇠
-            final_weight: float = place.get("weight") * decay_factor
+            final_weight: float = place.weight * decay_factor
 
-            place_embedding: List[float] = EmbeddingUtils.to_vector(
-                place.get("place_embedding")
-            )
+            place_embedding: List[float] = place.place_embedding
 
             weighted_embeddings.append((place_embedding, final_weight))
             total_weight += abs(final_weight)  # 부정 가중치도 고려
 
             # 카테고리별 점수 집계
-            category = place.get("category")
+            category = place.category
             if category:
                 if category not in aggregated_stats["category_scores"]:
                     aggregated_stats["category_scores"][category] = 0.0
@@ -163,4 +165,29 @@ class BehaviorEmbeddingService:
         self, user_id: str, limit: int = 50
     ) -> List[UserBehaviorEvent]:
         """사용자의 최근 행동 이벤트 조회"""
+        # TODO: DTO 변환
         return self.repository.get_user_behavior_events(user_id, limit)
+
+    def get_recent_user_behavior(
+        self,
+        user_id: str,
+        date_range_days: int,
+        event_type: BehaviorEventType,
+    ) -> List[UserEventResDto]:
+        """
+        특정 기간 내 사용자의 이벤트 조회
+
+        Args:
+            user_id: 사용자 ID
+            date_range_days: 최근 날짜 범위 (일 단위)
+            event_types: 조회할 이벤트 타입 리스트 (기본: POI_MARK, POI_SCHEDULE)
+
+        Returns:
+            marking 이벤트 DTO 리스트
+        """
+
+        return self.repository.get_user_recent_events(
+            user_id=user_id,
+            date_range_days=date_range_days,
+            event_type=event_type,
+        )

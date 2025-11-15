@@ -26,9 +26,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy.orm import Session
 from app.database.database import SessionLocal
 from app.models.place import Place
-from app.service.tour_api_service import TourAPIService
+from service.crawling.tour_api_service import TourAPIService
 from app.service.place_service import PlaceService
-from app.service.naver_search_service import NaverSearchService
+from service.crawling.naver_search_service import NaverSearchService
 from app.enums import RegionGroupType
 
 # 로깅 설정
@@ -52,7 +52,7 @@ class TourPlaceCollector:
         self.db = db
         self.tour_service = TourAPIService()
         self.naver_service = NaverSearchService()
-        self.place_service = PlaceService()
+        self.place_service = PlaceService(db)
         self.collected_count = 0
         self.skipped_count = 0
         self.error_count = 0
@@ -282,7 +282,7 @@ class TourPlaceCollector:
         """리뷰 처리 (Naver API 사용)"""
         logger.info("    → 리뷰 처리 시작...")
         try:
-            await self.place_service.process_place_reviews(self.db, place)
+            await self.place_service.process_place_reviews(place)
             self.db.commit()
 
             # 네이버 API 호출 수 추적

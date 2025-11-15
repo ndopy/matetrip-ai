@@ -45,7 +45,7 @@ async def process_places(limit: int | None = None):
         limit: 처리할 장소 개수 제한 (None 또는 0이면 전체)
     """
     db = SessionLocal()
-    place_service = PlaceService()
+    place_service = PlaceService(db)
     # ⬇️ 전체 함수 시작 시각
     start_time = time.time()
 
@@ -80,7 +80,7 @@ async def process_places(limit: int | None = None):
                 # 2. 리뷰 크롤링
                 # 3. 리뷰 임베딩 생성
                 # 4. 태그/요약 생성
-                await place_service.process_place_reviews(db, place)
+                await place_service.process_place_reviews(place)
 
                 db.commit()
                 success_count += 1

@@ -4,16 +4,9 @@ import sys
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from typing import Optional, Type, TypeVar
-
 from pydantic import BaseModel, ValidationError
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    # Allow running the script directly (`python app/infra/...`) without -m flag.
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from app.database.database import get_db
-from app.service.behavior_embedding_service import BehaviorEmbeddingService
+from service.behavior.behavior_service import BehaviorService
 from app.schemas.behavior import SaveBehaviorEventDto
 from app.common.logger import logger
 from app.schemas.rabbitmq_schema import (
@@ -21,6 +14,10 @@ from app.schemas.rabbitmq_schema import (
     ProfileEmbeddingReqMessage,
 )
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    # Allow running the script directly (`python app/infra/...`) without -m flag.
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 log = logger
 # "여기에는 BaseModel을 상속한 어떤 Pydantic 모델 타입이 들어올 거야"라는 걸 타입 시스템에 알려주는 장치.
@@ -76,7 +73,7 @@ def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> 
     # DB 세션 생성
     db = next(get_db())
     try:
-        service = BehaviorEmbeddingService(db)
+        service = BehaviorService(db)
         dto = SaveBehaviorEventDto.from_message(message)
         # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
         event_id = service.save_behavior_event(dto)

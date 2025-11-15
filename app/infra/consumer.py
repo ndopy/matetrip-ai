@@ -1,8 +1,8 @@
-from loguru import logger
 import os
 import sys
 from pathlib import Path
 from typing import Final
+from app.common.logger import logger
 
 import pika
 import pika.exceptions

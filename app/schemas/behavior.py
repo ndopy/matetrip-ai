@@ -1,7 +1,10 @@
-from typing import Optional, TYPE_CHECKING
+from datetime import datetime
+from typing import List, Optional, TYPE_CHECKING
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.enums.user_behavior import BehaviorEventType
 from schemas.rabbitmq_schema import BehaviorEmbeddingReqMessage
 
 
@@ -31,3 +34,29 @@ class SaveBehaviorEventDto(BaseModel):
             workspace_id=message.workspace_id,
             planday_id=message.planday_id,
         )
+
+
+class WeightedPlaceEmbeddingDto(BaseModel):
+    """행동 임베딩 계산에 사용되는 장소별 벡터 DTO"""
+
+    place_id: UUID
+    weight: float
+    created_at: datetime
+    event_type: BehaviorEventType
+    place_embedding: List[float]
+    place_name: str
+    category: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserEventResDto(BaseModel):
+    """이벤트 상세 DTO"""
+
+    event_id: UUID
+    event_type: BehaviorEventType
+    created_at: datetime
+    workspace_id: Optional[UUID] = None
+    place_id: UUID
+
+    model_config = {"from_attributes": True}

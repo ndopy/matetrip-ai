@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.place import Place
 from app.schemas.place import PlaceCreate, PlaceListCreateRequest
-from app.service.naver_search_service import NaverSearchService
+from service.crawling.naver_search_service import NaverSearchService
 from app.service.place_service import PlaceService
 from app.mapper.place_mapper import PlaceMapper
 
@@ -17,12 +17,6 @@ router = APIRouter(
 )
 
 
-# place_service =
-def get_place_service():
-
-    return PlaceService()
-
-
 def get_naver_search_service():
     return NaverSearchService()
 
@@ -31,11 +25,11 @@ def get_naver_search_service():
 async def create_places(
     place_list: PlaceListCreateRequest,
     background_tasks: BackgroundTasks,
-    place_service: PlaceService = Depends(get_place_service),
     db: Session = Depends(get_db),
 ):
     # 생성 후 background에서 리뷰 수집 및 임베딩하려고
     created_places = []
+    place_service = PlaceService(db)
 
     for place_data in place_list.places:
         statement = select(
@@ -60,7 +54,6 @@ async def create_places(
 
         background_tasks.add_task(
             place_service.process_place_reviews,
-            db,
             place,
         )
 

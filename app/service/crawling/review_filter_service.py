@@ -5,9 +5,10 @@
 import logging
 import re
 import json
-from typing import List, Dict
+from typing import List
 import boto3
 from app.common.config import bedrockConfig
+from app.schemas.review import ReviewContentDto
 
 logger = logging.getLogger(__name__)
 
@@ -214,29 +215,31 @@ JSON 형식으로만 답변해주세요:
 
     def filter_reviews(
         self,
-        reviews: Dict[str, str],  # {url: content} 형식
+        reviews: List[ReviewContentDto],
         place_title: str,
         use_ai: bool = False,
-    ) -> Dict[str, str]:
+    ) -> List[ReviewContentDto]:
         """
-        리뷰 딕셔너리를 필터링하여 광고성 글 제거
+        리뷰 리스트를 필터링하여 광고성 글 제거
 
         Args:
-            reviews: 리뷰 딕셔너리 {url: content, ...}
+            reviews: 리뷰 DTO 리스트
             place_title: 장소명
             use_ai: AI 필터링 사용 여부 (비용 발생)
 
         Returns:
-            필터링된 리뷰 딕셔너리
+            필터링된 리뷰 DTO 리스트
         """
-        filtered_reviews = {}
+        filtered_reviews: List[ReviewContentDto] = []
         spam_count = 0
 
         logger.info("\n" + "=" * 80)
         logger.info(f"[리뷰 필터링 시작] 전체 {len(reviews)}개")
         logger.info("=" * 80)
 
-        for idx, (url, content) in enumerate(reviews.items(), 1):
+        for idx, review in enumerate(reviews, 1):
+            url = review.source_url
+            content = review.content
 
             # 1차: 키워드 필터링
             if not self.keyword_filter(content):
@@ -251,7 +254,7 @@ JSON 형식으로만 답변해주세요:
                     logger.info(f"  [{idx}/{len(reviews)}] 광고 제거 (AI)")
                     continue
 
-            filtered_reviews[url] = content
+            filtered_reviews.append(review)
             logger.info(f"  [{idx}/{len(reviews)}] 정상 리뷰")
 
         logger.info("\n" + "=" * 80)

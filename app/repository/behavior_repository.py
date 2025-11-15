@@ -4,12 +4,18 @@ from uuid import UUID
 from sqlalchemy import text, select, func
 from sqlalchemy.orm import Session
 
+from app.common.embedding_utils import EmbeddingUtils
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
 from app.models.user import User  # noqa: F401
 
 # Place를 import하기 전에 PlaceReview를 먼저 import (relationship 초기화를 위해)
 from app.models.review import PlaceReview  # noqa: F401
 from app.models.place import Place
+from app.schemas.behavior import (
+    UserEventResDto,
+    WeightedPlaceEmbeddingDto,
+)
+from enums.user_behavior import BehaviorEventType
 
 
 class BehaviorRepository:
@@ -130,7 +136,7 @@ class BehaviorRepository:
         self,
         user_id: str,
         days: int = 90,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[WeightedPlaceEmbeddingDto]:
         """
         사용자의 최근 행동에서 장소 임베딩과 가중치를 가져옴
         (행동 임베딩 계산용)
@@ -161,4 +167,69 @@ class BehaviorRepository:
         result = self._db.execute(stmt)
         rows = result.mappings().all()
 
-        return [dict(row) for row in rows]
+        weighted_places: List[WeightedPlaceEmbeddingDto] = []
+        for row in rows:
+            weighted_places.append(
+                WeightedPlaceEmbeddingDto(
+                    place_id=row["place_id"],
+                    weight=float(row["weight"]),
+                    created_at=row["created_at"],
+                    event_type=BehaviorEventType(row["event_type"]),
+                    place_embedding=EmbeddingUtils.to_vector(row["place_embedding"]),
+                    place_name=row["place_name"],
+                    category=row["category"],
+                )
+            )
+
+        return weighted_places
+
+    def get_user_recent_events(
+        self, user_id: str, date_range_days: int, event_type: BehaviorEventType
+    ) -> List[UserEventResDto]:
+        """
+        특정 기간 내 사용자의 이벤트 조회
+
+        Args:
+            user_id: 사용자 ID
+            date_range_days: 조회할 날짜 범위 (일 단위)
+
+        Returns:
+            marking 이벤트와 관련 장소 정보 리스트
+        """
+        cutoff_date = datetime.now() - timedelta(days=date_range_days)
+
+        stmt = (
+            select(
+                UserBehaviorEvent.id.label("event_id"),
+                UserBehaviorEvent.event_type,
+                UserBehaviorEvent.weight,
+                UserBehaviorEvent.created_at,
+                UserBehaviorEvent.workspace_id,
+                Place.id.label("place_id"),
+            )
+            .join(Place, UserBehaviorEvent.place_id == Place.id)
+            .where(
+                UserBehaviorEvent.user_id == UUID(user_id),
+                UserBehaviorEvent.event_type == event_type.value,
+                UserBehaviorEvent.place_id.isnot(None),
+                UserBehaviorEvent.created_at > cutoff_date,
+            )
+            .order_by(UserBehaviorEvent.created_at.desc())
+        )
+
+        result = self._db.execute(stmt)
+        rows = result.mappings().all()
+
+        events: List[UserEventResDto] = []
+        for row in rows:
+            events.append(
+                UserEventResDto(
+                    event_id=row["event_id"],
+                    event_type=BehaviorEventType(row["event_type"]),
+                    created_at=row["created_at"],
+                    workspace_id=row["workspace_id"],
+                    place_id=row["place_id"],
+                )
+            )
+
+        return events

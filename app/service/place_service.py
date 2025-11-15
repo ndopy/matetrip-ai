@@ -4,14 +4,15 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
-from app.service.crawl_service import CrawlService
-from app.service.naver_search_service import NaverSearchService
-from app.models.review import PlaceReview
+from service.crawling.crawl_service import CrawlService
+from service.crawling.naver_search_service import NaverSearchService
 from app.service.review_service import ReviewService
 from app.service.bedrock_llm_service import BedrockLLMService
-from app.service.review_filter_service import ReviewFilterService
+from service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
 from app.service.bedrock_embedding_service import BedrockEmbeddingService
+from app.schemas.review import ReviewContentDto, SavedReviewDto
+from app.repository.place_repository import PlaceRepository
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
@@ -23,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 class PlaceService:
 
-    def __init__(self) -> None:
+    def __init__(self, db: Session) -> None:
+        self.repository = PlaceRepository(db)
         self.llm_service = BedrockLLMService()  # LLM 서비스
         self.embedding_service = PlaceEmbeddingService()  # Place 임베딩 서비스
         self.review_embedding_service = (
@@ -31,7 +33,7 @@ class PlaceService:
         )  # Review 임베딩 서비스
 
     async def process_place_reviews(
-        self, db: Session, place: Place, force_update: bool = False
+        self, place: Place, force_update: bool = False
     ):
         """
         백그라운드에서 장소에 대한 리뷰를 처리하는 함수
@@ -41,7 +43,6 @@ class PlaceService:
         4. 태그 및 요약 생성
 
         Args:
-            db: 데이터베이스 세션
             place: 처리할 장소
             force_update: True면 임베딩이 있어도 강제로 재처리 (기본값: False)
         """
@@ -72,10 +73,14 @@ class PlaceService:
             # 2. Crawl4AI로 리뷰 크롤링
             review_contents = await crawl_service.crawl_reviews_batch(review_urls)
             logger.info(f"{len(review_contents)}개의 리뷰를 크롤링 완료")
+            review_dtos = [
+                ReviewContentDto(source_url=url, content=content)
+                for url, content in review_contents.items()
+            ]
 
             # 3. 광고성 리뷰 필터링 (키워드 기반)
             filtered_reviews = review_filter_service.filter_reviews(
-                review_contents, place.title, use_ai=False
+                review_dtos, place.title, use_ai=False
             )
 
             if not filtered_reviews:
@@ -83,13 +88,12 @@ class PlaceService:
                 return
 
             # 4. 리뷰 저장
-            reviews: List[PlaceReview] = review_service.save_reviews(
-                place.id, filtered_reviews, db
+            reviews: List[SavedReviewDto] = review_service.save_reviews(
+                place.id, filtered_reviews, self.repository.session
             )
             if not reviews:
                 return
 
-            db.commit()
             logger.info(f"{len(reviews)}개의 리뷰 저장 완료")
 
             # 5. 리뷰 임베딩 생성 (검색 정확도용 - 긍정/부정 비율 보존)
@@ -99,11 +103,9 @@ class PlaceService:
                 review_contents
             )
 
-            for idx, (review, embedding) in enumerate(zip(reviews, embeddings), 1):
-                setattr(review, "embedding", embedding)
-                logger.info(f"  {idx}/{len(reviews)} 리뷰 임베딩 완료")
-
-            db.commit()
+            review_service.apply_review_embeddings(
+                reviews, embeddings, self.repository.session
+            )
             logger.info(f"[리뷰 임베딩 생성 완료]")
 
             # 6. 태그 및 요약 생성 (사용자 표시용)
@@ -115,7 +117,7 @@ class PlaceService:
             # Tour API 카테고리는 이미 저장되어 있으므로 업데이트하지 않음
             place.tags = result.get("tags", [])
             place.summary = result.get("summary", "")
-            db.commit()
+            self.repository.commit()
             logger.info(f"태그: {place.tags}")
             summary = place.summary
             if summary:
@@ -127,7 +129,7 @@ class PlaceService:
             # 7. 장소 임베딩 생성 (리뷰 임베딩들의 평균 - 검색 정확도용)
             logger.info(f"\n[장소 임베딩 생성 시작]")
             self.embedding_service.refresh_embedding(
-                db=db,
+                db=self.repository.session,
                 place_id=place.id,
             )
             logger.info(f"[장소 임베딩 생성 완료]")
@@ -137,5 +139,8 @@ class PlaceService:
 
         except Exception:
             logger.error(f"장소 리뷰 처리 중 오류 발생: {place.title}", exc_info=True)
-            db.rollback()
+            self.repository.rollback()
             raise
+
+    def find_place_by_id(self, place_id: int):
+        return self.repository.find_by_id(place_id)

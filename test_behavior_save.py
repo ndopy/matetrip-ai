@@ -9,11 +9,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv
+
 load_dotenv(PROJECT_ROOT / ".env")
 
 from app.database.database import get_db
-from app.service.behavior_embedding_service import BehaviorEmbeddingService
+from service.behavior.behavior_service import BehaviorService
 from app.schemas.behavior import SaveBehaviorEventDto
+
 
 def main():
     print("Testing behavior event save...")
@@ -22,7 +24,7 @@ def main():
     db = next(get_db())
 
     try:
-        service = BehaviorEmbeddingService(db)
+        service = BehaviorService(db)
 
         # Create test DTO
         dto = SaveBehaviorEventDto(
@@ -46,10 +48,12 @@ def main():
     except Exception as e:
         print(f"✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         db.rollback()
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()

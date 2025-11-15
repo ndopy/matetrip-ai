@@ -65,7 +65,7 @@ async def process_single_place(
     try:
         # 각 태스크마다 새 DB 세션 생성
         db = SessionLocal()
-        place_service = PlaceService()
+        place_service = PlaceService(db)
 
         # 새 세션에서 place 재조회
         place = db.query(Place).filter(Place.id == place_id).first()
@@ -76,7 +76,7 @@ async def process_single_place(
         logger.info(f"[{idx}/{total}] {place.title} 처리 시작...")
 
         # 전체 파이프라인 실행
-        await place_service.process_place_reviews(db, place)
+        await place_service.process_place_reviews(place)
 
         db.commit()
         logger.info(f"✓ [{idx}/{total}] {place.title} 완료")
