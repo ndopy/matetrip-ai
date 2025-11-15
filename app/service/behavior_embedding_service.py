@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 import numpy as np
 from sqlalchemy.orm import Session
 
@@ -26,12 +27,12 @@ class BehaviorEmbeddingService:
         """
         행동 이벤트를 저장하고, 임계값 도달 시 임베딩 재계산
 
-        Args:
-            dto: SaveBehaviorEventDto
-
         Returns:
             저장된 이벤트 ID
+
+
         """
+        # TODO: Commit 너무 자주날려서 한번에 모아서 날리는 방법이 python에서 뭔지 알아보기
         # 1. 이벤트 저장
         event_id = self.repository.save_behavior_event(
             user_id=dto.user_id,
@@ -49,9 +50,9 @@ class BehaviorEmbeddingService:
         # 2. 이벤트 개수 확인
         total_events = self.repository.count_user_events(dto.user_id)
 
-        # 3. 임계값 도달 시 임베딩 재계산 (10개마다)
-        if total_events % 10 == 0:
-            log.info(f"[임베딩 재계산 트리거 발동]")
+        # 3. 임계값 도달 시 임베딩 재계산 (5개마다)
+        if total_events % 5 == 0:
+            log.info(f"[임베딩 재계산 트리거 발동!!]")
             self.regenerate_behavior_embedding(dto.user_id)
 
         return str(event_id)
@@ -151,7 +152,12 @@ class BehaviorEmbeddingService:
         self, user_id: str
     ) -> Optional[UserBehaviorEmbedding]:
         """사용자의 행동 임베딩 조회"""
-        return self.repository.get_behavior_embedding(user_id)
+        try:
+            user_uuid = UUID(user_id)
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Invalid user_id format: {e}")
+
+        return self.repository.get_behavior_embedding(user_uuid)
 
     def get_user_recent_events(
         self, user_id: str, limit: int = 50

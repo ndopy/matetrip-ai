@@ -21,6 +21,9 @@ class BehaviorRepository:
     @staticmethod
     def _to_vector_literal(embedding: Sequence[float]) -> str:
         """임베딩 배열을 PostgreSQL vector 리터럴로 변환"""
+        if not all(isinstance(x, (int, float)) for x in embedding):
+            raise ValueError("Embedding must contain only numeric values")
+
         return "[" + ",".join(map(str, embedding)) + "]"
 
     # ===== user_behavior_events 관련 =====
@@ -114,10 +117,10 @@ class BehaviorRepository:
         )
         self._db.commit()
 
-    def get_behavior_embedding(self, user_id: str) -> Optional[UserBehaviorEmbedding]:
+    def get_behavior_embedding(self, user_id: UUID) -> Optional[UserBehaviorEmbedding]:
         """특정 사용자의 행동 임베딩 조회"""
         stmt = select(UserBehaviorEmbedding).where(
-            UserBehaviorEmbedding.user_id == UUID(user_id)
+            UserBehaviorEmbedding.user_id == user_id
         )
 
         result = self._db.execute(stmt)

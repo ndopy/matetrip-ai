@@ -2,8 +2,7 @@ from typing import Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-if TYPE_CHECKING:
-    from app.schemas.rabbitmq_schema import BehaviorEmbeddingReqMessage
+from schemas.rabbitmq_schema import BehaviorEmbeddingReqMessage
 
 
 class SaveBehaviorEventDto(BaseModel):
@@ -22,9 +21,8 @@ class SaveBehaviorEventDto(BaseModel):
 
     @classmethod
     def from_message(
-        cls, message: "BehaviorEmbeddingReqMessage"
+        cls, message: BehaviorEmbeddingReqMessage
     ) -> "SaveBehaviorEventDto":
-        """Convert a RabbitMQ message -> DTO"""
         return cls(
             user_id=message.user_id,
             place_id=message.place_id,

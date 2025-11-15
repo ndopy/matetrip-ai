@@ -32,10 +32,6 @@ class CrawlService:
     ]
     """
     단일 URL에서 리뷰 컨텐츠를 크롤링합니다.
-
-    Args:
-        url: 크롤링할 URL
-
     Returns:
         추출된 텍스트 컨텐츠
     """

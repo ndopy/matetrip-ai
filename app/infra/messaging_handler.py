@@ -69,7 +69,7 @@ def handle_profile_embedding_test(message: ProfileEmbeddingReqMessage) -> None:
     print(f"[profile_embedding] Processing user_id={message.user_id}")
 
 
-def handle_behavior_embedding(message: BehaviorEmbeddingReqMessage) -> None:
+def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> None:
     """행동 이벤트를 DB에 저장하고 임베딩 재계산"""
     log.info(f"[Behavior_embedding] Processing ")
 
