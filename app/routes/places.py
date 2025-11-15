@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.place import Place
 from app.schemas.place import PlaceCreate, PlaceListCreateRequest
-from service.crawling.naver_search_service import NaverSearchService
+from app.service.crawling.naver_search_service import NaverSearchService
 from app.service.place_service import PlaceService
 from app.mapper.place_mapper import PlaceMapper
 

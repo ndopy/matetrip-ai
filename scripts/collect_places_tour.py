@@ -26,9 +26,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy.orm import Session
 from app.database.database import SessionLocal
 from app.models.place import Place
-from service.crawling.tour_api_service import TourAPIService
+from app.service.crawling.tour_api_service import TourAPIService
 from app.service.place_service import PlaceService
-from service.crawling.naver_search_service import NaverSearchService
+from app.service.crawling.naver_search_service import NaverSearchService
 from app.enums import RegionGroupType
 
 # 로깅 설정

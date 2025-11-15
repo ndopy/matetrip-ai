@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / ".env")
 
 from app.database.database import get_db
-from service.behavior.behavior_service import BehaviorService
+from app.service.behavior.behavior_service import BehaviorService
 from app.schemas.behavior import SaveBehaviorEventDto
 
 
