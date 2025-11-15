@@ -9,6 +9,9 @@ from app.infra.rabbitmq_schema import (
     BehaviorEmbeddingReqMessage,
     ProfileEmbeddingReqMessage,
 )
+from app.database.session import get_db
+from app.service.behavior_embedding_service import BehaviorEmbeddingService
+from app.schemas.behavior import SaveBehaviorEventDto
 
 
 logger = logging.getLogger(__name__)
@@ -53,8 +56,40 @@ def handle_profile_embedding_test(message: ProfileEmbeddingReqMessage) -> None:
 
 
 def handle_behavior_embedding_test(message: BehaviorEmbeddingReqMessage) -> None:
-    # Behavior 임베딩 시작
-    print(
-        "[behavior_embedding] Processing "
-        f"user_id={message.user_id}, title={message.title}"
+    """행동 이벤트를 DB에 저장하고 임베딩 재계산"""
+    logger.info(
+        f"[behavior_embedding] Processing "
+        f"user_id={message.user_id}, event_type={message.event_type}, "
+        f"place_id={message.place_id}, weight={message.weight}"
     )
+
+    # DB 세션 생성
+    db = next(get_db())
+    try:
+        # BehaviorEmbeddingService를 사용하여 이벤트 저장
+        service = BehaviorEmbeddingService(db)
+
+        # event_data를 dict로 변환
+        event_data_dict = message.event_data.model_dump() if message.event_data else {}
+
+        # DTO로 변환
+        dto = SaveBehaviorEventDto(
+            user_id=message.user_id,
+            event_type=message.event_type,
+            event_data=event_data_dict,
+            weight=message.weight,
+            workspace_id=message.workspace_id,
+            place_id=message.place_id,
+        )
+
+        # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
+        event_id = service.save_behavior_event(dto)
+
+        logger.info(f"[behavior_embedding] Event saved successfully: event_id={event_id}")
+
+    except Exception as e:
+        logger.error(f"[behavior_embedding] Error saving event: {e}", exc_info=True)
+        db.rollback()
+        raise
+    finally:
+        db.close()
