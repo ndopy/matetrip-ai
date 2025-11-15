@@ -1,5 +1,6 @@
 import httpx
 import asyncio
+import time
 from typing import List, Optional, Tuple
 from app.common.config import kakaoMobilityConfig
 from app.schemas.routes import Coordinate, RouteSummary
@@ -19,6 +20,7 @@ class KakaoMobilityService:
         origin_latitude: float,
         destination_longitude: float,
         destination_latitude: float,
+        waypoints: List[Tuple[float, float]] = [],
         priority: str = "RECOMMEND",
     ) -> Optional[RouteSummary]:
         """
@@ -29,6 +31,7 @@ class KakaoMobilityService:
             origin_lat: 출발지 위도
             destination_lng: 도착지 경도
             destination_lat: 도착지 위도
+            waypoints: 경유지 좌표 리스트 [(경도, 위도), ...]
             priority: 경로 우선순위 (RECOMMEND, TIME, DISTANCE)
 
         Returns:
@@ -39,16 +42,22 @@ class KakaoMobilityService:
             "Content-Type": "application/json",
         }
 
-        params = {
-            "origin": f"{origin_longitude},{origin_latitude}",
-            "destination": f"{destination_longitude},{destination_latitude}",
+        payload = {
+            "origin": {"x": str(origin_longitude), "y": str(origin_latitude)},
+            "destination": {
+                "x": str(destination_longitude),
+                "y": str(destination_latitude),
+            },
             "priority": priority,
         }
 
+        if waypoints:
+            payload["waypoints"] = [{"x": str(lon), "y": str(lat)} for lon, lat in waypoints]
+
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    self.directions_url, headers=headers, params=params, timeout=10.0
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    self.directions_url, headers=headers, json=payload
                 )
 
                 if response.status_code != 200:
@@ -93,6 +102,8 @@ class KakaoMobilityService:
         Returns:
             NxN 매트릭스 (각 셀은 RouteSummary 또는 None)
         """
+        print(f"[get_distance_matrix] Starting to build distance matrix for {len(coordinates)} POIs...")
+        start_time = time.time()
         n = len(coordinates)
         matrix: List[List[Optional[RouteSummary]]] = [
             [None for _ in range(n)] for _ in range(n)
@@ -122,6 +133,8 @@ class KakaoMobilityService:
             print(f"Kakao Mobility matrix task 실패: {exc}")
             raise
 
+        end_time = time.time()
+        print(f"[get_distance_matrix] All Kakao API calls finished in {end_time - start_time:.2f} seconds.")
         # 결과를 매트릭스에 채우기
         for i, j, route_info in results:
             matrix[i][j] = route_info
@@ -146,6 +159,7 @@ class KakaoMobilityService:
             origin_latitude,
             destination_longitude,
             destination_latitude,
+            [],  # waypoints가 없는 경우 빈 리스트 전달
             priority,
         )
         return (i, j, route_info)
