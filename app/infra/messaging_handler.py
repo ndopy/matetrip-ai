@@ -16,7 +16,7 @@ from app.database.database import get_db
 from app.service.behavior_embedding_service import BehaviorEmbeddingService
 from app.schemas.behavior import SaveBehaviorEventDto
 from app.common.logger import logger
-from app.infra.rabbitmq_schema import (
+from app.schemas.rabbitmq_schema import (
     BehaviorEmbeddingReqMessage,
     ProfileEmbeddingReqMessage,
 )
@@ -69,34 +69,15 @@ def handle_profile_embedding_test(message: ProfileEmbeddingReqMessage) -> None:
     print(f"[profile_embedding] Processing user_id={message.user_id}")
 
 
-def handle_behavior_embedding_test(message: BehaviorEmbeddingReqMessage) -> None:
+def handle_behavior_embedding(message: BehaviorEmbeddingReqMessage) -> None:
     """행동 이벤트를 DB에 저장하고 임베딩 재계산"""
-    log.info(
-        f"[behavior_embedding] Processing "
-        f"user_id={message.user_id}, event_type={message.event_type}, "
-        f"place_id={message.place_id}, weight={message.weight}"
-    )
-    log.info(f"[behavior_embedding] Full message: {message.model_dump()}")
+    log.info(f"[Behavior_embedding] Processing ")
 
     # DB 세션 생성
     db = next(get_db())
     try:
-        # BehaviorEmbeddingService를 사용하여 이벤트 저장
         service = BehaviorEmbeddingService(db)
-
-        # event_data를 dict로 변환
-        event_data_dict = message.event_data.model_dump() if message.event_data else {}
-
-        # DTO로 변환
-        dto = SaveBehaviorEventDto(
-            user_id=message.user_id,
-            event_type=message.event_type,
-            event_data=event_data_dict,
-            weight=message.weight,
-            workspace_id=message.workspace_id,
-            place_id=message.place_id,
-        )
-
+        dto = SaveBehaviorEventDto.from_message(message)
         # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
         event_id = service.save_behavior_event(dto)
 

@@ -1,9 +1,3 @@
-from crawl4ai import (
-    AsyncWebCrawler,
-    BrowserConfig,
-    CrawlerRunConfig,
-    PruningContentFilter,
-)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,10 +13,10 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3001",    #http://13.125.171.175:3001     # 프론트엔드 주소
-        "http://localhost:3000",    #http://13.125.171.175:3000     # 백엔드 주소
+        "http://localhost:3001",  # http://13.125.171.175:3001     # 프론트엔드 주소
+        "http://localhost:3000",  # http://13.125.171.175:3000     # 백엔드 주소
     ],
-    allow_credentials=True,          # 쿠키 전송 허용
+    allow_credentials=True,  # 쿠키 전송 허용
     allow_methods=["*"],
     allow_headers=["*"],
 )

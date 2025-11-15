@@ -37,10 +37,6 @@ class UserBehaviorEvent(Base):
         TEXT, nullable=False, index=True
     )  # POI_MARK, POI_SCHEDULE, POI_UNMARK, POI_UNSCHEDULE
 
-    event_data: Mapped[dict] = mapped_column(
-        JSONB, nullable=False
-    )  # 행동별 상세 데이터
-
     weight: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)  # 행동 가중치
 
     created_at: Mapped[datetime] = mapped_column(

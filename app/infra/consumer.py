@@ -17,11 +17,11 @@ if str(PROJECT_ROOT) not in sys.path:
 load_dotenv(PROJECT_ROOT / ".env")
 
 from app.infra.messaging_handler import (
-    handle_behavior_embedding_test,
+    handle_behavior_embedding,
     handle_profile_embedding_test,
     parse_message,
 )
-from app.infra.rabbitmq_schema import (
+from schemas.rabbitmq_schema import (
     BehaviorEmbeddingReqMessage,
     ProfileEmbeddingReqMessage,
 )
@@ -38,8 +38,8 @@ behavior_queue: Final[str] = _raw_behavior_queue
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ def consume_behavior_embedding(channel, method, properties, body):
     message = parse_message(body, behavior_queue, BehaviorEmbeddingReqMessage)
     if message:
         try:
-            handle_behavior_embedding_test(message)
+            handle_behavior_embedding(message)
             channel.basic_ack(delivery_tag=method.delivery_tag)
             logger.info(f"[behavior_embedding] 메시지 처리 완료")
         except Exception as e:

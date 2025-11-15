@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from sqlalchemy.orm import Session
 
+from app.common.embedding_utils import EmbeddingUtils
 from app.repository.behavior_repository import BehaviorRepository
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
 from app.schemas.behavior import SaveBehaviorEventDto
@@ -20,6 +21,7 @@ class BehaviorEmbeddingService:
         self.db = db
         self.repository = BehaviorRepository(db)
 
+    # TODO: DB에 없는 장소일 경우 예외가 아니라 다르게 처리할 수 있을지 고민
     def save_behavior_event(self, dto: SaveBehaviorEventDto) -> str:
         """
         행동 이벤트를 저장하고, 임계값 도달 시 임베딩 재계산
@@ -34,7 +36,6 @@ class BehaviorEmbeddingService:
         event_id = self.repository.save_behavior_event(
             user_id=dto.user_id,
             event_type=dto.event_type,
-            event_data=dto.event_data,
             weight=dto.weight,
             workspace_id=dto.workspace_id,
             place_id=dto.place_id,
@@ -42,7 +43,7 @@ class BehaviorEmbeddingService:
 
         log.info(
             f"[행동 이벤트 저장] user_id={dto.user_id}, "
-            f"event_type={dto.event_type}, event_id={event_id}"
+            f"event_type={dto.event_type}, place_id={dto.place_id}, event_id={event_id}"
         )
 
         # 2. 이벤트 개수 확인
@@ -50,24 +51,20 @@ class BehaviorEmbeddingService:
 
         # 3. 임계값 도달 시 임베딩 재계산 (10개마다)
         if total_events % 10 == 0:
-            log.info(
-                f"[임베딩 재계산 트리거] user_id={dto.user_id}, total_events={total_events}"
-            )
+            log.info(f"[임베딩 재계산 트리거 발동]")
             self.regenerate_behavior_embedding(dto.user_id)
 
         return str(event_id)
 
-    def regenerate_behavior_embedding(self, user_id: str, days: int = 90) -> None:
+    def regenerate_behavior_embedding(self, user_id: str, days: int = 7) -> None:
         """
         사용자의 행동 임베딩을 재생성
-
-        방법: 최근 N일 동안의 행동에서 장소 임베딩의 가중평균 계산
+        최근 N일 동안의 행동에서 장소 임베딩의 가중평균 계산
 
         Args:
-            user_id: 사용자 ID
-            days: 최근 N일 (기본 90일)
+            days: 최근 N일 (기본 7 -> 실제 서비스는 길게 하는게 좋을 듯 90일 정도)
         """
-        log.info(f"[행동 임베딩 재생성 시작] user_id={user_id}, days={days}")
+        log.info(f"[행동 임베딩 재생성 시작]")
 
         # 1. 사용자의 최근 행동에서 장소 임베딩과 가중치 가져오기
         weighted_places = self.repository.get_weighted_place_embeddings(user_id, days)
@@ -95,15 +92,11 @@ class BehaviorEmbeddingService:
             decay_factor = 0.95 ** (days_ago / 7)  # 주당 5% 감소
 
             # 최종 가중치 = 행동 가중치 × 시간 감쇠
-            final_weight = place["weight"] * decay_factor
+            final_weight: float = place.get("weight") * decay_factor
 
-            # 임베딩 가중 누적
-            place_embedding = place["place_embedding"]
-            if isinstance(place_embedding, str):
-                # 문자열로 저장된 경우 파싱
-                place_embedding = [
-                    float(x) for x in place_embedding.strip("[]").split(",")
-                ]
+            place_embedding: List[float] = EmbeddingUtils.to_vector(
+                place.get("place_embedding")
+            )
 
             weighted_embeddings.append((place_embedding, final_weight))
             total_weight += abs(final_weight)  # 부정 가중치도 고려

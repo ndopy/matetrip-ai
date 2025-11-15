@@ -29,7 +29,6 @@ class BehaviorRepository:
         self,
         user_id: str,
         event_type: str,
-        event_data: Dict[str, Any],
         weight: float,
         workspace_id: Optional[str] = None,
         place_id: Optional[str] = None,
@@ -38,7 +37,6 @@ class BehaviorRepository:
         event = UserBehaviorEvent(
             user_id=UUID(user_id),
             event_type=event_type,
-            event_data=event_data,
             weight=weight,
             workspace_id=UUID(workspace_id) if workspace_id else None,
             place_id=UUID(place_id) if place_id else None,

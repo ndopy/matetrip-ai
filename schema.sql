@@ -411,3 +411,36 @@ CREATE UNIQUE INDEX idx_unique_schedule
 -- CREATE INDEX idx_conn_next                 ON poi_connection(next_poi_id);
 -- CREATE INDEX idx_pp_post                   ON post_participation(post_id);
 -- CREATE INDEX idx_pp_user                   ON post_participation(requester_id);
+
+-- ========= 행동 기반 임베딩 테이블 =========
+
+-- 사용자 행동 이벤트 원본 데이터
+CREATE TABLE user_behavior_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id UUID,
+    place_id UUID REFERENCES places(id) ON DELETE SET NULL
+    event_type TEXT NOT NULL,  -- POI_MARK, POI_SCHEDULE, POI_UNMARK, POI_UNSCHEDULE
+    weight NUMERIC(5, 2) NOT NULL,    -- 행동 가중치
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+);
+
+-- 사용자별 집계된 행동 임베딩
+CREATE TABLE user_behavior_embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    behavior_embedding vector(1024),  -- 행동 기반 임베딩 벡터 (장소 임베딩 가중평균)
+    aggregated_data JSONB,            -- 집계된 통계 데이터 (카테고리별 점수 등)
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    total_events_count INTEGER DEFAULT 0 NOT NULL
+);
+
+
+-- user_behavior_events 인덱스
+CREATE INDEX idx_user_behavior_events_user_created ON user_behavior_events(user_id, created_at DESC);
+CREATE INDEX idx_user_behavior_events_type ON user_behavior_events(event_type);
+CREATE INDEX idx_user_behavior_events_place ON user_behavior_events(place_id);
+
+-- user_behavior_embeddings 인덱스
+-- ivfflat 인덱스는 데이터가 충분히 쌓인 후 생성 (최소 1000개 벡터 권장)
+-- CREATE INDEX idx_behavior_embedding ON user_behavior_embeddings USING ivfflat (behavior_embedding vector_cosine_ops) WITH (lists = 100);
