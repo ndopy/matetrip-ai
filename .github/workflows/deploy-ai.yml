@@ -10,4 +10,4 @@ jobs:
     runs-on: self-hosted
     concurrency: { group: deploy-ai, cancel-in-progress: true }
     steps:
-      - run: bash ~/app/matetrip-ai/deploy.sh
+      - run: bash ~/app/matetrip-ai/deploy-ai.sh

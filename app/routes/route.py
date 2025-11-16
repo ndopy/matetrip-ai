@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+import time
 from typing import List, Optional
 
 from langchain_core.tools import tool
@@ -29,6 +30,7 @@ async def optimize_route(request: OptimizeRouteRequest):
     Returns:
         RouteOptimizeResponse
     """
+    start_time = time.time()
     if len(request.poi_list) == 1:
         single_poi = request.poi_list[0]
         return RouteOptimizeResponse(
@@ -39,10 +41,15 @@ async def optimize_route(request: OptimizeRouteRequest):
         )
 
     try:
+        print("[optimize_route] Calling optimization service...")
         result = await service.optimize_route(
             request.poi_list, request.start_index, request.end_index
         )
+        end_time = time.time()
+        print(f"[optimize_route] Total request processing time: {end_time - start_time:.2f} seconds")
         return result
 
     except Exception as e:
+        end_time = time.time()
+        print(f"[optimize_route] Exception after {end_time - start_time:.2f} seconds: {e}")
         raise HTTPException(status_code=500, detail=f"경로 최적화 실패: {str(e)}")

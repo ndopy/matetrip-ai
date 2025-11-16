@@ -21,6 +21,7 @@ def build_stateful_agent(llm, tools):
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         MessagesPlaceholder(variable_name="chat_history", optional=True),
+        ("system", "The user's session ID is: {session_id}"),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])

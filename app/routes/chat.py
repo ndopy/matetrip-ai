@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Cookie, HTTPException
-from typing import Annotated
+from fastapi import APIRouter
 from app.core.llm import global_llm
 from app.tools import create_nest_tools
 from app.agent.builder import build_stateful_agent
@@ -32,17 +31,12 @@ router_chain = router_prompt | global_llm.with_structured_output(IntentClassifie
 
 @router.post("/", response_model=ChatResponse)
 async def ask_agent(
-    request: ChatRequest,
-    # 쿠키 이름이 브라우저 쿠키 이름과 같아야 함
-    accessToken: Annotated[str | None, Cookie()] = None
+    request: ChatRequest
 ):
     """
     AI 에이전트 및 챗봇 실행 엔드포인트
     (대화 응답 + 구조화된 도구 데이터를 함께 반환)
     """
-    if not accessToken:
-        raise HTTPException(status_code=401, detail="로그인이 필요합니다 (쿠키 없음)")
-        
     try:
         # [라우터 실행] AI에게 사용자의 의도부터 물어봄
         full_history = get_session_history(request.session_id)
@@ -71,7 +65,7 @@ async def ask_agent(
         print(history_to_pass)
 
         # 1. 도구 생성
-        user_tools = create_nest_tools(user_token=accessToken)
+        user_tools = create_nest_tools()
 
         # 2. 에이전트 조립 (global_llm 재사용)
         agent = build_stateful_agent(global_llm, user_tools)

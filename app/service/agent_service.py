@@ -28,7 +28,8 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> dict:
     result = agent.invoke(
         { 
             "input": request.query,
-            "chat_history": history
+            "chat_history": history,
+            "session_id": request.session_id
         },
     )
 
