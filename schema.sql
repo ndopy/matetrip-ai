@@ -413,16 +413,20 @@ CREATE UNIQUE INDEX idx_unique_schedule
 -- CREATE INDEX idx_pp_user                   ON post_participation(requester_id);
 
 -- ========= 행동 기반 임베딩 테이블 =========
+-- TODO: 나중에 스크립트 순서 조정 
+DROP TABLE IF EXISTS user_behavior_events;
+DROP TABLE IF EXISTS user_behavior_embeddings;
 
 -- 사용자 행동 이벤트 원본 데이터
 CREATE TABLE user_behavior_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     workspace_id UUID,
-    place_id UUID REFERENCES places(id) ON DELETE SET NULL
+    place_id UUID,
+    plan_day_id UUID,
     event_type TEXT NOT NULL,  -- POI_MARK, POI_SCHEDULE, POI_UNMARK, POI_UNSCHEDULE
     weight NUMERIC(5, 2) NOT NULL,    -- 행동 가중치
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
 -- 사용자별 집계된 행동 임베딩
@@ -435,6 +439,10 @@ CREATE TABLE user_behavior_embeddings (
     total_events_count INTEGER DEFAULT 0 NOT NULL
 );
 
+ALTER TABLE user_behavior_events
+    ADD CONSTRAINT fk_user_behavior_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    ADD CONSTRAINT fk_user_behavior_events_place FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE SET NULL,
+    ADD CONSTRAINT fk_user_behavior_events_plan_day FOREIGN KEY (plan_day_id) REFERENCES plan_day (id) ON DELETE SET NULL;
 
 -- user_behavior_events 인덱스
 CREATE INDEX idx_user_behavior_events_user_created ON user_behavior_events(user_id, created_at DESC);

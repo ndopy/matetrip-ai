@@ -39,16 +39,20 @@ class BehaviorRepository:
         user_id: str,
         event_type: str,
         weight: float,
+        created_at: datetime,
         workspace_id: Optional[str] = None,
         place_id: Optional[str] = None,
+        planday_id: Optional[str] = None,
     ) -> UUID:
         """행동 이벤트를 DB에 저장"""
         event = UserBehaviorEvent(
             user_id=UUID(user_id),
             event_type=event_type,
             weight=weight,
+            created_at=created_at,
             workspace_id=UUID(workspace_id) if workspace_id else None,
             place_id=UUID(place_id) if place_id else None,
+            plan_day_id=UUID(planday_id) if planday_id else None,
         )
 
         self._db.add(event)
@@ -111,6 +115,7 @@ class BehaviorRepository:
                 last_updated = NOW()
             """
         )
+        # EXCLUDED: INSERT가 넣으려고 했던 row(데이터)를 담고 있는 임시 테이블 (POSTGRES)
 
         self._db.execute(
             sql,

@@ -16,7 +16,7 @@ class BehaviorEmbeddingReqMessage(BaseModel):
     user_id: str = Field(..., alias="userId", min_length=36)
     place_id: str = Field(..., alias="placeId", description="places 테이블의 ID")
     event_type: str = Field(..., alias="eventType")
-    timestamp: datetime
+    created_at: datetime
     weight: float
     planday_id: str | None = Field(None, alias="plandayId")
     workspace_id: str | None = Field(None, alias="workspaceId")

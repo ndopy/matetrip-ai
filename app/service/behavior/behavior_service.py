@@ -40,13 +40,15 @@ class BehaviorService:
             user_id=dto.user_id,
             event_type=dto.event_type,
             weight=dto.weight,
+            created_at=dto.created_at,
             workspace_id=dto.workspace_id,
             place_id=dto.place_id,
+            planday_id=dto.planday_id,
         )
 
         log.info(
             f"[행동 이벤트 저장] user_id={dto.user_id}, "
-            f"event_type={dto.event_type}, place_id={dto.place_id}, event_id={event_id}"
+            f"event_type={dto.event_type}, place_id={dto.place_id}, planday_id={dto.planday_id}, event_id={event_id}"
         )
 
         # 2. 이벤트 개수 확인

@@ -13,12 +13,14 @@ class SaveBehaviorEventDto(BaseModel):
 
     user_id: str = Field(..., description="사용자 ID")
     place_id: str = Field(..., description="장소 ID (places 테이블)")
+    workspace_id: Optional[str] = Field(None, description="워크스페이스 ID")
+    planday_id: Optional[str] = Field(None, description="플랜 데이 ID")
+    # todo: Enum으로 전부 바뀌면 str말고 enum으로
     event_type: str = Field(
         ..., description="이벤트 타입 (POI_MARK, POI_SCHEDULE, etc.)"
     )
     weight: float = Field(..., description="행동 가중치")
-    workspace_id: Optional[str] = Field(None, description="워크스페이스 ID")
-    planday_id: Optional[str] = Field(None, description="플랜 데이 ID")
+    created_at: datetime = Field(..., description="이벤트 발생 시간")
 
     model_config = {"from_attributes": True}
 
@@ -33,6 +35,7 @@ class SaveBehaviorEventDto(BaseModel):
             weight=message.weight,
             workspace_id=message.workspace_id,
             planday_id=message.planday_id,
+            created_at=message.created_at,
         )
 
 
