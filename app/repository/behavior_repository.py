@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence
 from uuid import UUID
 from sqlalchemy import text, select, func
@@ -140,14 +140,14 @@ class BehaviorRepository:
     def get_weighted_place_embeddings(
         self,
         user_id: UUID,
-        days: int = 90,
+        date_range_days: int = 90,
     ) -> List[WeightedPlaceEmbeddingDto]:
         """
         사용자의 최근 행동에서 장소 임베딩과 가중치를 가져옴
         (행동 임베딩 계산용)
         최근 days일 동안에 수행한 행동 로그를 바탕으로 행동에 연관된 장소정보와 임베딩을 불러옴
         """
-        cutoff_date = datetime.now() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=date_range_days)
 
         stmt = (
             select(
@@ -201,7 +201,7 @@ class BehaviorRepository:
         Returns:
             marking 이벤트와 관련 장소 정보 리스트
         """
-        cutoff_date = datetime.now() - timedelta(days=date_range_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=date_range_days)
 
         stmt = (
             select(

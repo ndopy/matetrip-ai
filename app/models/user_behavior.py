@@ -44,7 +44,15 @@ class UserBehaviorEvent(Base):
     )
 
     workspace_id: Mapped[Optional[UUID]] = mapped_column(
-        PG_UUID(as_uuid=True), nullable=True
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspace.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    plan_day_id: Mapped[Optional[UUID]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("plan_day.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     place_id: Mapped[Optional[UUID]] = mapped_column(
