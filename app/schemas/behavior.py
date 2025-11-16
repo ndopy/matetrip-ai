@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.enums.user_behavior import BehaviorEventType
-from schemas.rabbitmq_schema import BehaviorEmbeddingReqMessage
+from app.schemas.rabbitmq_schema import BehaviorEmbeddingReqMessage
 
 
 class SaveBehaviorEventDto(BaseModel):

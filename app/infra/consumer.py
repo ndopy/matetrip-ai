@@ -19,7 +19,7 @@ from app.infra.messaging_handler import (
     handle_profile_embedding_test,
     parse_message,
 )
-from schemas.rabbitmq_schema import (
+from app.schemas.rabbitmq_schema import (
     BehaviorEmbeddingReqMessage,
     ProfileEmbeddingReqMessage,
 )
@@ -27,19 +27,8 @@ from schemas.rabbitmq_schema import (
 # Load environment variables from .env file
 load_dotenv(PROJECT_ROOT / ".env")
 
-# Configure logging
-logger.add(
-    "app.log",
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-    "<level>{level}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan> - {message}",
-    level="INFO",
-    rotation="10 MB",
-    retention="7 days",
-)
 
-
-rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+rabbitmq_url = os.getenv("AWS_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 _raw_profile_queue = os.getenv("RABBITMQ_PROFILE_QUEUE")
 _raw_behavior_queue = os.getenv("RABBITMQ_BEHAVIOR_QUEUE")
 if (_raw_profile_queue is None) or (_raw_behavior_queue is None):

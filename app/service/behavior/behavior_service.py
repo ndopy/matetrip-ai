@@ -12,7 +12,7 @@ from app.schemas.behavior import (
     UserEventResDto,
     WeightedPlaceEmbeddingDto,
 )
-from enums.user_behavior import BehaviorEventType
+from app.enums.user_behavior import BehaviorEventType
 
 log = logging.getLogger(__name__)
 
