@@ -66,21 +66,21 @@ class ReviewFilterService:
 
         # 명확한 광고성 URL 패턴 (하나라도 있으면 차단)
         self.suspicious_url_patterns = [
-            r'bit\.ly',  # 단축 URL
-            r'goo\.gl',  # 구글 단축 URL
-            r'카톡[\s:]+',  # 카톡 ID
-            r'카카오톡[\s:]+',
-            r'텔레그램',
-            r'오픈채팅',
-            r'카톡\s*ID',
-            r'문의.*010',  # 문의 전화번호
-            r'연락.*010',
+            r"bit\.ly",  # 단축 URL
+            r"goo\.gl",  # 구글 단축 URL
+            r"카톡[\s:]+",  # 카톡 ID
+            r"카카오톡[\s:]+",
+            r"텔레그램",
+            r"오픈채팅",
+            r"카톡\s*ID",
+            r"문의.*010",  # 문의 전화번호
+            r"연락.*010",
         ]
 
         # 일반 URL 패턴 (3개 이상 있으면 차단)
         self.general_url_patterns = [
-            r'https?://',  # http://, https://
-            r'www\.',  # www.
+            r"https?://",  # http://, https://
+            r"www\.",  # www.
         ]
 
     def keyword_filter(self, content: str) -> bool:
@@ -114,9 +114,11 @@ class ReviewFilterService:
             return False
 
         # 4. 과도한 특수문자/이모티콘 (전체의 30% 이상)
-        special_chars = len(re.findall(r'[^\w\s가-힣]', content))
+        special_chars = len(re.findall(r"[^\w\s가-힣]", content))
         if len(content) > 0 and special_chars / len(content) > 0.3:
-            logger.info(f"[키워드 필터링] 과도한 특수문자 ({special_chars}/{len(content)})")
+            logger.info(
+                f"[키워드 필터링] 과도한 특수문자 ({special_chars}/{len(content)})"
+            )
             return False
 
         # 5. 광고성 키워드 개수 카운트
@@ -131,7 +133,14 @@ class ReviewFilterService:
             return False
 
         # 6. 특정 광고성 키워드가 단독으로 있어도 차단
-        high_spam_keywords = ["협찬", "제공받", "체험단", "서포터즈", "할인코드", "쿠폰코드"]
+        high_spam_keywords = [
+            "협찬",
+            "제공받",
+            "체험단",
+            "서포터즈",
+            "할인코드",
+            "쿠폰코드",
+        ]
         for keyword in high_spam_keywords:
             if keyword in content:
                 logger.info(f"[키워드 필터링] 광고성 키워드 감지: {keyword}")
@@ -172,17 +181,14 @@ JSON 형식으로만 답변해주세요:
 {{"is_review": true, "reason": "판단 이유"}}"""
 
             # Bedrock Claude API 호출
-            body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 500,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "temperature": 0.2,
-            })
+            body = json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 500,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.2,
+                }
+            )
 
             response = self.bedrock_runtime.invoke_model(
                 modelId=self.model_id,
@@ -238,7 +244,6 @@ JSON 형식으로만 답변해주세요:
         logger.info("=" * 80)
 
         for idx, review in enumerate(reviews, 1):
-            url = review.source_url
             content = review.content
 
             # 1차: 키워드 필터링

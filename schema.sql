@@ -304,8 +304,8 @@ CREATE TABLE places
     longitude double precision NOT NULL,
     latitude double precision NOT NULL,
     embedding vector (1024) NULL, -- 장소 대표 임베딩 (리뷰 기반),
-    created_at TIMESTAMP DEFAULT now () NOT NULL,
-    updated_at TIMESTAMP DEFAULT now () NOT NULL
+    created_at TIMESTAMPTZ DEFAULT now () NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now () NOT NULL
 );
 
 -- 리뷰 테이블
@@ -443,6 +443,8 @@ ALTER TABLE user_behavior_events
     ADD CONSTRAINT fk_user_behavior_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     ADD CONSTRAINT fk_user_behavior_events_place FOREIGN KEY (place_id) REFERENCES places (id) ON DELETE SET NULL,
     ADD CONSTRAINT fk_user_behavior_events_plan_day FOREIGN KEY (plan_day_id) REFERENCES plan_day (id) ON DELETE SET NULL;
+    ADD CONSTRAINT fk_user_behavior_events_workspace FOREIGN KEY (workspace_id) REFERENCES workspace (id) ON DELETE SET NULL;
+
 
 -- user_behavior_events 인덱스
 CREATE INDEX idx_user_behavior_events_user_created ON user_behavior_events(user_id, created_at DESC);

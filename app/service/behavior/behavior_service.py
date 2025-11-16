@@ -61,6 +61,7 @@ class BehaviorService:
 
         return str(event_id)
 
+    # TODO: Celery, RQ, BackgroundTasks와 같은 비동기 태스크 큐를 사용하여 사용자 경험을 개선하기
     def regenerate_behavior_embedding(self, user_id: str, days: int = 7) -> None:
         """
         사용자의 행동 임베딩을 재생성
