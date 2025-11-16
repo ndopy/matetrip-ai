@@ -1,0 +1,17 @@
+name: deploy-ai-new
+
+on:
+  push:
+    branches: ["dev"]             # 새 EC2로 배포할 기준 브랜치
+  workflow_dispatch:
+
+jobs:
+  deploy-new:
+    runs-on: [self-hosted, backend-ai]  # 새 EC2 러너만 잡도록
+    concurrency:
+      group: deploy-ai-new
+      cancel-in-progress: true
+
+    steps:
+      - name: Deploy matetrip-ai (NEW EC2)
+        run: bash /home/ubuntu/app/matetrip-ai/deploy.sh
