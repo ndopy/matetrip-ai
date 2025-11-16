@@ -14,4 +14,4 @@ jobs:
 
     steps:
       - name: Deploy matetrip-ai (NEW EC2)
-        run: bash /home/ubuntu/app/matetrip-ai/deploy.sh
+        run: bash /home/ssm-user/app/matetrip-ai/deploy.sh
