@@ -1,13 +1,13 @@
 import logging
 import os
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
 from app.service.crawling.crawl_service import CrawlService
 from app.service.crawling.naver_search_service import NaverSearchService
 from app.service.review_service import ReviewService
-from app.service.bedrock_llm_service import BedrockLLMService
+from app.service.crawling.bedrock_llm_service import BedrockLLMService
 from app.service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
 from app.service.bedrock_embedding_service import BedrockEmbeddingService
@@ -140,3 +140,32 @@ class PlaceService:
 
     def find_place_by_id(self, place_id: int):
         return self.repository.find_by_id(place_id)
+
+    def find_nearby_places(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 5.0,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Place]:
+        """
+        주변 장소를 검색합니다.
+
+        Args:
+            latitude: 위도
+            longitude: 경도
+            radius_km: 검색 반경 (km)
+            category: 카테고리 (예: '음식', '숙박', '레포츠' 등)
+            limit: 최대 결과 개수
+
+        Returns:
+            거리순으로 정렬된 장소 리스트
+        """
+        return self.repository.find_nearby_places(
+            latitude=latitude,
+            longitude=longitude,
+            radius_km=radius_km,
+            category=category,
+            limit=limit,
+        )

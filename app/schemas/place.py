@@ -55,3 +55,29 @@ class PlaceRecommendation(BaseModel):
     longitude: float
     latitude: float
     similarity: float = Field(..., description="0~1 사이 유사도 (1에 가까울수록 유사)")
+
+
+class NearbyPlaceRequest(BaseModel):
+    """주변 장소 검색 요청 DTO"""
+    latitude: float = Field(..., description="기준 위도")
+    longitude: float = Field(..., description="기준 경도")
+    radius_km: float = Field(5.0, description="검색 반경 (km 단위)")
+    category: Optional[str] = Field(None, description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)")
+    limit: int = Field(10, description="최대 결과 개수")
+
+
+class NearbyPlaceResponse(BaseModel):
+    """주변 장소 검색 응답 DTO"""
+    id: str = Field(..., description="장소 ID")
+    title: str = Field(..., description="장소명")
+    address: str = Field(..., description="주소")
+    category: Optional[str] = Field(None, description="카테고리")
+    tags: Optional[List[str]] = Field(None, description="태그")
+    summary: Optional[str] = Field(None, description="리뷰 요약")
+    image_url: Optional[str] = Field(None, description="이미지 URL")
+    latitude: float = Field(..., description="위도")
+    longitude: float = Field(..., description="경도")
+
+    model_config = {
+        "from_attributes": True,
+    }

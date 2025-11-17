@@ -1,11 +1,16 @@
-from fastapi import APIRouter, BackgroundTasks, Depends
+from typing import Optional, List
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import exists, select
 from sqlalchemy.engine import url
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.place import Place
-from app.schemas.place import PlaceCreate, PlaceListCreateRequest
+from app.schemas.place import (
+    PlaceCreate,
+    PlaceListCreateRequest,
+    NearbyPlaceResponse,
+)
 from app.service.crawling.naver_search_service import NaverSearchService
 from app.service.place_service import PlaceService
 from app.mapper.place_mapper import PlaceMapper
@@ -76,3 +81,51 @@ async def naver_search_test(
     return {
         "message": "success",
     }
+
+
+@router.get("/nearby", response_model=List[NearbyPlaceResponse])
+async def get_nearby_places(
+    latitude: float = Query(..., description="위도"),
+    longitude: float = Query(..., description="경도"),
+    radius_km: float = Query(5.0, description="검색 반경 (km)"),
+    category: Optional[str] = Query(
+        None,
+        description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)",
+    ),
+    limit: int = Query(10, description="최대 결과 개수"),
+    db: Session = Depends(get_db),
+):
+    """
+    특정 좌표 주변의 장소를 검색합니다.
+
+    - **latitude**: 기준 위도
+    - **longitude**: 기준 경도
+    - **radius_km**: 검색 반경 (km 단위)
+    - **category**: 카테고리 필터 (선택사항)
+    - **limit**: 최대 결과 개수
+    """
+    place_service = PlaceService(db)
+
+    places = place_service.find_nearby_places(
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+        category=category,
+        limit=limit,
+    )
+
+    # Place 엔티티 -> DTO 변환
+    return [
+        NearbyPlaceResponse(
+            id=str(place.id),
+            title=place.title,
+            address=place.address,
+            category=place.category,
+            tags=place.tags,
+            summary=place.summary,
+            image_url=place.image_url,
+            latitude=place.latitude,
+            longitude=place.longitude,
+        )
+        for place in places
+    ]

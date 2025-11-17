@@ -62,19 +62,6 @@ class OpenAIConfig(BaseSettings):
     )
 
 
-class KakaoLocalConfig(BaseSettings):
-    KAKAO_REST_API_KEY: str = Field(default="", description="Kakao REST API Key")
-    KAKAO_LOCAL_API_URL: str = Field(
-        default="https://dapi.kakao.com/v2/local/search/category.json"
-    )
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
 class BedRockConfig(BaseSettings):
     AWS_REGION: str = Field(default="us-east-1", description="AWS Region")
     BEDROCK_EMBEDDING_MODEL_ID: str = Field(
@@ -157,7 +144,6 @@ openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
 embeddingConfig = EmbeddingConfig()
-kakaoLocalConfig = KakaoLocalConfig()
 bedrockConfig = BedRockConfig()
 tourAPIConfig = TourAPIConfig()
 kakaoMobilityConfig = KakaoMobilityConfig()

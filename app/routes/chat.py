@@ -10,29 +10,30 @@ from app.core.memory import get_session_history
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 
-router = APIRouter(
-    prefix="/chat",
-    tags=["chat"]
-)
+router = APIRouter(prefix="/chat", tags=["chat"])
 
 # AI 라우터 프롬프트
-router_prompt = ChatPromptTemplate.from_messages([
-    ("system", (
-        "You are a routing assistant. Your job is to classify the user's intent.\n"
-        "Based on the <chat_history> and <latest_message>, "
-        "you MUST classify the user's intent by outputting the 'IntentClassifier' JSON format."
-    )),
-    MessagesPlaceholder(variable_name="chat_history"),
-    ("human", "<latest_message>{input}</latest_message>")
-])
+router_prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            (
+                "You are a routing assistant. Your job is to classify the user's intent.\n"
+                "Based on the <chat_history> and <latest_message>, "
+                "you MUST classify the user's intent by outputting the 'IntentClassifier' JSON format."
+            ),
+        ),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "<latest_message>{input}</latest_message>"),
+    ]
+)
 
 # Pydantic 모델을 LLM에 강제하는 라우터 체인 생성
 router_chain = router_prompt | global_llm.with_structured_output(IntentClassifier)
 
+
 @router.post("/", response_model=ChatResponse)
-async def ask_agent(
-    request: ChatRequest
-):
+async def ask_agent(request: ChatRequest) -> ChatResponse:
     """
     AI 에이전트 및 챗봇 실행 엔드포인트
     (대화 응답 + 구조화된 도구 데이터를 함께 반환)
@@ -41,10 +42,9 @@ async def ask_agent(
         # [라우터 실행] AI에게 사용자의 의도부터 물어봄
         full_history = get_session_history(request.session_id)
 
-        classification_result = router_chain.invoke({
-            "input": request.query,
-            "chat_history": full_history.messages
-        })
+        classification_result = router_chain.invoke(
+            {"input": request.query, "chat_history": full_history.messages}
+        )
 
         intent = classification_result.intent
 
@@ -80,14 +80,10 @@ async def ask_agent(
 
         # Pydantic 모델(ChatResponse)로 변환해 반환
         return ChatResponse(
-            response=response_dict["response"],
-            tool_data=response_dict["tool_data"]
+            response=response_dict["response"], tool_data=response_dict["tool_data"]
         )
-    
+
     except Exception as e:
         return ChatResponse(
-            response=f"처리 중 오류가 발생했습니다. : {str(e)}",
-            tool_data=[]
-            )
-    
-    
+            response=f"처리 중 오류가 발생했습니다. : {str(e)}", tool_data=[]
+        )
