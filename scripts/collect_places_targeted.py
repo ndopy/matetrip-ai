@@ -113,6 +113,10 @@ class TargetedPlaceCollector:
             f"\n[{self.region_filter}] {category} 카테고리 수집 시작 (목표: {max_items}개)"
         )
 
+        logger.info(
+            f"\n[{self.region_filter}] {category} 카테고리 수집 시작 (목표: {max_items}개)"
+        )
+
         # Tour API에서 인기순으로 수집
         tour_items = self.tour_service.search_all_pages(
             area_code=area_code,
@@ -123,6 +127,9 @@ class TargetedPlaceCollector:
             # min_quality_score=self.min_quality_score,
         )
 
+        logger.info(
+            f"  검색 결과: {len(tour_items)}개 (품질 점수 {self.min_quality_score}점 이상)"
+        )
         logger.info(
             f"  검색 결과: {len(tour_items)}개 (품질 점수 {self.min_quality_score}점 이상)"
         )

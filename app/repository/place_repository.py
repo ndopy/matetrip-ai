@@ -103,27 +103,22 @@ class PlaceRepository:
         )
 
         # 기본 쿼리: Place LEFT JOIN UserBehaviorEvent
-        stmt = (
-            select(
-                Place.id,
-                Place.title,
-                Place.address,
-                Place.category,
-                Place.tags,
-                Place.summary,
-                Place.image_url,
-                Place.longitude,
-                Place.latitude,
-                Place.region,
-                popularity_score,
-            )
-            .outerjoin(
-                UserBehaviorEvent,
-                (Place.id == UserBehaviorEvent.place_id)
-                & (
-                    UserBehaviorEvent.event_type.in_(["POI_MARK", "POI_SCHEDULE"])
-                ),
-            )
+        stmt = select(
+            Place.id,
+            Place.title,
+            Place.address,
+            Place.category,
+            Place.tags,
+            Place.summary,
+            Place.image_url,
+            Place.longitude,
+            Place.latitude,
+            Place.region,
+            popularity_score,
+        ).outerjoin(
+            UserBehaviorEvent,
+            (Place.id == UserBehaviorEvent.place_id)
+            & (UserBehaviorEvent.event_type.in_(["POI_MARK", "POI_SCHEDULE"])),
         )
 
         # 지역 필터링 로직:

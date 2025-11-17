@@ -7,6 +7,9 @@ from app.enums.place import RegionGroupType
 if TYPE_CHECKING:
     from app.models.place import Place
 
+if TYPE_CHECKING:
+    from app.models.place import Place
+
 
 class PlaceBase(BaseModel):
     title: str = Field(..., description="장소 이름")

@@ -19,9 +19,7 @@ from app.schemas.behavior import (
     WeightedPlaceEmbeddingDto,
 )
 from app.enums.user_behavior import BehaviorEventType
-
 logger = logging.getLogger(__name__)
-
 
 class BehaviorRepository:
     """사용자 행동 이벤트 및 임베딩 저장/조회 전담"""
@@ -135,7 +133,7 @@ class BehaviorRepository:
         except Exception as e:
             logger.error("Failed to upsert behavior embedding: %s", e)
             self._db.rollback()
-
+            
     def get_behavior_embedding(self, user_id: UUID) -> Optional[UserBehaviorEmbedding]:
         """특정 사용자의 행동 임베딩 조회"""
         stmt = select(UserBehaviorEmbedding).where(

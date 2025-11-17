@@ -31,6 +31,7 @@ def parse_message(
 ) -> Optional[MessageT]:
 
     data = body.decode("utf-8").strip()
+    print(f"[Q: {queue_name}] Received message: {data!r}")
 
     if not data:
         log.warning(f"[Q: {queue_name}] 빈 메시지를 받았습니다. 스킵할게요")
@@ -88,7 +89,6 @@ def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> 
             dto = SaveBehaviorEventDto.from_message(message)
             # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
             event_id = service.save_behavior_event(dto)
-
             log.info(f"[Behavior_embedding] 이벤트 등록 완료: event_id={event_id}")
 
         except Exception as e:
