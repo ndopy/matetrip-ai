@@ -15,6 +15,70 @@ logger = logging.getLogger(__name__)
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 KAKAO_LOCAL_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
 
+# 지역명 정규화 매핑 (약칭 → 정식명 또는 sido)
+REGION_NORMALIZATION = {
+    # 광역시 약칭 → sido (정식명)
+    "서울": "서울특별시",
+    "부산": "부산광역시",
+    "대구": "대구광역시",
+    "인천": "인천광역시",
+    "광주": "광주광역시",
+    "대전": "대전광역시",
+    "울산": "울산광역시",
+    "세종": "세종특별자치시",
+    # 광역시 정식명 → sido (그대로 통과)
+    "서울특별시": "서울특별시",
+    "부산광역시": "부산광역시",
+    "대구광역시": "대구광역시",
+    "인천광역시": "인천광역시",
+    "광주광역시": "광주광역시",
+    "대전광역시": "대전광역시",
+    "울산광역시": "울산광역시",
+    "세종특별자치시": "세종특별자치시",
+    # 도 약칭 → sido (정식명)
+    "경기": "경기도",
+    "강원": "강원특별자치도",
+    "제주": "제주특별자치도",
+    # 도 정식명 → sido (그대로 통과)
+    "경기도": "경기도",
+    "강원특별자치도": "강원특별자치도",
+    "강원도": "강원특별자치도",  # 옛 이름도 지원
+    "제주특별자치도": "제주특별자치도",
+    "제주도": "제주특별자치도",
+    # 지역 그룹 약칭 → region (RegionGroupType enum 값)
+    "충북": "충청도",
+    "충남": "충청도",
+    "충청": "충청도",
+    "충청도": "충청도",
+    "충청북도": "충청도",
+    "충청남도": "충청도",
+    "전북": "전라도",
+    "전남": "전라도",
+    "전라": "전라도",
+    "전라도": "전라도",
+    "전북특별자치도": "전라도",
+    "전라북도": "전라도",
+    "전라남도": "전라도",
+    "경북": "경상도",
+    "경남": "경상도",
+    "경상": "경상도",
+    "경상도": "경상도",
+    "경상북도": "경상도",
+    "경상남도": "경상도",
+}
+
+
+def normalize_region_name(region: str) -> str:
+    """
+    지역명 정규화
+    Args:
+        region: 입력 지역명 (예: "대전", "서울", "경기" 등)
+    Returns:
+        정규화된 지역명 (예: "대전광역시", "서울특별시", "경기도" 등)
+    """
+    region = region.strip()
+    return REGION_NORMALIZATION.get(region, region)
+
 
 # TODO: 다른 서비스에 넣어놓기
 def fetch_coordinates_from_address(location_name: str) -> tuple[float, float]:
@@ -64,11 +128,18 @@ def get_place_tools():
         limit: int = 10,
     ):
         """
+        **ONLY use for these broad regions: '서울', '부산', '대전', '대구', '광주', '울산', '세종', '인천', '제주도', '강원도', '경기도', '경상도', '전라도', '충청도'**
+        **For specific locations (like '강남', '홍대') → use recommend_nearby_places instead!**
+
+        광역 지역 또는 광역시에서 인기 있는 장소를 추천합니다.
+
         특정 지역에서 다른 사용자들의 과거 기록을 기반으로 인기 장소를 추천합니다.
         사용자들이 많이 관심 있어하는(마크하거나 일정에 추가한) 장소를 우선적으로 추천합니다.
 
         Args:
-            region: 지역명 (예: '서울', '부산', '제주도', '강원도', '경기도', '인천', '경상도', '전라도', '충청도')
+            region: 광역 지역명 또는 광역시명
+                - 광역시: '서울', '부산', '대전', '대구', '광주', '인천', '울산', '세종'
+                - 광역 지역: '제주도', '강원도', '경기도', '경상도', '전라도', '충청도'
             category: 추천받을 카테고리 (선택사항)
                 - '음식' 또는 '맛집': 레스토랑, 카페 등
                 - '숙박' 또는 '호텔': 호텔, 펜션, 게스트하우스, 캠핑장 등
@@ -79,25 +150,24 @@ def get_place_tools():
                 - None이면 모든 카테고리 검색
             limit: 추천할 장소 개수 (기본값: 10개)
 
-        사용 예시:
+        올바른 사용 예시:
             - "제주도에서 놀려고 하는데 사람들이 많이 가는 곳 추천해줘"
               → recommend_popular_places_in_region("제주도", None, 10)
             - "부산에서 사람들이 많이 찾는 맛집 알려줘"
               → recommend_popular_places_in_region("부산", "음식", 10)
             - "서울에서 인기 많은 관광지 5곳만"
               → recommend_popular_places_in_region("서울", "자연", 5)
-            - "강원도 핫플레이스 추천"
-              → recommend_popular_places_in_region("강원도", None, 10)
-            - "경주에서 사람들이 많이 가는 문화유적지"
-              → recommend_popular_places_in_region("경상도", "인문", 10)
-            - "전주 맛집 중에서 사람들이 자주 찾는 곳"
-              → recommend_popular_places_in_region("전라도", "음식", 10)
-            - "인천에서 인기 있는 데이트 코스"
-              → recommend_popular_places_in_region("인천", None, 10)
-            - "경기도에서 사람들이 많이 가는 곳"
-              → recommend_popular_places_in_region("경기도", None, 10)
-            - "충청도에서 유명한 관광지"
-              → recommend_popular_places_in_region("충청도", "자연", 10)
+            - "대전 여행지 추천해줘"
+              → recommend_popular_places_in_region("대전", None, 10)
+            - "광주에서 핫한 카페"
+              → recommend_popular_places_in_region("광주", "음식", 10)
+
+        잘못된 사용 예시 (이럴 때는 recommend_nearby_places 사용):
+            - "강남 맛집" → X (강남은 구체적인 지역)
+            - "홍대 카페" → X (홍대는 구체적인 지역)
+            - "명동 관광지" → X (명동은 구체적인 지역)
+            - "경주 문화유적지" → X (경주는 구체적인 도시)
+            - "전주 맛집" → X (전주는 구체적인 도시)
 
         [중요: 의미적 필터링 규칙]
         이 도구는 카테고리별로 넓게 검색합니다. 사용자가 구체적인 장소 타입을 요청한 경우:
@@ -113,15 +183,21 @@ def get_place_tools():
         6. "다른 사용자들이 많이 찾는" 또는 "인기 있는" 장소임을 자연스럽게 언급하세요.
         """
         try:
+            # 지역명 정규화 (약칭이 있을 수 있으니.. 이거 너무 하드코딩같은데 쩔수일 듯)
+            normalized_region = normalize_region_name(region.strip())
+
             # 카테고리를 DB 카테고리로 매핑
-            region = region.strip()
-            mapped_category = (
-                CATEGORY_MAPPING.get(category.lower(), category) if category else None
-            )
+            mapped_category = None
+            if category:
+                # LLM이 category: 'None' 문자열을 넘겨서 쿼리가 category = 'None' 조건으로 필터되는 문제때문에.....
+                lowered = str(category).lower()  # 영어로 넘어오는 거
+                # "None"/"none"/"없음" 같이 의미 없는 값은 제거
+                if lowered not in {"none", "null", "없음", "모두", "전체"}:
+                    mapped_category = CATEGORY_MAPPING.get(lowered, category)
 
             # 요청 DTO 생성
             request = PopularPlaceRequest.create(
-                region=region,
+                region=normalized_region,
                 category=mapped_category,
                 limit=limit,
             )
@@ -149,13 +225,13 @@ def get_place_tools():
         location_name: str,
         category: Optional[str] = None,
         radius_km: float = 5.0,
-        limit: int = 10,
+        limit: int = 20,
     ):
         """
         특정 위치 주변의 장소를 추천합니다. 우리 DB에 저장된 실제 장소 데이터를 기반으로 추천합니다.
 
         Args:
-            location_name: 기준이 될 장소명 (예: '강남역', '제주공항', '성수동')
+            location_name: 기준이 될 장소명 (예: '강남', '강남역', '제주공항', '성수동', '경주', '전주')
             category: 추천받을 카테고리 (선택사항)
                 - '음식' 또는 '맛집': 레스토랑, 카페 등
                 - '숙박' 또는 '호텔': 호텔, 펜션, 게스트하우스, 캠핑장 등
@@ -166,18 +242,22 @@ def get_place_tools():
                 - None이면 모든 카테고리 검색
             radius_km: 검색 반경 (km 단위, 기본값: 5km)
                 - 사용자가 '가까운', '근처'라고 하면 3km 정도
-                - '주변'이라고 하면 5km 정도
+                - '주변'이라고 하면 8km 정도
                 - '~km 이내'라고 구체적으로 말하면 해당 값 사용
+                - 명시하지 않을 경우
             limit: 추천할 장소 개수 (기본값: 10개)
                 - 사용자가 '몇 개'라고 구체적으로 말하면 해당 값 사용
                 - 특별한 언급이 없으면 10개 정도
 
-        사용 예시:
+        올바른 사용 예시:
+            - "강남 맛집 추천해줘" -> recommend_nearby_places("강남", "음식", 5.0, 10)
             - "강남역 주변 맛집 추천해줘" -> recommend_nearby_places("강남역", "음식", 5.0, 10)
             - "제주공항 근처 3km 이내 숙소 5개만" -> recommend_nearby_places("제주공항", "숙박", 3.0, 5)
             - "성수동 가까운 곳에 놀거리" -> recommend_nearby_places("성수동", "레포츠", 3.0, 10)
             - "홍대 주변 관광지" -> recommend_nearby_places("홍대", "자연", 5.0, 10)
-            - "부산 주변 캠핑장" -> recommend_nearby_places("부산", "숙박", 5.0, 15)
+            - "경주 문화유적지" -> recommend_nearby_places("경주", "인문", 5.0, 10)
+            - "전주 맛집" -> recommend_nearby_places("전주", "음식", 5.0, 10)
+            - "속초 주변 캠핑장" -> recommend_nearby_places("속초", "숙박", 5.0, 15)
                 → 결과를 받은 후, tags에 "캠핑", "노지", "글램핑" 등이 포함된 장소만 선별하여 답변
 
         [중요: 의미적 필터링 규칙]
@@ -201,9 +281,11 @@ def get_place_tools():
         """
         try:
             # 카테고리를 DB 카테고리로 매핑
-            mapped_category = (
-                CATEGORY_MAPPING.get(category.lower(), category) if category else None
-            )
+            mapped_category = None
+            if category:
+                lowered = str(category).lower()
+                if lowered not in {"none", "null", "없음", "모두", "전체"}:
+                    mapped_category = CATEGORY_MAPPING.get(lowered, category)
 
             # 1. Kakao Local API로 장소명을 좌표로 변환
             try:

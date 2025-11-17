@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -10,6 +10,8 @@ from geoalchemy2 import Geography
 
 from app.models.place import Place
 from app.models.user_behavior import UserBehaviorEvent
+from app.schemas.place import PopularPlaceResponse
+from app.enums.place import RegionGroupType
 
 
 class PlaceRepository:
@@ -82,18 +84,18 @@ class PlaceRepository:
         region: str,
         category: Optional[str] = None,
         limit: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[PopularPlaceResponse]:
         """
         특정 지역에서 사용자 행동 기록을 기반으로 인기 장소를 검색합니다.
 
         Args:
-            region: 지역명 (예: '서울', '부산', '제주도' 등)
+            region: 지역명 (예: '서울특별시', '대전광역시', '제주도' 등)
             category: 카테고리 필터 (예: '음식', '숙박', '레포츠' 등)
             limit: 최대 결과 개수 (기본값: 10)
 
         Returns:
-            인기도 순으로 정렬된 장소 리스트 (딕셔너리 형태)
-            각 딕셔너리는 장소 정보 + popularity_score를 포함
+            인기도 순으로 정렬된 장소 DTO 리스트
+            각 DTO는 장소 정보 + popularity_score를 포함
         """
         # 인기도 점수 계산: POI_MARK, POI_SCHEDULE 이벤트 개수
         popularity_score = func.count(func.distinct(UserBehaviorEvent.id)).label(
@@ -122,8 +124,18 @@ class PlaceRepository:
                     UserBehaviorEvent.event_type.in_(["POI_MARK", "POI_SCHEDULE"])
                 ),
             )
-            .where(Place.region == region)
         )
+
+        # 지역 필터링 로직:
+        # - region이 RegionGroupType enum 값이면 region 컬럼으로 검색
+        # - 아니면 sido 컬럼으로 검색 (예: '서울특별시', '대전광역시')
+        valid_region_values = {r.value for r in RegionGroupType}
+        if region in valid_region_values:
+            # enum 값이면 region 컬럼 검색
+            stmt = stmt.where(Place.region == region)
+        else:
+            # sido 값이면 sido 컬럼만 검색
+            stmt = stmt.where(Place.sido == region)
 
         # 카테고리 필터링 (선택적)
         if category:
@@ -151,21 +163,20 @@ class PlaceRepository:
         result = self._db.execute(stmt)
         rows = result.fetchall()
 
-        # 결과를 딕셔너리 리스트로 변환
-        places = []
-        for row in rows:
-            places.append({
-                "id": str(row[0]),
-                "title": row[1],
-                "address": row[2],
-                "category": row[3],
-                "tags": row[4],
-                "summary": row[5],
-                "image_url": row[6],
-                "longitude": row[7],
-                "latitude": row[8],
-                "region": row[9],
-                "popularity_score": row[10],
-            })
-
-        return places
+        # Row -> DTO 변환
+        return [
+            PopularPlaceResponse(
+                id=str(row[0]),
+                title=row[1],
+                address=row[2],
+                category=row[3],
+                tags=row[4],
+                summary=row[5],
+                image_url=row[6],
+                longitude=row[7],
+                latitude=row[8],
+                region=row[9],
+                popularity_score=row[10],
+            )
+            for row in rows
+        ]

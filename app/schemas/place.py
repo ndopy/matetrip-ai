@@ -128,28 +128,23 @@ class NearbyPlaceResponse(BaseModel):
 class PopularPlaceRequest(BaseModel):
     """인기 장소 검색 요청 DTO"""
 
-    region: RegionGroupType = Field(..., description="지역명 (예: 서울, 부산, 제주도 등)")
+    region: str = Field(..., description="지역명 (예: 서울, 부산, 대전, 제주도 등)")
     category: Optional[str] = Field(
         None,
         description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)",
     )
     limit: int = Field(10, description="최대 결과 개수")
 
-    @field_validator("region", mode="before")
-    @classmethod
-    def _validate_region(cls, value):
-        return RegionGroupType.from_input(value)
-
     @classmethod
     def create(
         cls,
         *,
-        region: str | RegionGroupType,
+        region: str,
         category: Optional[str] = None,
         limit: int = 10,
     ) -> "PopularPlaceRequest":
         return cls(
-            region=RegionGroupType.from_input(region),
+            region=region.strip(),
             category=category,
             limit=limit,
         )

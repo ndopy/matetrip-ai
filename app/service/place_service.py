@@ -202,12 +202,9 @@ class PlaceService:
         Raises:
             ValueError: 유효하지 않은 지역명인 경우
         """
-        # Repository를 통해 인기 장소 조회
-        places_data = self.repository.find_popular_places_by_region(
-            region=request.region.value,
+        # Repository를 통해 인기 장소 조회 (DTO로 반환)
+        return self.repository.find_popular_places_by_region(
+            region=request.region,
             category=request.category,
             limit=request.limit,
         )
-
-        # 딕셔너리 데이터를 DTO로 변환
-        return [PopularPlaceResponse(**place_dict) for place_dict in places_data]
