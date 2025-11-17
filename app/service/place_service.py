@@ -12,6 +12,7 @@ from app.service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
 from app.service.bedrock_embedding_service import BedrockEmbeddingService
 from app.schemas.review import ReviewContentDto, SavedReviewDto
+from app.schemas.place import NearbyPlaceRequest, NearbyPlaceResponse
 from app.repository.place_repository import PlaceRepository
 
 naver_service = NaverSearchService()
@@ -170,3 +171,16 @@ class PlaceService:
             category=category,
             limit=limit,
         )
+
+    def get_nearby_place(
+        self, request: NearbyPlaceRequest
+    ) -> List[NearbyPlaceResponse]:
+        """주변 장소 검색 결과를 DTO로 캡슐화하여 반환"""
+        places = self.find_nearby_places(
+            latitude=request.latitude,
+            longitude=request.longitude,
+            radius_km=request.radius_km,
+            category=request.category,
+            limit=request.limit,
+        )
+        return [NearbyPlaceResponse.from_entity(place) for place in places]

@@ -1,6 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from app.models.place import Place
 
 
 class PlaceBase(BaseModel):
@@ -59,15 +62,38 @@ class PlaceRecommendation(BaseModel):
 
 class NearbyPlaceRequest(BaseModel):
     """주변 장소 검색 요청 DTO"""
+
     latitude: float = Field(..., description="기준 위도")
     longitude: float = Field(..., description="기준 경도")
     radius_km: float = Field(5.0, description="검색 반경 (km 단위)")
-    category: Optional[str] = Field(None, description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)")
+    category: Optional[str] = Field(
+        None,
+        description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)",
+    )
     limit: int = Field(10, description="최대 결과 개수")
+
+    @classmethod
+    def from_coordinates(
+        cls,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 5.0,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> "NearbyPlaceRequest":
+        return cls(
+            latitude=latitude,
+            longitude=longitude,
+            radius_km=radius_km,
+            category=category,
+            limit=limit,
+        )
 
 
 class NearbyPlaceResponse(BaseModel):
     """주변 장소 검색 응답 DTO"""
+
     id: str = Field(..., description="장소 ID")
     title: str = Field(..., description="장소명")
     address: str = Field(..., description="주소")
@@ -81,3 +107,17 @@ class NearbyPlaceResponse(BaseModel):
     model_config = {
         "from_attributes": True,
     }
+
+    @classmethod
+    def from_entity(cls, place: "Place") -> "NearbyPlaceResponse":
+        return cls(
+            id=str(place.id),
+            title=place.title,
+            address=place.address,
+            category=place.category,
+            tags=place.tags,
+            summary=place.summary,
+            image_url=place.image_url,
+            latitude=place.latitude,
+            longitude=place.longitude,
+        )

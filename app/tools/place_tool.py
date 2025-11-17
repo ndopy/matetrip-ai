@@ -1,3 +1,4 @@
+import logging
 import httpx
 import os
 from typing import Optional
@@ -5,56 +6,14 @@ from langchain_core.tools import tool
 
 from app.service.place_service import PlaceService
 from app.database.database import get_db
+from app.schemas.place import NearbyPlaceRequest
+from common.category_mapping import CATEGORY_MAPPING
+
+logger = logging.getLogger(__name__)
 
 # Kakao Local API 설정
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 KAKAO_LOCAL_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
-
-# 카테고리 매핑 (사용자 표현 -> DB 카테고리)
-# AI가 의미적으로 필터링할 수 있도록 넓은 카테고리로 매핑
-CATEGORY_MAPPING = {
-    # 음식 관련
-    "맛집": "음식",
-    "음식점": "음식",
-    "식당": "음식",
-    "레스토랑": "음식",
-    "카페": "음식",
-    "음식": "음식",
-    # 숙박 관련 (캠핑장도 여기 포함)
-    "숙박": "숙박",
-    "호텔": "숙박",
-    "펜션": "숙박",
-    "게스트하우스": "숙박",
-    "민박": "숙박",
-    "캠핑장": "숙박",
-    "글램핑": "숙박",
-    # 레포츠 관련
-    "레포츠": "레포츠",
-    "레저": "레포츠",
-    "놀거리": "레포츠",
-    "액티비티": "레포츠",
-    "스포츠": "레포츠",
-    # 자연 관련
-    "자연": "자연",
-    "관광지": "자연",
-    "산": "자연",
-    "바다": "자연",
-    "공원": "자연",
-    "해변": "자연",
-    # 인문/문화 관련
-    "문화": "인문(문화/예술/역사)",
-    "역사": "인문(문화/예술/역사)",
-    "예술": "인문(문화/예술/역사)",
-    "박물관": "인문(문화/예술/역사)",
-    "미술관": "인문(문화/예술/역사)",
-    "인문": "인문(문화/예술/역사)",
-    "사찰": "인문(문화/예술/역사)",
-    "절": "인문(문화/예술/역사)",
-    # 여행코스
-    "여행코스": "추천코스",
-    "코스": "추천코스",
-    "추천코스": "추천코스",
-}
 
 
 def get_place_tools():
@@ -137,7 +96,7 @@ def get_place_tools():
                     headers=headers,
                     params={"query": location_name, "size": 1},
                 )
-                print("Kakao Local API 호출 완료")
+                logger.debug("Kakao Local API 호출 완료")
                 search_response.raise_for_status()
                 search_data = search_response.json()
 
@@ -154,36 +113,25 @@ def get_place_tools():
                 if not latitude or not longitude:
                     return "위치 좌표를 가져올 수 없습니다."
 
+            search_request = NearbyPlaceRequest.from_coordinates(
+                latitude=latitude,
+                longitude=longitude,
+                radius_km=radius_km,
+                category=mapped_category,
+                limit=limit,
+            )
+
             # 2. PlaceService를 직접 호출 (같은 서버 내부 호출)
             db = next(get_db())
             try:
                 place_service = PlaceService(db)
-                places = place_service.find_nearby_places(
-                    latitude=latitude,
-                    longitude=longitude,
-                    radius_km=radius_km,
-                    category=mapped_category,
-                    limit=limit,
-                )
+                place_responses = place_service.get_nearby_place(search_request)
 
-                if not places:
+                if not place_responses:
                     category_text = f"({mapped_category}) " if mapped_category else ""
                     return f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다."
 
-                # Place 객체를 dict로 변환
-                result = []
-                for place in places:
-                    result.append({
-                        "id": str(place.id),
-                        "title": place.title,
-                        "address": place.address,
-                        "category": place.category,
-                        "tags": place.tags,
-                        "summary": place.summary,
-                        "image_url": place.image_url,
-                        "latitude": place.latitude,
-                        "longitude": place.longitude,
-                    })
+                result = [place.model_dump() for place in place_responses]
 
                 # 결과 반환 (프론트엔드에는 전체 데이터가 전달됨)
                 return str(result)
