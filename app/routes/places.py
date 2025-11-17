@@ -104,6 +104,7 @@ async def get_nearby_places(
     - **category**: 카테고리 필터 (선택사항)
     - **limit**: 최대 결과 개수
     """
+    print("[get_nearby_places 함수 호출]")
     place_service = PlaceService(db)
 
     places = place_service.find_nearby_places(

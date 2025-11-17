@@ -3,10 +3,12 @@ import os
 from typing import Optional
 from langchain_core.tools import tool
 
+from app.service.place_service import PlaceService
+from app.database.database import get_db
+
 # Kakao Local API 설정
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 KAKAO_LOCAL_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
-FASTAPI_URL = "http://localhost:8000"
 
 # 카테고리 매핑 (사용자 표현 -> DB 카테고리)
 # AI가 의미적으로 필터링할 수 있도록 넓은 카테고리로 매핑
@@ -152,31 +154,41 @@ def get_place_tools():
                 if not latitude or not longitude:
                     return "위치 좌표를 가져올 수 없습니다."
 
-                # 2. FastAPI의 주변 장소 검색 API 호출
-                params = {
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "radius_km": radius_km,
-                    "limit": limit,
-                }
-
-                # 카테고리가 있으면 추가
-                if mapped_category:
-                    params["category"] = mapped_category
-
-                recommend_response = client.get(
-                    f"{FASTAPI_URL}/places/nearby",
-                    params=params,
+            # 2. PlaceService를 직접 호출 (같은 서버 내부 호출)
+            db = next(get_db())
+            try:
+                place_service = PlaceService(db)
+                places = place_service.find_nearby_places(
+                    latitude=latitude,
+                    longitude=longitude,
+                    radius_km=radius_km,
+                    category=mapped_category,
+                    limit=limit,
                 )
-                recommend_response.raise_for_status()
-                places = recommend_response.json()
 
                 if not places:
                     category_text = f"({mapped_category}) " if mapped_category else ""
                     return f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다."
 
+                # Place 객체를 dict로 변환
+                result = []
+                for place in places:
+                    result.append({
+                        "id": str(place.id),
+                        "title": place.title,
+                        "address": place.address,
+                        "category": place.category,
+                        "tags": place.tags,
+                        "summary": place.summary,
+                        "image_url": place.image_url,
+                        "latitude": place.latitude,
+                        "longitude": place.longitude,
+                    })
+
                 # 결과 반환 (프론트엔드에는 전체 데이터가 전달됨)
-                return str(places)
+                return str(result)
+            finally:
+                db.close()
 
         except httpx.HTTPStatusError as e:
             return f"API 오류 발생: {e.response.status_code} - {e.response.text}"

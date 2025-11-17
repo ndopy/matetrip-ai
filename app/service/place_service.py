@@ -162,6 +162,7 @@ class PlaceService:
         Returns:
             거리순으로 정렬된 장소 리스트
         """
+        print("[Place Service : find_nearby_places 함수 호출]")
         return self.repository.find_nearby_places(
             latitude=latitude,
             longitude=longitude,

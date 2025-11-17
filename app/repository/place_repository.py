@@ -3,8 +3,10 @@ from __future__ import annotations
 from typing import Optional, List
 from uuid import UUID
 
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_MakePoint
+from geoalchemy2 import Geography
 
 from app.models.place import Place
 
@@ -40,7 +42,7 @@ class PlaceRepository:
         limit: int = 10,
     ) -> List[Place]:
         """
-        주어진 좌표 주변의 장소를 검색합니다.
+        주어진 좌표 주변의 장소를 검색합니다. (PostGIS 사용)
 
         Args:
             latitude: 위도
@@ -52,25 +54,24 @@ class PlaceRepository:
         Returns:
             거리순으로 정렬된 장소 리스트
         """
-        # Haversine 공식을 사용한 거리 계산 (km 단위)
-        distance_formula = func.acos(
-            func.cos(func.radians(latitude))
-            * func.cos(func.radians(Place.latitude))
-            * func.cos(func.radians(Place.longitude) - func.radians(longitude))
-            + func.sin(func.radians(latitude)) * func.sin(func.radians(Place.latitude))
-        ) * 6371  # 지구 반지름 (km)
-
-        query = (
-            self._db.query(Place, distance_formula.label("distance"))
-            .filter(distance_formula <= radius_km)
+        # PostGIS geography로 검색 위치 생성
+        print("[Place Repository : find_nearby_places 함수]")
+        search_point = func.ST_SetSRID(ST_MakePoint(longitude, latitude), 4326).cast(
+            Geography
         )
+
+        # ST_DWithin으로 반경 내 장소 필터링 (GiST 인덱스 사용)
+        # radius_km * 1000 = 미터 단위로 변환
+        query = self._db.query(
+            Place, ST_Distance(Place.location, search_point).label("distance")
+        ).filter(ST_DWithin(Place.location, search_point, radius_km * 1000))
 
         # 카테고리 필터링
         if category:
             query = query.filter(Place.category == category)
 
         # 거리순 정렬 및 제한
-        results = query.order_by(text("distance")).limit(limit).all()
+        results = query.order_by("distance").limit(limit).all()
 
         # Place 객체만 추출하여 반환
-        return [place for place, distance in results]
+        return [place for place, _ in results]
