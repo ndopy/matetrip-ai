@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter
 from app.core.llm import global_llm
 from app.tools import create_nest_tools
@@ -10,6 +11,7 @@ from app.core.memory import get_session_history
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 # AI 라우터 프롬프트
@@ -42,27 +44,27 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         # [라우터 실행] AI에게 사용자의 의도부터 물어봄
         full_history = get_session_history(request.session_id)
 
-        classification_result = router_chain.invoke(
+        raw = router_chain.invoke(
             {"input": request.query, "chat_history": full_history.messages}
         )
-
+        classification_result: IntentClassifier = IntentClassifier.model_validate(raw)
         intent = classification_result.intent
 
-        print(f"AI Router Intent: {intent}")
+        logger.info(f"AI Router Intent: {intent}")
 
         # [코드 기반 분기] 의도에 따라 일꾼에게 전달할 기억 선별
         history_to_pass = []
 
         if intent == "CONVERSATION":
-            # [기억 사용 O] 후속 질문으로 모든 기억을 다 줌
+            # [AI 답변 사용 O] 후속 질문으로 모든 기억을 다 줌
             history_to_pass = full_history.messages
         else:
-            # [기억 사용 X] 사용자의 말만 줌
+            # [AI 답변 기억 사용 X] 사용자의 말만 줌
             for msg in full_history.messages:
                 if isinstance(msg, HumanMessage):
                     history_to_pass.append(msg)
 
-        print(history_to_pass)
+        logger.info(f"history_to_pass : {history_to_pass}")
 
         # 1. 도구 생성
         user_tools = create_nest_tools()
@@ -72,15 +74,16 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
 
         # 3. 실행
         # 핵심 로직은 agent_service로 위임
-        response_dict = get_agent_response(agent, request, history_to_pass)
+        chatResponse: ChatResponse = get_agent_response(agent, request, history_to_pass)
 
         # 4. 대화 기록 수동 저장
         full_history.add_user_message(request.query)
-        full_history.add_ai_message(response_dict["response"])
+        # full_history.add_ai_message(response_dict"response"])
+        full_history.add_ai_message(chatResponse.response)
 
         # Pydantic 모델(ChatResponse)로 변환해 반환
         return ChatResponse(
-            response=response_dict["response"], tool_data=response_dict["tool_data"]
+            response=chatResponse.response, tool_data=chatResponse.tool_data
         )
 
     except Exception as e:

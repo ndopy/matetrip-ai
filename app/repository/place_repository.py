@@ -101,6 +101,7 @@ class PlaceRepository:
         popularity_score = func.count(func.distinct(UserBehaviorEvent.id)).label(
             "popularity_score"
         )
+        # TODO: Net Count로 변경하기
 
         # 기본 쿼리: Place LEFT JOIN UserBehaviorEvent
         stmt = select(
