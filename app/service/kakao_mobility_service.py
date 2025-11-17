@@ -91,7 +91,7 @@ class KakaoMobilityService:
                 return None
 
         except Exception as e:
-            print(f"Kakao Mobility API Exception: {e}")
+            logger.exception(f"Kakao Mobility API Exception: {e}")
             return None
 
     async def get_distance_matrix(

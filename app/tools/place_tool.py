@@ -125,7 +125,7 @@ def get_place_tools():
     def recommend_popular_places_in_region(
         region: str,
         category: Optional[str] = None,
-        limit: int = 10,
+        limit: int = 20,
     ):
         """
         **ONLY use for these broad regions: '서울', '부산', '대전', '대구', '광주', '울산', '세종', '인천', '제주도', '강원도', '경기도', '경상도', '전라도', '충청도'**
@@ -148,7 +148,7 @@ def get_place_tools():
                 - '인문' 또는 '문화': 박물관, 미술관, 역사유적지 등
                 - '추천코스' 또는 '여행코스': 여행 코스
                 - None이면 모든 카테고리 검색
-            limit: 추천할 장소 개수 (기본값: 10개)
+            limit: 추천할 장소 개수 (기본값: 20개)
 
         올바른 사용 예시:
             - "제주도에서 놀려고 하는데 사람들이 많이 가는 곳 추천해줘"
@@ -183,17 +183,14 @@ def get_place_tools():
         6. "다른 사용자들이 많이 찾는" 또는 "인기 있는" 장소임을 자연스럽게 언급하세요.
         """
         try:
+
+            if limit <= 0 or limit > 100:
+                return "limit은 1에서 100 사이의 값이어야 합니다."
             # 지역명 정규화 (약칭이 있을 수 있으니.. 이거 너무 하드코딩같은데 쩔수일 듯)
             normalized_region = normalize_region_name(region.strip())
 
             # 카테고리를 DB 카테고리로 매핑
-            mapped_category = None
-            if category:
-                # LLM이 category: 'None' 문자열을 넘겨서 쿼리가 category = 'None' 조건으로 필터되는 문제때문에.....
-                lowered = str(category).lower()  # 영어로 넘어오는 거
-                # "None"/"none"/"없음" 같이 의미 없는 값은 제거
-                if lowered not in {"none", "null", "없음", "모두", "전체"}:
-                    mapped_category = CATEGORY_MAPPING.get(lowered, category)
+            mapped_category = normalize_category(category)
 
             # 요청 DTO 생성
             request = PopularPlaceRequest.create(
@@ -281,11 +278,7 @@ def get_place_tools():
         """
         try:
             # 카테고리를 DB 카테고리로 매핑
-            mapped_category = None
-            if category:
-                lowered = str(category).lower()
-                if lowered not in {"none", "null", "없음", "모두", "전체"}:
-                    mapped_category = CATEGORY_MAPPING.get(lowered, category)
+            mapped_category = normalize_category(category)
 
             # 1. Kakao Local API로 장소명을 좌표로 변환
             try:
