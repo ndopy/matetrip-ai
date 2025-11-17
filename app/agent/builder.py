@@ -2,7 +2,7 @@ from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
-def build_stateful_agent(llm, tools):
+def build_stateful_agent(llm, tools) -> AgentExecutor:
     """
     LLM과 도구(Tools)를 결합하여 기억력을 가진 에이전트를 만듭니다.
     """

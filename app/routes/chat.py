@@ -8,6 +8,7 @@ from app.schemas.chat import ChatRequest, ChatResponse, IntentClassifier
 from app.service.agent_service import get_agent_response
 from app.core.memory import get_session_history
 
+from langchain_classic.agents import AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 
@@ -22,7 +23,13 @@ router_prompt = ChatPromptTemplate.from_messages(
             (
                 "You are a routing assistant. Your job is to classify the user's intent.\n"
                 "Based on the <chat_history> and <latest_message>, "
-                "you MUST classify the user's intent by outputting the 'IntentClassifier' JSON format."
+                "you MUST classify the user's intent by outputting the 'IntentClassifier' JSON format.\n\n"
+                "**Key Guidelines:**\n"
+                "- 'NEW_SEARCH': User asks for a DIFFERENT location/category (e.g., 'Seoul cafes' → 'Busan restaurants')\n"
+                "- 'REFINEMENT': User filters existing results (e.g., 'show only Korean food', 'cheaper ones')\n"
+                "- 'CONVERSATION': Casual chat or follow-up about previous answer (e.g., 'how to get there?')\n\n"
+                "**Critical:** If the user mentions a NEW location that differs from previous search context, "
+                "classify as 'NEW_SEARCH', NOT 'REFINEMENT'."
             ),
         ),
         MessagesPlaceholder(variable_name="chat_history"),
@@ -55,14 +62,15 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         # [코드 기반 분기] 의도에 따라 일꾼에게 전달할 기억 선별
         history_to_pass = []
 
-        if intent == "CONVERSATION":
-            # [AI 답변 사용 O] 후속 질문으로 모든 기억을 다 줌
+        if intent == "NEW_SEARCH":
+            # [완전히 새로운 검색] 과거 기억 없이 시작 (빈 히스토리)
+            history_to_pass = []
+        elif intent == "REFINEMENT":
+            # [기존 결과 정제] 전체 대화 맥락 필요 (이전 검색 결과 포함)
             history_to_pass = full_history.messages
-        else:
-            # [AI 답변 기억 사용 X] 사용자의 말만 줌
-            for msg in full_history.messages:
-                if isinstance(msg, HumanMessage):
-                    history_to_pass.append(msg)
+        elif intent == "CONVERSATION":
+            # [일반 대화] 전체 대화 맥락 필요
+            history_to_pass = full_history.messages
 
         logger.info(f"history_to_pass : {history_to_pass}")
 
@@ -70,7 +78,7 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         user_tools = create_nest_tools()
 
         # 2. 에이전트 조립 (global_llm 재사용)
-        agent = build_stateful_agent(global_llm, user_tools)
+        agent: AgentExecutor = build_stateful_agent(global_llm, user_tools)
 
         # 3. 실행
         # 핵심 로직은 agent_service로 위임
@@ -80,11 +88,7 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         full_history.add_user_message(request.query)
         # full_history.add_ai_message(response_dict"response"])
         full_history.add_ai_message(chatResponse.response)
-
-        # Pydantic 모델(ChatResponse)로 변환해 반환
-        return ChatResponse(
-            response=chatResponse.response, tool_data=chatResponse.tool_data
-        )
+        return chatResponse
 
     except Exception as e:
         return ChatResponse(

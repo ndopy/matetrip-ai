@@ -25,9 +25,10 @@ class IntentClassifier(BaseModel):
     """
     라우터 AI가 반환할 Pydantic 모델 (JSON 양식) 정의
     """
-    intent: Literal["TOOL_USE", "CONVERSATION"] = Field(
+    intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION"] = Field(
         description=(
-            "Classify as 'TOOL_USE' if the user needs new info (search, create).\n"
-            "Classify as 'CONVERSATION' for simple chat or follow-ups about the last response."
+            "Classify as 'NEW_SEARCH' if user requests a completely new place search (e.g., 'Busan restaurants' after asking 'Seoul cafes').\n"
+            "Classify as 'REFINEMENT' if user wants to filter/modify existing search results (e.g., 'only Korean food from those', 'cheaper options').\n"
+            "Classify as 'CONVERSATION' for casual chat or follow-up questions about previous responses (e.g., 'how do I get there?', 'tell me more')."
         )
     )

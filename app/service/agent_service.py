@@ -63,7 +63,7 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> ChatRespon
             )
         )
 
-    # 3. API 엔드포인트에서 사용할 수 있도록 딕셔너리로 반환
+    # 3. API 엔드포인트에서 사용할 수 있도록 반환
     return ChatResponse(
         response=ai_message,
         tool_data=tool_data_list,
