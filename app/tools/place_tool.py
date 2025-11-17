@@ -80,6 +80,19 @@ def normalize_region_name(region: str) -> str:
     return REGION_NORMALIZATION.get(region, region)
 
 
+def normalize_category(category: Optional[str]) -> Optional[str]:
+    """카테고리를 DB 카테고리로 매핑하고 정규화합니다."""
+    if not category:
+        return None
+
+    lowered = str(category).lower()
+    # "None"/"none"/"없음" 같이 의미 없는 값은 제거
+    if lowered in {"none", "null", "없음", "모두", "전체"}:
+        return None
+
+    return CATEGORY_MAPPING.get(lowered, category)
+
+
 # TODO: 다른 서비스에 넣어놓기
 def fetch_coordinates_from_address(location_name: str) -> tuple[float, float]:
     """Return (latitude, longitude) searched by Kakao Local API."""
