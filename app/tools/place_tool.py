@@ -114,6 +114,7 @@ def get_place_tools():
         """
         try:
             # 카테고리를 DB 카테고리로 매핑
+            region = region.strip()
             mapped_category = (
                 CATEGORY_MAPPING.get(category.lower(), category) if category else None
             )
@@ -129,13 +130,9 @@ def get_place_tools():
             db = next(get_db())
             try:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
-
-                if not place_responses:
-                    category_text = f"({mapped_category}) " if mapped_category else ""
-                    return f"{region} 지역에서 {category_text}인기 장소를 찾을 수 없습니다."
-
-                # 결과 반환 (popularity_score 포함)
-                return [place.model_dump() for place in place_responses]
+                return [
+                    place.model_dump() for place in place_responses
+                ]  # 결과 반환 (popularity_score 포함)
 
             finally:
                 db.close()

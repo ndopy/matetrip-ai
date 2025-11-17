@@ -104,22 +104,28 @@ class TargetedPlaceCollector:
         content_type_id = TourAPIService.CONTENT_TYPES.get(category)
 
         if not area_code or not content_type_id:
-            logger.warning(f"알 수 없는 지역 또는 카테고리: {self.region_filter}, {category}")
+            logger.warning(
+                f"알 수 없는 지역 또는 카테고리: {self.region_filter}, {category}"
+            )
             return 0
 
-        logger.info(f"\n[{self.region_filter}] {category} 카테고리 수집 시작 (목표: {max_items}개)")
+        logger.info(
+            f"\n[{self.region_filter}] {category} 카테고리 수집 시작 (목표: {max_items}개)"
+        )
 
         # Tour API에서 인기순으로 수집
         tour_items = self.tour_service.search_all_pages(
             area_code=area_code,
             content_type_id=content_type_id,
             max_pages=100,
-            arrange="B",  # 조회수순 (인기도순)
-            max_items=max_items * 3,  # 중복/필터링을 고려하여 3배 가져오기
-            min_quality_score=self.min_quality_score,
+            # arrange="B",  # 조회수순 (인기도순)
+            # max_items=max_items * 3,  # 중복/필터링을 고려하여 3배 가져오기
+            # min_quality_score=self.min_quality_score,
         )
 
-        logger.info(f"  검색 결과: {len(tour_items)}개 (품질 점수 {self.min_quality_score}점 이상)")
+        logger.info(
+            f"  검색 결과: {len(tour_items)}개 (품질 점수 {self.min_quality_score}점 이상)"
+        )
 
         collected_in_category = 0
         for tour_item in tour_items:
@@ -242,49 +248,49 @@ async def main():
                     "tourism": 400,  # 자연 (관광지)
                     "culture": 150,  # 인문(문화시설)
                     "leisure": 100,  # 레포츠
-                    "course": 50,    # 추천코스
-                }
+                    "course": 50,  # 추천코스
+                },
             },
             "부산": {
                 "total": 600,
                 "categories": {
-                    "tourism": 200,      # 자연
-                    "accommodation": 150, # 숙박
-                    "leisure": 200,      # 레포츠
-                    "culture": 50,       # 인문
-                }
+                    "tourism": 200,  # 자연
+                    "accommodation": 150,  # 숙박
+                    "leisure": 200,  # 레포츠
+                    "culture": 50,  # 인문
+                },
             },
             "서울": {
                 "total": 500,
                 "categories": {
-                    "leisure": 250,      # 레포츠
-                    "tourism": 150,      # 자연
-                    "accommodation": 100, # 숙박
-                }
+                    "leisure": 250,  # 레포츠
+                    "tourism": 150,  # 자연
+                    "accommodation": 100,  # 숙박
+                },
             },
             "경남": {  # 경상도 (경남)
                 "total": 200,
                 "categories": {
                     "accommodation": 75,  # 숙박
-                    "leisure": 75,        # 레포츠
-                    "tourism": 50,        # 자연
-                }
+                    "leisure": 75,  # 레포츠
+                    "tourism": 50,  # 자연
+                },
             },
             "경북": {  # 경상도 (경북)
                 "total": 200,
                 "categories": {
                     "accommodation": 75,  # 숙박
-                    "leisure": 75,        # 레포츠
-                    "tourism": 50,        # 자연
-                }
+                    "leisure": 75,  # 레포츠
+                    "tourism": 50,  # 자연
+                },
             },
             "인천": {
                 "total": 300,
                 "categories": {
-                    "leisure": 150,       # 레포츠
-                    "accommodation": 100, # 숙박
-                    "tourism": 50,        # 자연
-                }
+                    "leisure": 150,  # 레포츠
+                    "accommodation": 100,  # 숙박
+                    "tourism": 50,  # 자연
+                },
             },
         }
 
