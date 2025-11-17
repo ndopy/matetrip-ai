@@ -12,8 +12,14 @@ from app.service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
 from app.service.bedrock_embedding_service import BedrockEmbeddingService
 from app.schemas.review import ReviewContentDto, SavedReviewDto
-from app.schemas.place import NearbyPlaceRequest, NearbyPlaceResponse
+from app.schemas.place import (
+    NearbyPlaceRequest,
+    NearbyPlaceResponse,
+    PopularPlaceRequest,
+    PopularPlaceResponse,
+)
 from app.repository.place_repository import PlaceRepository
+from app.enums.place import RegionGroupType
 
 naver_service = NaverSearchService()
 crawl_service = CrawlService()
@@ -184,3 +190,42 @@ class PlaceService:
             limit=request.limit,
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
+
+    def get_popular_places_in_region(
+        self, request: PopularPlaceRequest
+    ) -> List[PopularPlaceResponse]:
+        """
+        특정 지역의 인기 장소를 검색하여 DTO로 반환합니다.
+
+        Args:
+            request: 인기 장소 검색 요청 DTO
+
+        Returns:
+            인기도 순으로 정렬된 장소 응답 DTO 리스트
+
+        Raises:
+            ValueError: 유효하지 않은 지역명인 경우
+        """
+        # 지역명 검증 및 정규화
+        region_enum = None
+        for rg in RegionGroupType:
+            if rg.value == request.region or request.region in rg.value:
+                region_enum = rg
+                break
+
+        if not region_enum:
+            valid_regions = ", ".join([r.value for r in RegionGroupType])
+            raise ValueError(
+                f"'{request.region}' 지역을 찾을 수 없습니다. "
+                f"다음 지역 중 하나를 선택해주세요: {valid_regions}"
+            )
+
+        # Repository를 통해 인기 장소 조회
+        places_data = self.repository.find_popular_places_by_region(
+            region=region_enum.value,
+            category=request.category,
+            limit=request.limit,
+        )
+
+        # 딕셔너리 데이터를 DTO로 변환
+        return [PopularPlaceResponse(**place_dict) for place_dict in places_data]

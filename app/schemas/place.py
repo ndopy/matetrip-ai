@@ -121,3 +121,50 @@ class NearbyPlaceResponse(BaseModel):
             latitude=place.latitude,
             longitude=place.longitude,
         )
+
+
+class PopularPlaceRequest(BaseModel):
+    """인기 장소 검색 요청 DTO"""
+
+    region: str = Field(..., description="지역명 (예: 서울, 부산, 제주도 등)")
+    category: Optional[str] = Field(
+        None,
+        description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)",
+    )
+    limit: int = Field(10, description="최대 결과 개수")
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        region: str,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> "PopularPlaceRequest":
+        return cls(
+            region=region,
+            category=category,
+            limit=limit,
+        )
+
+
+class PopularPlaceResponse(BaseModel):
+    """인기 장소 검색 응답 DTO"""
+
+    id: str = Field(..., description="장소 ID")
+    title: str = Field(..., description="장소명")
+    address: str = Field(..., description="주소")
+    category: Optional[str] = Field(None, description="카테고리")
+    tags: Optional[List[str]] = Field(None, description="태그")
+    summary: Optional[str] = Field(None, description="리뷰 요약")
+    image_url: Optional[str] = Field(None, description="이미지 URL")
+    latitude: float = Field(..., description="위도")
+    longitude: float = Field(..., description="경도")
+    region: Optional[str] = Field(None, description="지역")
+    popularity_score: int = Field(
+        0, description="인기도 점수 (마크/일정 추가 횟수)"
+    )
+
+    model_config = {
+        "from_attributes": True,
+    }

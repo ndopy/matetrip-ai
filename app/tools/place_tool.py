@@ -7,7 +7,7 @@ from langchain_core.tools import tool
 from app.common.category_mapping import CATEGORY_MAPPING
 from app.service.place_service import PlaceService
 from app.database.database import get_db
-from app.schemas.place import NearbyPlaceRequest
+from app.schemas.place import NearbyPlaceRequest, PopularPlaceRequest
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,96 @@ def get_place_tools():
     [장소 추천 관련 도구 모음]
     우리 DB에 저장된 장소 데이터를 기반으로 추천합니다.
     """
+
+    @tool
+    def recommend_popular_places_in_region(
+        region: str,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ):
+        """
+        특정 지역에서 다른 사용자들의 과거 기록을 기반으로 인기 장소를 추천합니다.
+        사용자들이 많이 관심 있어하는(마크하거나 일정에 추가한) 장소를 우선적으로 추천합니다.
+
+        Args:
+            region: 지역명 (예: '서울', '부산', '제주도', '강원도', '경기도', '인천', '경상도', '전라도', '충청도')
+            category: 추천받을 카테고리 (선택사항)
+                - '음식' 또는 '맛집': 레스토랑, 카페 등
+                - '숙박' 또는 '호텔': 호텔, 펜션, 게스트하우스, 캠핑장 등
+                - '레포츠' 또는 '놀거리': 레저, 스포츠, 액티비티 등
+                - '자연' 또는 '관광지': 자연관광지, 산, 바다 등
+                - '인문' 또는 '문화': 박물관, 미술관, 역사유적지 등
+                - '추천코스' 또는 '여행코스': 여행 코스
+                - None이면 모든 카테고리 검색
+            limit: 추천할 장소 개수 (기본값: 10개)
+
+        사용 예시:
+            - "제주도에서 놀려고 하는데 사람들이 많이 가는 곳 추천해줘"
+              → recommend_popular_places_in_region("제주도", None, 10)
+            - "부산에서 사람들이 많이 찾는 맛집 알려줘"
+              → recommend_popular_places_in_region("부산", "음식", 10)
+            - "서울에서 인기 많은 관광지 5곳만"
+              → recommend_popular_places_in_region("서울", "자연", 5)
+            - "강원도 핫플레이스 추천"
+              → recommend_popular_places_in_region("강원도", None, 10)
+            - "경주에서 사람들이 많이 가는 문화유적지"
+              → recommend_popular_places_in_region("경상도", "인문", 10)
+            - "전주 맛집 중에서 사람들이 자주 찾는 곳"
+              → recommend_popular_places_in_region("전라도", "음식", 10)
+            - "인천에서 인기 있는 데이트 코스"
+              → recommend_popular_places_in_region("인천", None, 10)
+            - "경기도에서 사람들이 많이 가는 곳"
+              → recommend_popular_places_in_region("경기도", None, 10)
+            - "충청도에서 유명한 관광지"
+              → recommend_popular_places_in_region("충청도", "자연", 10)
+
+        [중요: 의미적 필터링 규칙]
+        이 도구는 카테고리별로 넓게 검색합니다. 사용자가 구체적인 장소 타입을 요청한 경우:
+        1. 먼저 적절한 카테고리로 검색을 수행하세요
+        2. 결과를 받은 후, 각 장소의 title, tags, summary를 분석하여 사용자 요청과 의미적으로 일치하는 장소만 선별하세요
+
+        [답변 작성 규칙]
+        1. 이 도구의 실행 결과에는 기술적인 정보(ID, 좌표 등)가 포함될 수 있습니다.
+        2. 하지만 사용자에게 답변할 때는 **절대 기술적인 정보(ID, 좌표)를 말하지 마세요.**
+        3. 오직 **이름, 주소, 카테고리, 태그, 요약** 등 사람이 읽을 수 있는 정보만 사용하여 자연스럽게 요약해 주세요.
+        4. 각 장소의 summary(리뷰 요약)가 있으면 함께 소개하면 좋습니다.
+        5. 태그(tags)가 있으면 장소의 특징을 설명할 때 활용하세요.
+        6. "다른 사용자들이 많이 찾는" 또는 "인기 있는" 장소임을 자연스럽게 언급하세요.
+        """
+        try:
+            # 카테고리를 DB 카테고리로 매핑
+            mapped_category = (
+                CATEGORY_MAPPING.get(category.lower(), category) if category else None
+            )
+
+            # 요청 DTO 생성
+            request = PopularPlaceRequest.create(
+                region=region,
+                category=mapped_category,
+                limit=limit,
+            )
+
+            # PlaceService를 통해 인기 장소 조회
+            db = next(get_db())
+            try:
+                place_responses = PlaceService(db).get_popular_places_in_region(request)
+
+                if not place_responses:
+                    category_text = f"({mapped_category}) " if mapped_category else ""
+                    return f"{region} 지역에서 {category_text}인기 장소를 찾을 수 없습니다."
+
+                # 결과 반환 (popularity_score 포함)
+                return [place.model_dump() for place in place_responses]
+
+            finally:
+                db.close()
+
+        except ValueError as e:
+            # 지역명 검증 실패 시
+            return str(e)
+        except Exception as e:
+            logger.error(f"인기 장소 추천 중 에러 발생: {str(e)}")
+            return f"인기 장소 추천 중 에러 발생: {str(e)}"
 
     @tool
     def recommend_nearby_places(
@@ -152,4 +242,4 @@ def get_place_tools():
         except Exception as e:
             return f"장소 추천 중 에러 발생: {str(e)}"
 
-    return [recommend_nearby_places]
+    return [recommend_popular_places_in_region, recommend_nearby_places]
