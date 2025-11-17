@@ -31,6 +31,7 @@ def parse_message(
 ) -> Optional[MessageT]:
 
     data = body.decode("utf-8").strip()
+    print(f"[Q: {queue_name}] Received message: {data!r}")
 
     if not data:
         log.warning(f"[Q: {queue_name}] 빈 메시지를 받았습니다. 스킵할게요")
@@ -44,15 +45,25 @@ def parse_message(
         )
         return None
 
+    # NestJS에서 {pattern, data} 형태로 보내므로 data 필드 추출
+    if isinstance(json_payload, dict) and "data" in json_payload:
+        json_payload = json_payload["data"]
+
+    # data 필드가 문자열(JSON 문자열)로 들어올 때 재파싱 후 dict가 아니면 스킵
+    if isinstance(json_payload, str):
+        try:
+            json_payload = json.loads(json_payload)
+        except JSONDecodeError:
+            log.warning(
+                f"[Q: {queue_name}] data 필드가 JSON 문자열이 아니어서 파싱 실패: {json_payload!r}"
+            )
+            return None
+
     if not isinstance(json_payload, dict):
         log.warning(
             f"[Q: {queue_name}] dict 형태가 아닌 payload입니다: {json_payload!r}"
         )
         return None
-
-    # NestJS에서 {pattern, data} 형태로 보내므로 data 필드 추출
-    if isinstance(json_payload, dict) and "data" in json_payload:
-        json_payload = json_payload["data"]
 
     try:
         return model(**json_payload)

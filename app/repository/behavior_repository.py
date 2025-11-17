@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.common.embedding_utils import EmbeddingUtils
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
 from app.models.user import User  # noqa: F401
+from app.models.workspace import Workspace  # noqa: F401
+from app.models.plan_day import PlanDay  # noqa: F401
 
 # Place를 import하기 전에 PlaceReview를 먼저 import (relationship 초기화를 위해)
 from app.models.review import PlaceReview  # noqa: F401

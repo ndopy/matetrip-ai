@@ -12,14 +12,16 @@ from app.common.logger import logger
 # RabbitMQ consumer 관리
 consumer_thread = None
 rabbitmq_connection = None
+rabbitmq_channel = None
 
 
 def start_rabbitmq_consumer():
     """백그라운드 스레드에서 RabbitMQ consumer 실행"""
-    global rabbitmq_connection
+    global rabbitmq_connection, rabbitmq_channel
     try:
         connection, channel = create_consumer()
         rabbitmq_connection = connection
+        rabbitmq_channel = channel
         logger.info("RabbitMQ consumer started in background thread")
         channel.start_consuming()
     except Exception as e:
@@ -36,10 +38,25 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        global rabbitmq_connection
-        if rabbitmq_connection and rabbitmq_connection.is_open:
-            rabbitmq_connection.close()
+        global rabbitmq_connection, rabbitmq_channel
+
+        connection = rabbitmq_connection
+        channel = rabbitmq_channel
+        if not (connection and connection.is_open):
+            return
+
+        # 소비 루프 중단 → 커넥션 종료
+        try:
+            if channel and channel.is_open:
+                connection.add_callback_threadsafe(channel.stop_consuming)
+        except Exception as e:
+            logger.warning(f"RabbitMQ stop_consuming failed: {e}", exc_info=True)
+
+        try:
+            connection.close()
             logger.info("RabbitMQ connection closed")
+        except Exception as e:
+            logger.warning(f"RabbitMQ connection close failed: {e}", exc_info=True)
 
 
 app = FastAPI(
