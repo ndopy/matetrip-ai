@@ -50,5 +50,3 @@ def downgrade():
     op.drop_column("places", "content_type_id")
     op.drop_column("places", "data_source")
     op.drop_column("places", "tour_api_id")
-
-    op.drop_column("places", "tour_api_id")

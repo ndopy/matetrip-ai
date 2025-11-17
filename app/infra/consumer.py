@@ -1,32 +1,34 @@
 import os
 import sys
-import logging
 from pathlib import Path
 from typing import Final
+
+# 임시 Test용 : `python app/infra/consumer.py`로 바로 실행될 수 있도록
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.common.logger import logger
 
 import pika
 import pika.exceptions
 from dotenv import load_dotenv
 
-# Allow running this module directly via `python app/infra/consumer.py`
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-# Load environment variables from .env file
-load_dotenv(PROJECT_ROOT / ".env")
-
 from app.infra.messaging_handler import (
-    handle_behavior_embedding_test,
+    handle_behavior_save_and_embedding,
     handle_profile_embedding_test,
     parse_message,
 )
-from app.infra.rabbitmq_schema import (
+from app.schemas.rabbitmq_schema import (
     BehaviorEmbeddingReqMessage,
     ProfileEmbeddingReqMessage,
 )
 
-rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+# Load environment variables from .env file
+load_dotenv(PROJECT_ROOT / ".env")
+
+
+rabbitmq_url = os.getenv("AWS_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 _raw_profile_queue = os.getenv("RABBITMQ_PROFILE_QUEUE")
 _raw_behavior_queue = os.getenv("RABBITMQ_BEHAVIOR_QUEUE")
 if (_raw_profile_queue is None) or (_raw_behavior_queue is None):
@@ -34,14 +36,6 @@ if (_raw_profile_queue is None) or (_raw_behavior_queue is None):
 
 profile_queue: Final[str] = _raw_profile_queue
 behavior_queue: Final[str] = _raw_behavior_queue
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
 
 
 def consume_profile_embedding(channel, method, properties, body):
@@ -65,7 +59,7 @@ def consume_behavior_embedding(channel, method, properties, body):
     message = parse_message(body, behavior_queue, BehaviorEmbeddingReqMessage)
     if message:
         try:
-            handle_behavior_embedding_test(message)
+            handle_behavior_save_and_embedding(message)
             channel.basic_ack(delivery_tag=method.delivery_tag)
             logger.info(f"[behavior_embedding] 메시지 처리 완료")
         except Exception as e:
@@ -80,6 +74,7 @@ def create_consumer():
     logger.info(f"RabbitMQ 연결 시도: {rabbitmq_url}")
     params = pika.URLParameters(rabbitmq_url)
     params.blocked_connection_timeout = 300  # 5min
+    params.heartbeat = 60  # 1분마다 heartbeat
 
     try:
         connection = pika.BlockingConnection(params)
@@ -104,6 +99,7 @@ def create_consumer():
         on_message_callback=consume_behavior_embedding,
         auto_ack=False,
     )
+    channel.basic_qos(prefetch_count=1)
 
     return connection, channel
 

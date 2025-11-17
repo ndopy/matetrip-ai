@@ -1,17 +1,23 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 import numpy as np
 from sqlalchemy.orm import Session
 
 from app.repository.behavior_repository import BehaviorRepository
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
-from app.schemas.behavior import SaveBehaviorEventDto
+from app.schemas.behavior import (
+    SaveBehaviorEventDto,
+    UserEventResDto,
+    WeightedPlaceEmbeddingDto,
+)
+from app.enums.user_behavior import BehaviorEventType
 
 log = logging.getLogger(__name__)
 
 
-class BehaviorEmbeddingService:
+class BehaviorService:
     """
     사용자 행동 기반 임베딩 생성 및 관리 서비스
     """
@@ -20,57 +26,60 @@ class BehaviorEmbeddingService:
         self.db = db
         self.repository = BehaviorRepository(db)
 
+    # TODO: DB에 없는 장소일 경우 예외가 아니라 다르게 처리할 수 있을지 고민
     def save_behavior_event(self, dto: SaveBehaviorEventDto) -> str:
         """
         행동 이벤트를 저장하고, 임계값 도달 시 임베딩 재계산
 
-        Args:
-            dto: SaveBehaviorEventDto
-
         Returns:
             저장된 이벤트 ID
         """
+        # TODO: Commit 너무 자주날려서 한번에 모아서 날리는 방법이 python에서 뭔지 알아보기
         # 1. 이벤트 저장
         event_id = self.repository.save_behavior_event(
             user_id=dto.user_id,
             event_type=dto.event_type,
-            event_data=dto.event_data,
             weight=dto.weight,
+            created_at=dto.created_at,
             workspace_id=dto.workspace_id,
             place_id=dto.place_id,
+            planday_id=dto.planday_id,
         )
 
         log.info(
             f"[행동 이벤트 저장] user_id={dto.user_id}, "
-            f"event_type={dto.event_type}, event_id={event_id}"
+            f"event_type={dto.event_type}, place_id={dto.place_id}, planday_id={dto.planday_id}, event_id={event_id}"
         )
 
         # 2. 이벤트 개수 확인
         total_events = self.repository.count_user_events(dto.user_id)
 
-        # 3. 임계값 도달 시 임베딩 재계산 (10개마다)
-        if total_events % 10 == 0:
-            log.info(
-                f"[임베딩 재계산 트리거] user_id={dto.user_id}, total_events={total_events}"
-            )
+        # 3. 임계값 도달 시 임베딩 재계산 (5개마다)
+        if total_events % 5 == 0:
+            log.info(f"[임베딩 재계산 트리거 발동!!]")
             self.regenerate_behavior_embedding(dto.user_id)
 
         return str(event_id)
 
-    def regenerate_behavior_embedding(self, user_id: str, days: int = 90) -> None:
+    # TODO: Celery, RQ, BackgroundTasks와 같은 비동기 태스크 큐를 사용하여 사용자 경험을 개선하기
+    def regenerate_behavior_embedding(self, user_id: str, days: int = 7) -> None:
         """
         사용자의 행동 임베딩을 재생성
-
-        방법: 최근 N일 동안의 행동에서 장소 임베딩의 가중평균 계산
+        최근 N일 동안의 행동에서 장소 임베딩의 가중평균 계산
 
         Args:
-            user_id: 사용자 ID
-            days: 최근 N일 (기본 90일)
+            days: 최근 N일 (기본 7 -> 실제 서비스는 길게 하는게 좋을 듯 90일 정도)
         """
-        log.info(f"[행동 임베딩 재생성 시작] user_id={user_id}, days={days}")
+        log.info(f"[행동 임베딩 재생성 시작]")
+        try:
+            user_uuid = UUID(user_id)
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Invalid user_id format: {e}")
 
         # 1. 사용자의 최근 행동에서 장소 임베딩과 가중치 가져오기
-        weighted_places = self.repository.get_weighted_place_embeddings(user_id, days)
+        weighted_places: List[WeightedPlaceEmbeddingDto] = (
+            self.repository.get_weighted_place_embeddings(user_uuid, days)
+        )
 
         if not weighted_places:
             log.warning(
@@ -89,27 +98,21 @@ class BehaviorEmbeddingService:
 
         for place in weighted_places:
             # 시간 감쇠 계산
-            created_at = place["created_at"]
+            created_at = place.created_at
             days_ago = (datetime.now(timezone.utc) - created_at).days
 
             decay_factor = 0.95 ** (days_ago / 7)  # 주당 5% 감소
 
             # 최종 가중치 = 행동 가중치 × 시간 감쇠
-            final_weight = place["weight"] * decay_factor
+            final_weight: float = place.weight * decay_factor
 
-            # 임베딩 가중 누적
-            place_embedding = place["place_embedding"]
-            if isinstance(place_embedding, str):
-                # 문자열로 저장된 경우 파싱
-                place_embedding = [
-                    float(x) for x in place_embedding.strip("[]").split(",")
-                ]
+            place_embedding: List[float] = place.place_embedding
 
             weighted_embeddings.append((place_embedding, final_weight))
             total_weight += abs(final_weight)  # 부정 가중치도 고려
 
             # 카테고리별 점수 집계
-            category = place.get("category")
+            category = place.category
             if category:
                 if category not in aggregated_stats["category_scores"]:
                     aggregated_stats["category_scores"][category] = 0.0
@@ -158,10 +161,40 @@ class BehaviorEmbeddingService:
         self, user_id: str
     ) -> Optional[UserBehaviorEmbedding]:
         """사용자의 행동 임베딩 조회"""
-        return self.repository.get_behavior_embedding(user_id)
+        try:
+            user_uuid = UUID(user_id)
+        except (ValueError, AttributeError) as e:
+            raise ValueError(f"Invalid user_id format: {e}")
+
+        return self.repository.get_behavior_embedding(user_uuid)
 
     def get_user_recent_events(
         self, user_id: str, limit: int = 50
     ) -> List[UserBehaviorEvent]:
         """사용자의 최근 행동 이벤트 조회"""
+        # TODO: DTO 변환
         return self.repository.get_user_behavior_events(user_id, limit)
+
+    def get_recent_user_behavior(
+        self,
+        user_id: str,
+        date_range_days: int,
+        event_type: BehaviorEventType,
+    ) -> List[UserEventResDto]:
+        """
+        특정 기간 내 사용자의 이벤트 조회
+
+        Args:
+            user_id: 사용자 ID
+            date_range_days: 최근 날짜 범위 (일 단위)
+            event_types: 조회할 이벤트 타입 리스트 (기본: POI_MARK, POI_SCHEDULE)
+
+        Returns:
+            marking 이벤트 DTO 리스트
+        """
+
+        return self.repository.get_user_recent_events(
+            user_id=user_id,
+            date_range_days=date_range_days,
+            event_type=event_type,
+        )

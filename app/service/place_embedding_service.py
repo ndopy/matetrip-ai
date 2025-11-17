@@ -109,7 +109,7 @@ class PlaceEmbeddingService:
         return list(db.execute(stmt).scalars().all())
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # 내부 헬퍼 함수
     # ------------------------------------------------------------------
     def _get_place(self, db: Session, place_id: UUID) -> Place:
         place = db.get(Place, place_id)

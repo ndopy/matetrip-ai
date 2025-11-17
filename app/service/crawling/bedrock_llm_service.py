@@ -42,6 +42,10 @@ class BedrockLLMService:
         Returns:
             {"tags": [...], "summary": "..."}
         """
+        if not reviews:
+            logger.warning("리뷰 리스트가 비어 있습니다.")
+            return {"tags": [], "summary": ""}
+
         try:
             logger.info("\n%s", "=" * 80)
             logger.info("[태그 및 요약 생성 시작]")

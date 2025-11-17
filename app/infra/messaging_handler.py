@@ -4,23 +4,20 @@ import sys
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from typing import Optional, Type, TypeVar
-
 from pydantic import BaseModel, ValidationError
+from app.database.database import get_db
+from app.service.behavior.behavior_service import BehaviorService
+from app.schemas.behavior import SaveBehaviorEventDto
+from app.common.logger import logger
+from app.schemas.rabbitmq_schema import (
+    BehaviorEmbeddingReqMessage,
+    ProfileEmbeddingReqMessage,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     # Allow running the script directly (`python app/infra/...`) without -m flag.
     sys.path.insert(0, str(PROJECT_ROOT))
-
-from app.database.database import get_db
-from app.service.behavior_embedding_service import BehaviorEmbeddingService
-from app.schemas.behavior import SaveBehaviorEventDto
-from app.common.logger import logger
-from app.infra.rabbitmq_schema import (
-    BehaviorEmbeddingReqMessage,
-    ProfileEmbeddingReqMessage,
-)
-
 
 log = logger
 # "여기에는 BaseModel을 상속한 어떤 Pydantic 모델 타입이 들어올 거야"라는 걸 타입 시스템에 알려주는 장치.
@@ -34,6 +31,7 @@ def parse_message(
 ) -> Optional[MessageT]:
 
     data = body.decode("utf-8").strip()
+    print(f"[Q: {queue_name}] Received message: {data!r}")
 
     if not data:
         log.warning(f"[Q: {queue_name}] 빈 메시지를 받았습니다. 스킵할게요")
@@ -47,15 +45,25 @@ def parse_message(
         )
         return None
 
+    # NestJS에서 {pattern, data} 형태로 보내므로 data 필드 추출
+    if isinstance(json_payload, dict) and "data" in json_payload:
+        json_payload = json_payload["data"]
+
+    # data 필드가 문자열(JSON 문자열)로 들어올 때 재파싱 후 dict가 아니면 스킵
+    if isinstance(json_payload, str):
+        try:
+            json_payload = json.loads(json_payload)
+        except JSONDecodeError:
+            log.warning(
+                f"[Q: {queue_name}] data 필드가 JSON 문자열이 아니어서 파싱 실패: {json_payload!r}"
+            )
+            return None
+
     if not isinstance(json_payload, dict):
         log.warning(
             f"[Q: {queue_name}] dict 형태가 아닌 payload입니다: {json_payload!r}"
         )
         return None
-
-    # NestJS에서 {pattern, data} 형태로 보내므로 data 필드 추출
-    if isinstance(json_payload, dict) and "data" in json_payload:
-        json_payload = json_payload["data"]
 
     try:
         return model(**json_payload)
@@ -69,42 +77,25 @@ def handle_profile_embedding_test(message: ProfileEmbeddingReqMessage) -> None:
     print(f"[profile_embedding] Processing user_id={message.user_id}")
 
 
-def handle_behavior_embedding_test(message: BehaviorEmbeddingReqMessage) -> None:
+def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> None:
     """행동 이벤트를 DB에 저장하고 임베딩 재계산"""
-    log.info(
-        f"[behavior_embedding] Processing "
-        f"user_id={message.user_id}, event_type={message.event_type}, "
-        f"place_id={message.place_id}, weight={message.weight}"
-    )
-    log.info(f"[behavior_embedding] Full message: {message.model_dump()}")
+    log.info(f"[Behavior_embedding] Processing ")
 
     # DB 세션 생성
-    db = next(get_db())
-    try:
-        # BehaviorEmbeddingService를 사용하여 이벤트 저장
-        service = BehaviorEmbeddingService(db)
+    for db in get_db():
+        try:
+            service = BehaviorService(db)
+            dto = SaveBehaviorEventDto.from_message(message)
+            # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
+            event_id = service.save_behavior_event(dto)
 
-        # event_data를 dict로 변환
-        event_data_dict = message.event_data.model_dump() if message.event_data else {}
+            log.info(
+                f"[behavior_embedding] Event saved successfully: event_id={event_id}"
+            )
 
-        # DTO로 변환
-        dto = SaveBehaviorEventDto(
-            user_id=message.user_id,
-            event_type=message.event_type,
-            event_data=event_data_dict,
-            weight=message.weight,
-            workspace_id=message.workspace_id,
-            place_id=message.place_id,
-        )
-
-        # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
-        event_id = service.save_behavior_event(dto)
-
-        log.info(f"[behavior_embedding] Event saved successfully: event_id={event_id}")
-
-    except Exception as e:
-        log.error(f"[behavior_embedding] Error saving event: {e}", exc_info=True)
-        db.rollback()
-        raise
-    finally:
-        db.close()
+        except Exception as e:
+            log.error(f"[behavior_embedding] Error saving event: {e}", exc_info=True)
+            db.rollback()
+            raise
+        finally:
+            db.close()

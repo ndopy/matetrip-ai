@@ -1,9 +1,12 @@
+import logging
 import httpx
 import asyncio
 import time
 from typing import List, Optional, Tuple
 from app.common.config import kakaoMobilityConfig
 from app.schemas.routes import Coordinate, RouteSummary
+
+logger = logging.getLogger(__name__)
 
 
 class KakaoMobilityService:
@@ -52,7 +55,9 @@ class KakaoMobilityService:
         }
 
         if waypoints:
-            payload["waypoints"] = [{"x": str(lon), "y": str(lat)} for lon, lat in waypoints]
+            payload["waypoints"] = [
+                {"x": str(lon), "y": str(lat)} for lon, lat in waypoints
+            ]
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -61,7 +66,7 @@ class KakaoMobilityService:
                 )
 
                 if response.status_code != 200:
-                    print(
+                    logger.error(
                         f"Kakao Mobility API Error: {response.status_code} - {response.text}"
                     )
                     return None
@@ -102,7 +107,9 @@ class KakaoMobilityService:
         Returns:
             NxN 매트릭스 (각 셀은 RouteSummary 또는 None)
         """
-        print(f"[get_distance_matrix] Starting to build distance matrix for {len(coordinates)} POIs...")
+        print(
+            f"[get_distance_matrix] Starting to build distance matrix for {len(coordinates)} POIs..."
+        )
         start_time = time.time()
         n = len(coordinates)
         matrix: List[List[Optional[RouteSummary]]] = [
@@ -130,11 +137,13 @@ class KakaoMobilityService:
         try:
             results = await asyncio.gather(*tasks)
         except Exception as exc:
-            print(f"Kakao Mobility matrix task 실패: {exc}")
+            logger.exception(f"Kakao Mobility matrix task 실패: {exc}")
             raise
 
         end_time = time.time()
-        print(f"[get_distance_matrix] All Kakao API calls finished in {end_time - start_time:.2f} seconds.")
+        print(
+            f"[get_distance_matrix] All Kakao API calls finished in {end_time - start_time:.2f} seconds."
+        )
         # 결과를 매트릭스에 채우기
         for i, j, route_info in results:
             matrix[i][j] = route_info

@@ -5,7 +5,7 @@
 
 사용법:
     # 임베딩이 없는 장소 1000개 처리
-    python scripts/update_place_embeddings.py --limit 1000
+    python scripts/update_places_embedding.py --limit 1000
 
     # 30일 이상 업데이트 안 된 장소 처리
     python scripts/update_place_embeddings.py --limit 5000 --days 30

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID, ENUM
 from pgvector.sqlalchemy import VECTOR as VectorColumn
+from geoalchemy2 import Geography
 
 from app.enums import RegionGroupType
 
@@ -65,6 +66,11 @@ class Place(Base):
     # 장소 대표 임베딩 (리뷰 기반 평균 벡터)
     embedding: Mapped[Optional["VECTOR"]] = mapped_column(
         VectorColumn(1024), nullable=True
+    )
+
+    # PostGIS 지리 정보 (공간 쿼리 최적화용)
+    location: Mapped[Optional[Geography]] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326), nullable=True
     )
 
     reviews: Mapped[list["PlaceReview"]] = relationship(
