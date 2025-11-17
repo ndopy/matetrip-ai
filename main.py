@@ -5,9 +5,25 @@ import asyncio
 import threading
 from contextlib import asynccontextmanager
 import uvicorn
-from app.routes import places, route, chat
+from app.routes import places, route, chat, planner
 from app.infra.consumer import create_consumer
 from app.common.logger import logger
+
+# RabbitMQ consumer 관리
+consumer_thread = None
+rabbitmq_connection = None
+
+
+def start_rabbitmq_consumer():
+    """백그라운드 스레드에서 RabbitMQ consumer 실행"""
+    global rabbitmq_connection
+    try:
+        connection, channel = create_consumer()
+        rabbitmq_connection = connection
+        logger.info("RabbitMQ consumer started in background thread")
+        channel.start_consuming()
+    except Exception as e:
+        logger.error(f"RabbitMQ consumer error: {e}", exc_info=True)
 
 
 @asynccontextmanager
@@ -26,10 +42,8 @@ async def lifespan(app: FastAPI):
             logger.info("RabbitMQ connection closed")
 
 
-app = FastAPI(lifespan=lifespan)
-from app.routes import places, route, chat, planner
-
 app = FastAPI(
+    lifespan=lifespan,
     title="MateTrip AI API",
     description="여행 동선 최적화 및 추천을 위한 AI API",
     version="0.1.0",
@@ -54,24 +68,6 @@ app.add_middleware(
 app.include_router(places.router)
 app.include_router(chat.router)
 app.include_router(route.router)
-
-# RabbitMQ consumer 관리
-consumer_thread = None
-rabbitmq_connection = None
-
-
-def start_rabbitmq_consumer():
-    """백그라운드 스레드에서 RabbitMQ consumer 실행"""
-    global rabbitmq_connection
-    try:
-        connection, channel = create_consumer()
-        rabbitmq_connection = connection
-        logger.info("RabbibtMQ consumer started in background thread")
-        channel.start_consuming()
-    except Exception as e:
-        logger.error(f"RabbitMQ consumer error: {e}", exc_info=True)
-
-
 app.include_router(planner.router)
 
 
