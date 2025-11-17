@@ -81,6 +81,7 @@ def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> 
     """행동 이벤트를 DB에 저장하고 임베딩 재계산"""
     log.info(f"[Behavior_embedding] Processing ")
 
+    log.debug(f"===============[handle_behavior_save_and_embedding]===============")
     # DB 세션 생성
     for db in get_db():
         try:
@@ -88,13 +89,10 @@ def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> 
             dto = SaveBehaviorEventDto.from_message(message)
             # 행동 이벤트 저장 (임계값 도달 시 자동으로 임베딩 재계산)
             event_id = service.save_behavior_event(dto)
-
-            log.info(
-                f"[behavior_embedding] Event saved successfully: event_id={event_id}"
-            )
+            log.info(f"[Behavior_embedding] 이벤트 등록 완료: event_id={event_id}")
 
         except Exception as e:
-            log.error(f"[behavior_embedding] Error saving event: {e}", exc_info=True)
+            log.error(f"[Behavior_embedding] 이벤트 저장 실패: {e}", exc_info=True)
             db.rollback()
             raise
         finally:

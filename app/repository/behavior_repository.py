@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import logging
 from typing import Any, Dict, List, Optional, Sequence
 from uuid import UUID
 from sqlalchemy import text, select, func
@@ -18,7 +19,7 @@ from app.schemas.behavior import (
     WeightedPlaceEmbeddingDto,
 )
 from app.enums.user_behavior import BehaviorEventType
-
+logger = logging.getLogger(__name__)
 
 class BehaviorRepository:
     """사용자 행동 이벤트 및 임베딩 저장/조회 전담"""
@@ -118,18 +119,21 @@ class BehaviorRepository:
             """
         )
         # EXCLUDED: INSERT가 넣으려고 했던 row(데이터)를 담고 있는 임시 테이블 (POSTGRES)
-
-        self._db.execute(
-            sql,
-            {
-                "user_id": user_id,
-                "embedding": embedding_literal,
-                "aggregated_data": aggregated_data,
-                "total_events_count": total_events_count,
-            },
-        )
-        self._db.commit()
-
+        try:
+            self._db.execute(
+                sql,
+                {
+                    "user_id": str(user_id),
+                    "embedding": embedding_literal,
+                    "aggregated_data": aggregated_data,
+                    "total_events_count": total_events_count,
+                },
+            )
+            self._db.commit()
+        except Exception as e:
+            logger.error("Failed to upsert behavior embedding: %s", e)
+            self._db.rollback()
+            
     def get_behavior_embedding(self, user_id: UUID) -> Optional[UserBehaviorEmbedding]:
         """특정 사용자의 행동 임베딩 조회"""
         stmt = select(UserBehaviorEmbedding).where(

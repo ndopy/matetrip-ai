@@ -53,7 +53,7 @@ class Place(Base):
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
 
-    # 지역 그룹
+    # 지역 그룹 (광역 단위)
     region: Mapped[Optional[str]] = mapped_column(
         ENUM(
             *[region.value for region in RegionGroupType],
@@ -62,6 +62,9 @@ class Place(Base):
         ),
         nullable=True,
     )
+
+    # 시/도 (행정구역 단위: 서울특별시, 부산광역시, 대전광역시, 경기도 등)
+    sido: Mapped[Optional[str]] = mapped_column(TEXT, nullable=True, index=True)
 
     # 장소 대표 임베딩 (리뷰 기반 평균 벡터)
     embedding: Mapped[Optional["VECTOR"]] = mapped_column(

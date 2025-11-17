@@ -12,7 +12,12 @@ from app.service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
 from app.service.bedrock_embedding_service import BedrockEmbeddingService
 from app.schemas.review import ReviewContentDto, SavedReviewDto
-from app.schemas.place import NearbyPlaceRequest, NearbyPlaceResponse
+from app.schemas.place import (
+    NearbyPlaceRequest,
+    NearbyPlaceResponse,
+    PopularPlaceRequest,
+    PopularPlaceResponse,
+)
 from app.repository.place_repository import PlaceRepository
 
 naver_service = NaverSearchService()
@@ -184,3 +189,22 @@ class PlaceService:
             limit=request.limit,
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
+
+    def get_popular_places_in_region(
+        self, request: PopularPlaceRequest
+    ) -> List[PopularPlaceResponse]:
+        """
+        특정 지역의 인기 장소를 검색하여 반환합니다.
+        Args:
+            request: 인기 장소 검색 요청 DTO
+        Returns:
+            인기도 순으로 정렬된 장소 응답 DTO 리스트
+        Raises:
+            ValueError: 유효하지 않은 지역명인 경우
+        """
+        # Repository를 통해 인기 장소 조회 (DTO로 반환)
+        return self.repository.find_popular_places_by_region(
+            region=request.region,
+            category=request.category,
+            limit=request.limit,
+        )
