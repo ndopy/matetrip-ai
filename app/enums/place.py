@@ -32,11 +32,7 @@ class RegionGroupType(str, Enum):
 
         region_text = str(region).strip()
         for regionType in cls:
-            if (
-                region_text == regionType.value
-                or regionType.value in region_text
-                or region_text in regionType.value
-            ):
+            if region_text == regionType.value or regionType.value in region_text:
                 return regionType
 
         valid = ", ".join([r.value for r in cls])
