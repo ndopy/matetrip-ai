@@ -4,16 +4,51 @@ import os
 from typing import Optional
 from langchain_core.tools import tool
 
+from app.common.category_mapping import CATEGORY_MAPPING
 from app.service.place_service import PlaceService
 from app.database.database import get_db
 from app.schemas.place import NearbyPlaceRequest
-from common.category_mapping import CATEGORY_MAPPING
 
 logger = logging.getLogger(__name__)
 
 # Kakao Local API 설정
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 KAKAO_LOCAL_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
+
+
+# TODO: 다른 서비스에 넣어놓기
+def fetch_coordinates_from_address(location_name: str) -> tuple[float, float]:
+    """Return (latitude, longitude) searched by Kakao Local API."""
+    if not KAKAO_REST_API_KEY:
+        raise ValueError(
+            "Kakao API 키가 설정되지 않았습니다. .env 파일에 KAKAO_REST_API_KEY를 추가해주세요."
+        )
+
+    with httpx.Client(timeout=60.0) as client:
+        headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+        search_response = client.get(
+            KAKAO_LOCAL_SEARCH_URL,
+            headers=headers,
+            params={"query": location_name, "size": 1},
+        )
+        logger.debug("Kakao Local API 호출 완료")
+        search_response.raise_for_status()
+        search_data = search_response.json()
+
+    documents = search_data.get("documents", [])
+    if not documents:
+        raise ValueError(
+            f"'{location_name}' 위치를 찾을 수 없습니다. 다른 장소명을 시도해보세요."
+        )
+
+    first_place = documents[0]
+    latitude = float(first_place.get("y", 0))
+    longitude = float(first_place.get("x", 0))
+
+    if not latitude or not longitude:
+        raise ValueError("위치 좌표를 가져올 수 없습니다.")
+
+    return latitude, longitude
 
 
 def get_place_tools():
@@ -79,39 +114,15 @@ def get_place_tools():
         """
         try:
             # 카테고리를 DB 카테고리로 매핑
-            mapped_category = None
-            if category:
-                mapped_category = CATEGORY_MAPPING.get(category.lower(), category)
+            mapped_category = (
+                CATEGORY_MAPPING.get(category.lower(), category) if category else None
+            )
 
             # 1. Kakao Local API로 장소명을 좌표로 변환
-            with httpx.Client(timeout=60.0) as client:
-                # Kakao Local API 키 확인
-                if not KAKAO_REST_API_KEY:
-                    return "Kakao API 키가 설정되지 않았습니다. .env 파일에 KAKAO_REST_API_KEY를 추가해주세요."
-
-                # Kakao Local API를 통해 위치 검색
-                headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-                search_response = client.get(
-                    KAKAO_LOCAL_SEARCH_URL,
-                    headers=headers,
-                    params={"query": location_name, "size": 1},
-                )
-                logger.debug("Kakao Local API 호출 완료")
-                search_response.raise_for_status()
-                search_data = search_response.json()
-
-                # 검색 결과 확인
-                documents = search_data.get("documents", [])
-                if not documents:
-                    return f"'{location_name}' 위치를 찾을 수 없습니다. 다른 장소명을 시도해보세요."
-
-                # 첫 번째 검색 결과의 좌표 사용
-                first_place = documents[0]
-                latitude = float(first_place.get("y", 0))
-                longitude = float(first_place.get("x", 0))
-
-                if not latitude or not longitude:
-                    return "위치 좌표를 가져올 수 없습니다."
+            try:
+                latitude, longitude = fetch_coordinates_from_address(location_name)
+            except ValueError as error:
+                return str(error)
 
             search_request = NearbyPlaceRequest.from_coordinates(
                 latitude=latitude,
@@ -124,17 +135,15 @@ def get_place_tools():
             # 2. PlaceService를 직접 호출 (같은 서버 내부 호출)
             db = next(get_db())
             try:
-                place_service = PlaceService(db)
-                place_responses = place_service.get_nearby_place(search_request)
+                place_responses = PlaceService(db).get_nearby_place(search_request)
 
                 if not place_responses:
                     category_text = f"({mapped_category}) " if mapped_category else ""
                     return f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다."
 
-                result = [place.model_dump() for place in place_responses]
-
                 # 결과 반환 (프론트엔드에는 전체 데이터가 전달됨)
-                return str(result)
+                return [place.model_dump() for place in place_responses]
+
             finally:
                 db.close()
 
