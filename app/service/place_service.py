@@ -190,6 +190,49 @@ class PlaceService:
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
 
+    def find_nearby_places_haversine(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 5.0,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[NearbyPlaceResponse]:
+        """
+        주변 장소를 Haversine 공식으로 검색합니다. (공간 인덱스 미사용)
+
+        Args:
+            latitude: 위도
+            longitude: 경도
+            radius_km: 검색 반경 (km)
+            category: 카테고리 (예: '음식', '숙박', '레포츠' 등)
+            limit: 최대 결과 개수
+
+        Returns:
+            거리순으로 정렬된 장소 리스트
+        """
+        print("[Place Service : find_nearby_places_haversine 함수 호출]")
+        places = self.repository.find_nearby_places_haversine(
+            latitude=latitude,
+            longitude=longitude,
+            radius_km=radius_km,
+            category=category,
+            limit=limit,
+        )
+        return [NearbyPlaceResponse.from_entity(place) for place in places]
+
+    def get_nearby_place_haversine(
+        self, request: NearbyPlaceRequest
+    ) -> List[NearbyPlaceResponse]:
+        """주변 장소 검색 결과를 DTO로 캡슐화하여 반환 (Haversine 방식)"""
+        return self.find_nearby_places_haversine(
+            latitude=request.latitude,
+            longitude=request.longitude,
+            radius_km=request.radius_km,
+            category=request.category,
+            limit=request.limit,
+        )
+
     def get_popular_places_in_region(
         self, request: PopularPlaceRequest
     ) -> List[PopularPlaceResponse]:

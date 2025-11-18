@@ -303,6 +303,7 @@ CREATE TABLE places
     image_url text NULL, -- 장소 대표 이미지 URL
     longitude double precision NOT NULL,
     latitude double precision NOT NULL,
+    location geography(POINT, 4326) NOT NULL, 
     embedding vector (1024) NULL, -- 장소 대표 임베딩 (리뷰 기반),
     created_at TIMESTAMPTZ DEFAULT now () NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT now () NOT NULL
@@ -366,13 +367,6 @@ ALTER TABLE poi
         FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE RESTRICT,
     ADD CONSTRAINT uq_poi_schedule UNIQUE (plan_day_id, sequence);
 
-
--- ALTER TABLE poi_connection
---     ADD CONSTRAINT fk_conn_prev FOREIGN KEY (prev_poi_id) REFERENCES poi (id) ON DELETE CASCADE,
---     ADD CONSTRAINT fk_conn_next FOREIGN KEY (next_poi_id) REFERENCES poi (id) ON DELETE CASCADE,
---     ADD CONSTRAINT fk_conn_planday FOREIGN KEY (plan_day_id) REFERENCES plan_day (id) ON DELETE CASCADE;
---     -- ADD CONSTRAINT fk_conn_creator FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL;
-
 ALTER TABLE post_participation
     ADD CONSTRAINT fk_pp_user FOREIGN KEY (requester_id) REFERENCES users (id) ON DELETE CASCADE,
     ADD CONSTRAINT fk_pp_post FOREIGN KEY (post_id) REFERENCES post (id) ON DELETE CASCADE;
@@ -384,7 +378,6 @@ ALTER TABLE review
 
 ALTER TABLE notification
     ADD CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
-
 
 ALTER TABLE follow
     ADD CONSTRAINT fk_follow_follower
