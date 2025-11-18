@@ -64,12 +64,14 @@ app = FastAPI(
     title="MateTrip AI API",
     description="여행 동선 최적화 및 추천을 위한 AI API",
     version="0.1.0",
+    redirect_slashes=False,
 )
 
 # 허용할 출처(origin) 목록
 origins = [
     # 프론트엔드 개발 서버
     "http://localhost:3001",
+    "http://localhost:3000",
     # TODO: 프론트엔드 프로덕션 배포 주소 추가
     # "https://your-production-frontend.com",
 ]
@@ -90,8 +92,11 @@ app.include_router(planner.router)
 
 @app.get("/")
 async def root():
+    print("제발")
     return {"message": "Hello from matetrip-ai!"}
 
 
 if __name__ == "__main__":
+    print("제발2")
+    # Bind to all interfaces so external clients/containers can reach the API
     uvicorn.run(app="main:app", host="0.0.0.0", port=8000, reload=True)

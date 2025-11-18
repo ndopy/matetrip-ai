@@ -41,7 +41,7 @@ router_prompt = ChatPromptTemplate.from_messages(
 router_chain = router_prompt | global_llm.with_structured_output(IntentClassifier)
 
 
-@router.post("/", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
 async def ask_agent(request: ChatRequest) -> ChatResponse:
     """
     AI 에이전트 및 챗봇 실행 엔드포인트
