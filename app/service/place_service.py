@@ -169,7 +169,7 @@ class PlaceService:
             거리순으로 정렬된 장소 리스트
         """
         print("[Place Service : find_nearby_places 함수 호출]")
-        return self.repository.find_nearby_places(
+        return self.repository.find_places_within_radius(
             latitude=latitude,
             longitude=longitude,
             radius_km=radius_km,
@@ -187,6 +187,21 @@ class PlaceService:
             radius_km=request.radius_km,
             category=request.category,
             limit=request.limit,
+        )
+        return [NearbyPlaceResponse.from_entity(place) for place in places]
+
+    def get_closest_places(
+        self,
+        latitude: float,
+        longitude: float,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[NearbyPlaceResponse]:
+        places = self.repository.get_top_closest_places(
+            latitude=latitude,
+            longitude=longitude,
+            category=category,
+            limit=limit,
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
 

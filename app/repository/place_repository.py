@@ -37,7 +37,53 @@ class PlaceRepository:
     def find_by_id(self, place_id: UUID | int) -> Optional[Place]:
         return self._db.query(Place).filter(Place.id == place_id).first()
 
-    def find_nearby_places(
+    def find_by_ids(self, place_ids: List[UUID]) -> List[Place]:
+        """
+        여러 장소 ID를 한 번에 조회합니다. (N+1 쿼리 방지)
+
+        Args:
+            place_ids: 조회할 장소 ID 목록
+
+        Returns:
+            조회된 장소 리스트 (순서 보장되지 않음)
+        """
+        if not place_ids:
+            return []
+        return self._db.query(Place).filter(Place.id.in_(place_ids)).all()
+
+    def get_top_closest_places(
+        self,
+        latitude: float,
+        longitude: float,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Place]:
+        """
+        주어진 좌표와 가장 가까운 장소들을 거리 순으로 반환합니다.
+
+        Args:
+            latitude: 기준 위도
+            longitude: 기준 경도
+            category: 필터링할 카테고리
+            limit: 최대 결과 개수
+
+        Returns:
+            거리순 정렬된 장소 리스트
+
+        """
+        search_point = func.ST_SetSRID(ST_MakePoint(longitude, latitude), 4326).cast(
+            Geography
+        )
+        query = self._db.query(
+            Place, ST_Distance(Place.location, search_point).label("distance")
+        )
+        if category:
+            query = query.filter(Place.category == category)
+
+        results = query.order_by("distance").limit(limit).all()
+        return [place for place, _ in results]
+
+    def find_places_within_radius(
         self,
         latitude: float,
         longitude: float,
@@ -81,7 +127,9 @@ class PlaceRepository:
         return [place for place, _ in results]
 
     @staticmethod
-    def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    def _haversine_distance(
+        lat1: float, lon1: float, lat2: float, lon2: float
+    ) -> float:
         """
         두 좌표 간의 거리를 Haversine 공식으로 계산합니다.
 
@@ -101,9 +149,10 @@ class PlaceRepository:
         delta_lon = math.radians(lon2 - lon1)
 
         # Haversine 공식
-        a = math.sin(delta_lat / 2) ** 2 + \
-            math.cos(lat1_rad) * math.cos(lat2_rad) * \
-            math.sin(delta_lon / 2) ** 2
+        a = (
+            math.sin(delta_lat / 2) ** 2
+            + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
+        )
         c = 2 * math.asin(math.sqrt(a))
 
         return R * c
@@ -132,7 +181,9 @@ class PlaceRepository:
         Returns:
             거리순으로 정렬된 장소 리스트
         """
-        print("[Place Repository : find_nearby_places_haversine 함수 (공간 인덱스 미사용)]")
+        print(
+            "[Place Repository : find_nearby_places_haversine 함수 (공간 인덱스 미사용)]"
+        )
 
         # 카테고리 필터만 DB에서 적용
         query = self._db.query(Place)
@@ -151,8 +202,7 @@ class PlaceRepository:
                 continue
 
             distance = self._haversine_distance(
-                latitude, longitude,
-                place.latitude, place.longitude
+                latitude, longitude, place.latitude, place.longitude
             )
 
             # 반경 내에 있는 장소만 추가
