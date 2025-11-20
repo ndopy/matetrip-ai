@@ -1,7 +1,4 @@
-"""
-POI (Point of Interest) 관련 스키마
-NestJS의 DateGroupedScheduledPoisResDto 구조에 맞춰 작성됨
-"""
+"""POI (Point of Interest) 관련 스키마."""
 
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -41,17 +38,6 @@ class PlanDayScheduledPoisGroupDto(BaseModel):
 
     planDay: PlanDayScheduleSummaryDto = Field(..., description="일정 날짜 정보")
     pois: list[PoiResDto] = Field(default_factory=list, description="해당 날짜의 POI 목록")
-
-    class Config:
-        from_attributes = True
-
-
-class DateGroupedScheduledPoisResDto(BaseModel):
-    """날짜별로 그룹화된 전체 일정 응답 DTO"""
-
-    planDayScheduledPoisGroup: list[PlanDayScheduledPoisGroupDto] = Field(
-        default_factory=list, description="날짜별 POI 그룹 목록"
-    )
 
     class Config:
         from_attributes = True

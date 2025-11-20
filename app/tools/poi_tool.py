@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from app.common.config import nestJSConfig
 from app.service.place_service import PlaceService
 from app.schemas.poi import (
-    DateGroupedScheduledPoisResDto,
     PlanDayScheduledPoisGroupDto,
     PlanDayScheduleSummaryDto,
     PoiResDto,
@@ -18,9 +17,9 @@ from app.schemas.poi import (
 from app.database.database import get_db
 from app.repository.place_repository import PlaceRepository
 from app.models.place import Place
+from app.common.logger import logger  # use shared loguru logger so INFO logs show up
 
-BASE_URL = nestJSConfig.NESTJS_BACKEND_URL
-logger = logging.getLogger(__name__)
+BACKEND_BASE_URL = nestJSConfig.NESTJS_BACKEND_URL
 
 
 @dataclass
@@ -74,7 +73,12 @@ def get_poi_tools():
                             "category_distribution": 카테고리 분포,
                             "current_poi_count": 해당 날짜 POI 수
                         },
-                        "recommendations": [추천 장소 리스트]
+                        "recommendations": [
+                            {
+                                장소 정보...,
+                                "recommended_category": 이 장소가 추천된 카테고리 (예: "숙박", "음식")
+                            }
+                        ]
                     },
                     ...
                 ]
@@ -87,26 +91,26 @@ def get_poi_tools():
         4. 부족한 카테고리가 없으면 "현재 일정이 균형잡혀 있습니다!"라고 답변하세요.
 
         **답변 예시:**
-        "2박 3일 여행인데 숙소가 1개만 추가되어 있네요. 1개 더 필요합니다.
-        현재 추가하신 장소들 중심으로 근처 숙소를 추천드릴게요:
+        "1일차 일정에 숙소가 없습니다. 밤을 보낼 숙소를 추가해주세요.
+        1일차에 식사 장소가 0개만 있습니다. 2개 정도 더 추가하시면 좋습니다.
+        현재 추가하신 장소들 중심으로 근처 추천 장소를 알려드릴게요:
 
+        **[숙박 추천]**
         1. **제주 힐링 펜션** (제주 서귀포시...)
            - 바다 전망, 조용한 분위기, 가족 단위 추천
 
-        2. **오션뷰 게스트하우스** (제주 제주시...)
-           - 깨끗한 시설, 친절한 사장님, 가성비 좋음"
+        **[음식 추천]**
+        2. **성산 해물뚝배기** (제주 서귀포시 성산읍...)
+           - 신선한 해산물, 현지인 맛집, 가성비 좋음"
         """
+        print(f"[recommend_next_poi] workspaceId = {workspace_id}")
         try:
-            logger.info(f"[recommend_next_poi] workspace_id={workspace_id}")
+            # logger.info(f"[recommend_try문 시작작] workspace_id={workspace_id}")
+            print(f"[recommend_try문 시작작] workspace_id={workspace_id}")
 
-            try:
-                plan_day_groups: list[PlanDayScheduledPoisGroupDto] = (
-                    _fetch_plan_day_groups(workspace_id)
-                )
-            except ValidationError as e:
-                error_msg = f"NestJS 응답 데이터 검증 실패: {str(e)}"
-                logger.error(error_msg)
-                return error_msg
+            plan_day_groups: list[PlanDayScheduledPoisGroupDto] = (
+                _fetch_plan_day_groups(workspace_id)
+            )
 
             if not plan_day_groups:
                 return _build_empty_schedule_response()
@@ -114,13 +118,9 @@ def get_poi_tools():
             db = next(get_db())
             try:
                 place_repo = PlaceRepository(db)
-                try:
-                    plan_day_details = _collect_plan_day_details(
-                        plan_day_groups, place_repo
-                    )
-                except ValueError as e:
-                    logger.error(str(e))
-                    return str(e)
+                plan_day_details: list[PlanDayPOIDetails] = _collect_plan_day_details(
+                    plan_day_groups, place_repo
+                )
 
                 if not plan_day_details:
                     return _build_empty_schedule_response()
@@ -128,8 +128,14 @@ def get_poi_tools():
                 total_days = len(plan_day_details)
                 daily_reports = []
 
+                # plan_day: PlanDayScheduleSummaryDto
+                # pois: list[dict]
+                # category_count: Dict[str, int]
+
                 for idx, day_detail in enumerate(plan_day_details):
-                    plan_day_info = day_detail.plan_day
+
+                    plan_day_info: PlanDayScheduleSummaryDto = day_detail.plan_day
+                    # pois: list[PoiResDto] = day_detail.pois
                     day_label = f"{plan_day_info.dayNo}일차"
 
                     if not day_detail.pois:
@@ -169,15 +175,19 @@ def get_poi_tools():
                         center_latitude, center_longitude = (
                             _calculate_center_coordinates(day_detail.pois)
                         )
-                        recommendations = [
-                            place.model_dump()
-                            for place in _recommend_places(
+                        # 부족한 카테고리별로 추천 (최대 2개 카테고리)
+                        for category in missing_categories[:2]:
+                            category_places = _recommend_places(
                                 db,
                                 center_latitude,
                                 center_longitude,
-                                missing_categories[0],
+                                category,
                             )
-                        ]
+                            # 카테고리당 5개씩 추천 (총 최대 10개)
+                            for place in category_places[:5]:
+                                place_dict = place.model_dump()
+                                place_dict["recommended_category"] = category
+                                recommendations.append(place_dict)
 
                     daily_reports.append(
                         {
@@ -216,18 +226,26 @@ def get_poi_tools():
 
 
 def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupDto]:
+    logger.info("=====================_fetch_plan_day_groups=====================")
     with httpx.Client(timeout=30.0) as client:
-        logger.info(
-            "NestJS API 호출: GET %s/workspace/%s/scheduled-pois",
-            BASE_URL,
-            workspace_id,
-        )
-        response = client.get(f"{BASE_URL}/workspace/{workspace_id}/scheduled-pois")
+        scheduled_pois_url = f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
+        logger.info(f"NestJS API 호출")
+        response = client.get(scheduled_pois_url)
         response.raise_for_status()
         raw_data = response.json()
 
-    scheduled_pois_response = DateGroupedScheduledPoisResDto(**raw_data)
-    plan_day_groups = scheduled_pois_response.planDayScheduledPoisGroup
+    if not isinstance(raw_data, list):
+        raise ValueError("NestJS 응답 형식이 올바르지 않습니다: 리스트가 필요합니다.")
+
+    try:
+        plan_day_groups = [
+            PlanDayScheduledPoisGroupDto.model_validate(item) for item in raw_data
+        ]
+    except ValidationError as e:
+        error_msg = f"NestJS 응답 데이터 검증 실패: {str(e)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg) from e
+
     logger.info("총 %d일 일정 데이터 수신", len(plan_day_groups))
     return plan_day_groups
 
@@ -248,7 +266,12 @@ def _collect_plan_day_details(
     ]
 
     place_ids = [poi.placeId for poi in all_poi_dtos]
-    uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
+    try:
+        uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
+    except ValueError as e:
+        logger.error(f"[collect_plan_day_details] ${str(e)}")
+        raise
+
     place_map: Dict[str, Place] = {}
 
     if uuid_place_ids:
@@ -372,14 +395,14 @@ def _calculate_center_coordinates(all_pois: list[dict]) -> tuple[float, float]:
     return center_lat, center_lng
 
 
-def _recommend_places(db, center_lat: float, center_lng: float, primary_category: str):
-    logger.info("가장 부족한 카테고리: %s", primary_category)
+def _recommend_places(db, center_lat: float, center_lng: float, category: str):
+    logger.info("'%s' 카테고리 장소 추천 중...", category)
     place_service = PlaceService(db)
     recommendations = place_service.get_closest_places(
         latitude=center_lat,
         longitude=center_lng,
-        category=primary_category,
+        category=category,
         limit=10,
     )
-    logger.info("%d개 추천 장소 발견", len(recommendations))
+    logger.info("'%s' 카테고리: %d개 추천 장소 발견", category, len(recommendations))
     return recommendations
