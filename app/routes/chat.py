@@ -24,12 +24,24 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "You are a routing assistant. Your job is to classify the user's intent.\n"
                 "Based on the <chat_history> and <latest_message>, "
                 "you MUST classify the user's intent by outputting the 'IntentClassifier' JSON format.\n\n"
-                "**Key Guidelines:**\n"
-                "- 'NEW_SEARCH': User asks for a DIFFERENT location/category (e.g., 'Seoul cafes' → 'Busan restaurants')\n"
-                "- 'REFINEMENT': User filters existing results (e.g., 'show only Korean food', 'cheaper ones')\n"
-                "- 'CONVERSATION': Casual chat or follow-up about previous answer (e.g., 'how to get there?')\n\n"
-                "**Critical:** If the user mentions a NEW location that differs from previous search context, "
-                "classify as 'NEW_SEARCH', NOT 'REFINEMENT'."
+                "**Key Guidelines:**\n\n"
+                "1. 'NEW_SEARCH': User asks for a COMPLETELY NEW and INDEPENDENT search\n"
+                "   - Examples: 'Seoul cafes' (first query), 'Show me Busan hotels' (after talking about Seoul)\n"
+                "   - Must have BOTH location AND category/intent clearly stated\n\n"
+                "2. 'REFINEMENT': User is COMPLETING or CLARIFYING previous incomplete query\n"
+                "   - Examples:\n"
+                "     * AI asked '어디요?' → User: '해운대' (answering location)\n"
+                "     * AI asked '뭘 찾으세요?' → User: '맛집' or '핫플' (answering category)\n"
+                "     * User: '해운대' → User: '맛집' (completing partial query)\n"
+                "   - Single keyword responses (맛집, 카페, 핫플, etc.) are ALMOST ALWAYS REFINEMENT\n"
+                "   - Short 1-2 word answers to AI questions are REFINEMENT\n\n"
+                "3. 'CONVERSATION': Casual chat or follow-up about previous answer\n"
+                "   - Examples: 'how to get there?', 'tell me more', 'what time does it open?'\n\n"
+                "**Critical Rules:**\n"
+                "- If AI just asked a clarifying question (어디요?, 뭘 찾으세요?, etc.), "
+                "classify next user input as 'REFINEMENT'\n"
+                "- Single keywords like '맛집', '카페', '핫플', '명소' are REFINEMENT unless it's the first message\n"
+                "- Only classify as NEW_SEARCH if user provides a COMPLETE new query with different context"
             ),
         ),
         MessagesPlaceholder(variable_name="chat_history"),
@@ -76,6 +88,7 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
             history_to_pass = full_history.messages
 
         logger.info(f"history_to_pass : {history_to_pass}")
+        logger.info(f"[AI의 의도: ] {intent}")
 
         # 1. 도구 생성
         user_tools = create_nest_tools()

@@ -1,7 +1,7 @@
 import httpx
 import logging
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from langchain_core.tools import tool
@@ -36,7 +36,7 @@ def get_poi_tools():
     """
 
     @tool
-    def recommend_next_poi(workspace_id: str):
+    def recommend_next_poi(workspace_id: str, day_no: Optional[int] = None):
         """
         현재 사용자가 일정에 추가한 장소들을 분석하여 부족한 카테고리의 장소를 추천합니다.
 
@@ -48,6 +48,7 @@ def get_poi_tools():
         - "밥 먹을 곳 알려줘" (현재 추가한 곳들 근처)
         - "여행 일정 균형이 맞나?"
         - "뭘 더 넣으면 좋을까?"
+        - 특정 일차만 확인해달라고 하면 day_no를 함께 넘겨 호출하세요. 일차가 명시되지 않았다면 먼저 몇 일차인지 짧게 물어본 뒤 호출하세요.
 
         **분석하는 내용:**
         1. 숙박 시설 부족 여부
@@ -59,6 +60,7 @@ def get_poi_tools():
 
         Args:
             workspace_id: 분석할 워크스페이스 ID (현재 사용자가 작업 중인 여행 계획의 고유 ID)
+            day_no: 특정 일차만 보고 싶을 때 전달하는 일차 번호 (예: 1, 2, 3). None이면 전체 일정 분석
 
         Returns:
             {
@@ -106,11 +108,20 @@ def get_poi_tools():
         print(f"[recommend_next_poi] workspaceId = {workspace_id}")
         try:
             # logger.info(f"[recommend_try문 시작작] workspace_id={workspace_id}")
-            print(f"[recommend_try문 시작작] workspace_id={workspace_id}")
+            logger.info(f"[recommend_next_poi] workspace_id={workspace_id}")
 
             plan_day_groups: list[PlanDayScheduledPoisGroupDto] = (
                 _fetch_plan_day_groups(workspace_id)
             )
+
+            if day_no is not None:
+                plan_day_groups = _filter_plan_day_groups(plan_day_groups, day_no)
+                if not plan_day_groups:
+                    return {
+                        "total_days": 0,
+                        "daily_reports": [],
+                        "message": f"{day_no}일차 일정이 없습니다. 다른 일차를 알려주세요.",
+                    }
 
             if not plan_day_groups:
                 return _build_empty_schedule_response()
@@ -228,7 +239,9 @@ def get_poi_tools():
 def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupDto]:
     logger.info("=====================_fetch_plan_day_groups=====================")
     with httpx.Client(timeout=30.0) as client:
-        scheduled_pois_url = f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
+        scheduled_pois_url = (
+            f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
+        )
         logger.info(f"NestJS API 호출")
         response = client.get(scheduled_pois_url)
         response.raise_for_status()
@@ -258,6 +271,17 @@ def _build_empty_schedule_response() -> dict:
     }
 
 
+def _filter_plan_day_groups(
+    plan_day_groups: list[PlanDayScheduledPoisGroupDto], day_no: int
+) -> list[PlanDayScheduledPoisGroupDto]:
+    try:
+        target_day = int(day_no)
+    except (TypeError, ValueError) as e:
+        raise ValueError("day_no는 정수여야 합니다.") from e
+
+    return [group for group in plan_day_groups if group.planDay.dayNo == target_day]
+
+
 def _collect_plan_day_details(
     plan_day_groups: list[PlanDayScheduledPoisGroupDto], place_repo: PlaceRepository
 ) -> list[PlanDayPOIDetails]:
@@ -269,7 +293,7 @@ def _collect_plan_day_details(
     try:
         uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
     except ValueError as e:
-        logger.error(f"[collect_plan_day_details] ${str(e)}")
+        logger.error(f"[collect_plan_day_details] {str(e)}")
         raise
 
     place_map: Dict[str, Place] = {}
