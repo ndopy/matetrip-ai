@@ -10,5 +10,11 @@ TOOL_ACTION_MAP = {
     "search_places": [
         "UPDATE_MAP",
         "SHOW_PLACE_LIST"
+    ],
+
+    "recommend_next_poi": [
+        "UPDATE_MAP",           # 추천 장소를 지도에 표시
+        "SHOW_PLACE_LIST",      # 추천 장소 목록을 사이드바에 표시
+        "SHOW_ANALYSIS_CARD"    # 일정 분석 결과 카드 표시 (부족한 카테고리 등)
     ]
 }

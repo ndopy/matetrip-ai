@@ -1,8 +1,9 @@
-import logging
+import time
 from fastapi import APIRouter
 from app.core.llm import global_llm
 from app.tools import create_nest_tools
 from app.agent.builder import build_stateful_agent
+from app.common.logger import logger
 
 from app.schemas.chat import ChatRequest, ChatResponse, IntentClassifier
 from app.service.agent_service import get_agent_response
@@ -12,7 +13,6 @@ from langchain_classic.agents import AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 # AI 라우터 프롬프트
@@ -41,7 +41,7 @@ router_prompt = ChatPromptTemplate.from_messages(
 router_chain = router_prompt | global_llm.with_structured_output(IntentClassifier)
 
 
-@router.post("/", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
 async def ask_agent(request: ChatRequest) -> ChatResponse:
     """
     AI 에이전트 및 챗봇 실행 엔드포인트
@@ -51,9 +51,12 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         # [라우터 실행] AI에게 사용자의 의도부터 물어봄
         full_history = get_session_history(request.session_id)
 
+        t0 = time.perf_counter()
         raw = router_chain.invoke(
             {"input": request.query, "chat_history": full_history.messages}
         )
+        t1 = time.perf_counter()
+        logger.info(f"[router_chain.invoke] {t1 - t0:.4f} seconds")
         classification_result: IntentClassifier = IntentClassifier.model_validate(raw)
         intent = classification_result.intent
 
@@ -78,11 +81,17 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         user_tools = create_nest_tools()
 
         # 2. 에이전트 조립 (global_llm 재사용)
+        t2 = time.perf_counter()
         agent: AgentExecutor = build_stateful_agent(global_llm, user_tools)
+        t3 = time.perf_counter()
+        logger.info(f"[build_stateful_agent] {t3 - t2:.4f} seconds")
 
         # 3. 실행
         # 핵심 로직은 agent_service로 위임
+        t4 = time.perf_counter()
         chatResponse: ChatResponse = get_agent_response(agent, request, history_to_pass)
+        t5 = time.perf_counter()
+        logger.info(f"[get_agent_response] {t5 - t4:.4f} seconds")
 
         # 4. 대화 기록 수동 저장
         full_history.add_user_message(request.query)

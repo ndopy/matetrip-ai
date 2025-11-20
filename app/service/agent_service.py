@@ -1,8 +1,13 @@
 import json
+import logging
 import re
+import time
 
 from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData
 from app.core.constants import TOOL_ACTION_MAP
+
+
+logger = logging.getLogger(__name__)
 
 
 def safe_json_load(text: str):
@@ -28,15 +33,18 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> ChatRespon
     대화형 응답과 구조화된 도구 데이터를 함께 반환
     """
     # agent.invoke()는 모든 실행 정보를 담은 dict를 반환
+    t0 = time.perf_counter()
     result = agent.invoke(
         {
             "input": request.query,
-            "chat_history": history,
+            "chat_history": history[-10:],
             "session_id": request.session_id,
         },
     )
+    t1 = time.perf_counter()
+    print(f"[agent.invoke] {t1 - t0:.4f} seconds")
 
-    print(result)
+    # print(result)
 
     # 4. 결과 파싱
     # 4-1. AI 답변 텍스트

@@ -120,16 +120,6 @@ class RouteOptimizationService:
             return path, totals[0], totals[1], totals[2]
 
         path = self._extract_path_from_solution(manager, routing, solution)
-
-        # Handle end_index constraint
-        if end_index is not None:
-            if end_index == start_index or end_index == (start_index or 0):
-                # Round trip: add start point at the end
-                path = path + [path[0]]
-            elif end_index in path:
-                # Move end_index to the end of the path
-                path = [idx for idx in path if idx != end_index] + [end_index]
-
         totals = self._accumulate_path_totals(path, distance_matrix)
         if totals is None:
             return path, float("inf"), float("inf"), []
