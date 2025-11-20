@@ -72,6 +72,7 @@ origins = [
     # 프론트엔드 개발 서버
     "http://localhost:3001",
     "http://localhost:3000",
+    "http://13.125.171.175:5173",
     # TODO: 프론트엔드 프로덕션 배포 주소 추가
     # "https://your-production-frontend.com",
 ]
