@@ -2,13 +2,17 @@ import logging
 import time
 import httpx
 import os
-from typing import Optional
+from typing import List, Optional
 from langchain_core.tools import tool
 
 from app.common.category_mapping import CATEGORY_MAPPING
 from app.service.place_service import PlaceService
 from app.database.database import get_db
-from app.schemas.place import NearbyPlaceRequest, PopularPlaceRequest
+from app.schemas.place import (
+    NearbyPlaceRequest,
+    PopularPlaceRequest,
+    PopularPlaceResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +203,7 @@ def get_place_tools():
         try:
 
             if limit <= 0 or limit > 100:
-                return "limit은 1에서 100 사이의 값이어야 합니다."
+                raise ValueError(f"limit must be between 1 and 100, but got {limit}")
             # 지역명 정규화 (약칭이 있을 수 있으니.. 이거 너무 하드코딩같은데 쩔수일 듯)
             normalized_region = normalize_region_name(region.strip())
 
@@ -217,12 +221,15 @@ def get_place_tools():
             db = next(get_db())
             try:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
-                return [
-                    place.model_dump() for place in place_responses
-                ]  # 결과 반환 (popularity_score 포함)
+                # ret
+                # return [
+                #     place.model_dump() for place in place_responses
+                # ]  # 결과 반환 (popularity_score 포함)
 
             finally:
                 db.close()
+
+            return place_responses
 
         except ValueError as e:
             # 지역명 검증 실패 시
