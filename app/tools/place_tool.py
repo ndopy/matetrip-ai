@@ -221,10 +221,9 @@ def get_place_tools():
             db = next(get_db())
             try:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
-                # ret
-                # return [
-                #     place.model_dump() for place in place_responses
-                # ]  # 결과 반환 (popularity_score 포함)
+                return [
+                    place.model_dump() for place in place_responses
+                ]  # 결과 반환 (popularity_score 포함)
 
             finally:
                 db.close()

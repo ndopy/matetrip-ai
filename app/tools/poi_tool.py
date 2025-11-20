@@ -108,7 +108,7 @@ def get_poi_tools():
         print(f"[recommend_next_poi] workspaceId = {workspace_id}")
         try:
             # logger.info(f"[recommend_try문 시작작] workspace_id={workspace_id}")
-            print(f"[recommend_try문 시작작] workspace_id={workspace_id}")
+            logger.info(f"[recommend_next_poi] workspace_id={workspace_id}")
 
             plan_day_groups: list[PlanDayScheduledPoisGroupDto] = (
                 _fetch_plan_day_groups(workspace_id)
@@ -239,7 +239,9 @@ def get_poi_tools():
 def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupDto]:
     logger.info("=====================_fetch_plan_day_groups=====================")
     with httpx.Client(timeout=30.0) as client:
-        scheduled_pois_url = f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
+        scheduled_pois_url = (
+            f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
+        )
         logger.info(f"NestJS API 호출")
         response = client.get(scheduled_pois_url)
         response.raise_for_status()
@@ -291,7 +293,7 @@ def _collect_plan_day_details(
     try:
         uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
     except ValueError as e:
-        logger.error(f"[collect_plan_day_details] ${str(e)}")
+        logger.error(f"[collect_plan_day_details] {str(e)}")
         raise
 
     place_map: Dict[str, Place] = {}
