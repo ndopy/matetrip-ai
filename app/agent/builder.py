@@ -14,7 +14,16 @@ def build_stateful_agent(llm, tools) -> AgentExecutor:
         # "When you get results from a tool (like `search_places`), that data contains technical fields (e.g., `x`, `y`, `id`).\n"
         "In your text response to the user, **NEVER** mention these technical fields.\n"
         "**ONLY** use human-readable information like `name`, `road_address`, `phone`, and `category` to create a natural summary.\n"
-        "**</response_format_guide>**\n"
+        "**</response_format_guide>**\n\n"
+        "**<workspace_context>**\n"
+        "The session_id provided below is the user's current workspace_id.\n"
+        "When the user asks about their schedule, itinerary, or needs recommendations based on their current plans,\n"
+        "you MUST use the appropriate tools with this workspace_id to access their travel data.\n\n"
+        "For example:\n"
+        "- \"일정이 괜찮은지 확인해줘\" → Use recommend_next_poi tool with the workspace_id\n"
+        "- \"뭐가 부족해?\" → Use recommend_next_poi tool with the workspace_id\n"
+        "- \"다음에 뭘 추가하면 좋을까?\" → Use recommend_next_poi tool with the workspace_id\n"
+        "**</workspace_context>**\n"
     )
 
     # chat_history: 이전 대화 내용을 넣을 공간
@@ -23,7 +32,7 @@ def build_stateful_agent(llm, tools) -> AgentExecutor:
         [
             ("system", system_prompt),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("system", "The user's session ID is: {session_id}"),
+            ("system", "The user's current workspace_id (session_id) is: {session_id}"),
             ("human", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]

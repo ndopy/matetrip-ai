@@ -38,15 +38,6 @@ class PlaceRepository:
         return self._db.query(Place).filter(Place.id == place_id).first()
 
     def find_by_ids(self, place_ids: List[UUID]) -> List[Place]:
-        """
-        여러 장소 ID를 한 번에 조회합니다. (N+1 쿼리 방지)
-
-        Args:
-            place_ids: 조회할 장소 ID 목록
-
-        Returns:
-            조회된 장소 리스트 (순서 보장되지 않음)
-        """
         if not place_ids:
             return []
         return self._db.query(Place).filter(Place.id.in_(place_ids)).all()
