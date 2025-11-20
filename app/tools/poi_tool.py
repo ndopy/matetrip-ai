@@ -228,11 +228,9 @@ def get_poi_tools():
 def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupDto]:
     logger.info("=====================_fetch_plan_day_groups=====================")
     with httpx.Client(timeout=30.0) as client:
-        url = f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
-        logger.info(f"NestJS API 호출: GET {url}")
-        response = client.get(
-            f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
-        )
+        scheduled_pois_url = f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
+        logger.info(f"NestJS API 호출")
+        response = client.get(scheduled_pois_url)
         response.raise_for_status()
         raw_data = response.json()
 
