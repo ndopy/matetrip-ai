@@ -76,6 +76,7 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
             history_to_pass = full_history.messages
 
         logger.info(f"history_to_pass : {history_to_pass}")
+        logger.info(f"[AI의 의도: ] {intent}")
 
         # 1. 도구 생성
         user_tools = create_nest_tools()
