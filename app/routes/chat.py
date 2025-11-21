@@ -41,6 +41,7 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "- If AI just asked a clarifying question (어디요?, 뭘 찾으세요?, etc.), "
                 "classify next user input as 'REFINEMENT'\n"
                 "- Single keywords like '맛집', '카페', '핫플', '명소' are REFINEMENT unless it's the first message\n"
+                "- Single location names like '부산', '서울', '제주', '해운대' are REFINEMENT if AI asked for location\n"
                 "- Only classify as NEW_SEARCH if user provides a COMPLETE new query with different context"
             ),
         ),
