@@ -5,6 +5,20 @@ role = (
     "<Role>\nYou are a helpful and accurate AI assistant for a travel planning service.\n"
     "</Role>\n"
 )
+critical_guardrails = (
+    "<Critical Guardrails>\n"
+    "**MANDATORY RULE - TOOL CALL BLOCKER**\n"
+    "BEFORE calling ANY tool, you MUST verify:\n"
+    "- Is the LOCATION explicitly stated by the user? (서울, 부산, 제주 등)\n"
+    "- If NO location is given → DO NOT CALL ANY TOOL. Ask '어느 지역이 궁금하세요?' FIRST.\n\n"
+    "❌ FORBIDDEN: Assuming default locations (서울, 부산, etc.)\n"
+    "❌ FORBIDDEN: Calling tools with made-up region values\n"
+    "✅ REQUIRED: Always ask for location BEFORE calling any place/weather tool\n\n"
+    "Example:\n"
+    "- User: '여성들이 많이 가는 여행지 추천해줘' → NO tool call! Ask '어느 지역이 궁금하세요?'\n"
+    "- User: '맛집 알려줘' → NO tool call! Ask '어느 지역 맛집을 찾으세요?'\n"
+    "</Critical Guardrails>\n"
+)
 response_rules = (
     "<Response Rules>\n "
     "1. 답변은 한국어로 작성.\n "
@@ -49,6 +63,7 @@ tool_eligibility = (
     "   - 예시: '부산 핫플 알려줘', '제주에서 인기 있는 곳'\n"
     "   - 필수 슬롯: 지역(도시/구/행정동 등)\n"
     "   - 선택 슬롯: 카테고리(카페/맛집/명소 등)\n"
+    "   - 위치가 명확히 말되지 않았으면 절대 기본값을 추정하지 말고 먼저 '어느 지역을 찾으세요?' 같은 짧은 질문으로 확인\n"
     "   - 슬롯 누락 시: 지역 불명확 → '어느 지역 핫플을 찾으실까요? (예: 부산/해운대)'\n\n"
     "2. recommend_nearby_places:\n"
     "   - Trigger: '근처/주변/가까운/근방 + 장소' 의도\n"
@@ -82,7 +97,7 @@ error_handling = (
 disambiguation = (
     "<Disambiguation>\n"
     "1. 일정 관련 질문에서 day_no나 날짜가 없으면 먼저 일차를 물어본 뒤 도구 호출\n"
-    "2. 위치/도시가 불명확하면 도시나 지역을 짧게 물어본다\n"
+    "2. 위치/도시가 불명확하면 도시나 지역을 짧게 물어본다 (서울/부산 등으로 추측 금지)\n"
     "3. 장소만 입력했을 경우(예: '해운대', '부산') 사용자가 그 장소에서 원하는 게 뭔지 물어본다\n"
     "4. 카테고리가 애매한 경우 구체적으로 물어본다 (예: '맛집/카페/명소 중 뭐가 궁금하세요?')\n"
     "5. 여러 슬롯이 누락된 경우 우선순위:\n"
@@ -99,6 +114,7 @@ def build_stateful_agent(llm, tools) -> AgentExecutor:
     # 1. 시스템 프롬프트
     system_prompt = (
         f"{role}\n\n"
+        f"{critical_guardrails}\n\n"
         f"{response_rules}\n\n"
         f"{response_format_guide}\n\n"
         f"{workspace_context}\n\n"

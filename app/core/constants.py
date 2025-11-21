@@ -12,6 +12,17 @@ TOOL_ACTION_MAP = {
         "SHOW_PLACE_LIST"
     ],
 
+    # 인기 장소/주변 장소 추천도 지도와 목록을 갱신해야 프론트가 결과를 보여줄 수 있음
+    "recommend_popular_places_in_region": [
+        "UPDATE_MAP",
+        "SHOW_PLACE_LIST"
+    ],
+
+    "recommend_nearby_places": [
+        "UPDATE_MAP",
+        "SHOW_PLACE_LIST"
+    ],
+
     "recommend_next_poi": [
         "UPDATE_MAP",           # 추천 장소를 지도에 표시
         "SHOW_PLACE_LIST",      # 추천 장소 목록을 사이드바에 표시
