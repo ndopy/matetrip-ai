@@ -135,5 +135,4 @@ def build_agent_prompt() -> ChatPromptTemplate:
         ("system", system_prompt),
         MessagesPlaceholder(variable_name="chat_history", optional=True),
         ("system", "User's workspace_id: {session_id}"),
-        ("human", "{input}"),
     ])
