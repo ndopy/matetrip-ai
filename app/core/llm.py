@@ -22,20 +22,6 @@ global_llm = ChatBedrockConverse(
     client=bedrock_client,
     temperature=0,
     # ChatBedrockConverse는 max_tokens를 직접 파라미터로 받습니다.
-    max_tokens=1000,
+    max_tokens=2048,
     disable_streaming=True
 )
-
-# no_llm = ChatBedrock(
-#     # Amazon Nova Lite 모델 ID
-#     model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",#"anthropic.claude-3-haiku-20240307-v1:0",#bedrockConfig.BEDROCK_LLM_MODEL_ID, 
-#     client=bedrock_client,
-    
-#     # [변경] Nova Lite (Titan 계열)에 맞는 model_kwargs 사용
-#     model_kwargs={
-#         "temperature": 0,
-#         #"maxTokenCount": 10000,
-#         "max_tokens": 10000, # max_tokens가 아님
-#         #"anthropic_version": "bedrock-2023-05-31"
-#     }
-# )
