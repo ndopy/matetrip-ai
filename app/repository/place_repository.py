@@ -114,6 +114,7 @@ class PlaceRepository:
         # 거리순 정렬 및 제한
         results = query.order_by("distance").limit(limit).all()
 
+        print(f"[Place nearby 결과 = {len(results)}]")
         # Place 객체만 추출하여 반환
         return [place for place, _ in results]
 

@@ -257,7 +257,7 @@ def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupD
         logger.error(error_msg)
         raise ValueError(error_msg) from e
 
-    logger.info(f"총 ${len(plan_day_groups)}일 일정 데이터 수신")
+    logger.info(f"총 {len(plan_day_groups)}일 일정 데이터 수신")
     return plan_day_groups
 
 

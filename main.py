@@ -5,7 +5,7 @@ import asyncio
 import threading
 from contextlib import asynccontextmanager
 import uvicorn
-from app.routes import places, route, chat, planner
+from app.routes import places, route, chat, planner, chat_v2
 from app.infra.consumer import create_consumer
 from app.common.logger import logger
 
@@ -87,6 +87,7 @@ app.add_middleware(
 
 app.include_router(places.router)
 app.include_router(chat.router)
+app.include_router(chat_v2.router)  # LangGraph 기반 채팅 (v2)
 app.include_router(route.router)
 app.include_router(planner.router)
 
