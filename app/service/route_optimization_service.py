@@ -88,12 +88,26 @@ class RouteOptimizationService:
         duration_matrix = self._build_duration_matrix(distance_matrix)
 
         start = start_index if start_index is not None else 0
-        if end_index is not None and end_index != start:
-            # start != end
-            manager = pywrapcp.RoutingIndexManager(n, 1, start, end_index)
+        # if end_index is not None and end_index != start:
+        #     # start != end - use list format for start and end depots
+        #     manager = pywrapcp.RoutingIndexManager(n, 1, [start], [end_index])
+        # else:
+        #     # start = end, or no end
+        #     manager = pywrapcp.RoutingIndexManager(n, 1, start)
+        if end_index is not None and end_index != start_index:
+            # 시작과 끝이 다르면 리스트로
+            manager = pywrapcp.RoutingIndexManager(
+                n,
+                1,
+                [start_index],  # 시작 depots
+                [end_index],  # 끝 depots
+            )
         else:
-            # start = end, or no end
-            manager = pywrapcp.RoutingIndexManager(n, 1, start)
+            # 순환 루트 or end 없음 → start만 단일 depot로 지정
+            manager = pywrapcp.RoutingIndexManager(
+                n, 1, start_index if start_index is not None else 0
+            )
+
         routing = pywrapcp.RoutingModel(manager)
 
         def distance_callback(from_index, to_index):
