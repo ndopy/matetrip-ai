@@ -5,7 +5,6 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 """
 
 from typing import Annotated, Literal, Sequence
-from sqlalchemy import true
 from typing_extensions import TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder

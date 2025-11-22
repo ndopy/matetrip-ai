@@ -6,6 +6,7 @@ LangGraph 기반 채팅 엔드포인트 (v2)
 import time
 import json
 import re
+from typing import cast
 from fastapi import APIRouter
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -65,18 +66,26 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
     return tool_data_list
 
 
-def extract_final_response(final_state: dict) -> str:
+def extract_final_response(final_state: AgentState) -> str:
     """마지막 AIMessage(툴콜 없는 것)를 찾아서 텍스트 반환"""
     messages = final_state.get("messages", [])
-    for msg in reversed(messages):
-        if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", []):
-            value = getattr(msg, "content", "")
-            return (
-                json.dumps(value, ensure_ascii=False)
-                if isinstance(value, (dict, list))
-                else str(value)
-            )
-    return "응답을 생성하지 못했습니다."
+    # next : 제네레이터의 첫번째 값을 꺼내기
+    msg = next(
+        (
+            m
+            for m in reversed(messages)
+            if isinstance(m, AIMessage) and not getattr(m, "tool_calls", [])
+        ),
+        None,
+    )
+
+    if msg is None:
+        return "응답을 생성하지 못했습니다."
+
+    value = getattr(msg, "content", "")
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
 
 
 @router.post("", response_model=ChatResponse)
@@ -114,7 +123,6 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         final_state = agent_graph.invoke(initial_state)
         t1 = time.perf_counter()
         logger.info(f"[ASK_AGENT] Agent_graph invoke 완료")
-
         logger.info(f"[LangGraph] Execution time: {t1 - t0:.4f} seconds")
         logger.info(f"[LangGraph] Intent classified as: {final_state.get('intent')}")
         logger.info(
@@ -122,8 +130,7 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         )
 
         # 4. 응답 추출 및 전처리
-        # messages = final_state.get("messages", [])
-        output = extract_final_response(final_state)
+        output = extract_final_response(cast(AgentState, final_state))
         output = remove_thinking_tags(output)
 
         logger.info(f"[LangGraph] Final output: {output[:100]}...")
