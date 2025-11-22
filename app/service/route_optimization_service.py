@@ -159,6 +159,9 @@ class RouteOptimizationService:
             node = manager.IndexToNode(index)
             path.append(node)
             index = solution.Value(routing.NextVar(index))
+        # Add the last node (end depot)
+        end_node = manager.IndexToNode(index)
+        path.append(end_node)
         return path
 
     def _build_duration_matrix(self, distance_matrix: DistanceMatrix) -> np.ndarray:
