@@ -95,12 +95,10 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         chat_history = list(session_history.messages)
 
         logger.info(f"[LangGraph] Processing query: {request.query}")
-        logger.info(f"[LangGraph] Session ID: {request.session_id}")
         logger.info(f"[LangGraph] Chat history length: {len(chat_history)}")
 
-        # 2. LangGraph 실행을 위한 초기 상태 구성 (표준 패턴)
+        # 2. LangGraph 실행을 위한 초기 상태 구성
         # 사용자 입력을 HumanMessage로 추가
-        from langchain_core.messages import HumanMessage
 
         user_message = HumanMessage(content=request.query)
         initial_messages = chat_history + [user_message]
@@ -124,7 +122,7 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         )
 
         # 4. 응답 추출 및 전처리
-        messages = final_state.get("messages", [])
+        # messages = final_state.get("messages", [])
         output = extract_final_response(final_state)
         output = remove_thinking_tags(output)
 

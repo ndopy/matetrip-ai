@@ -5,6 +5,7 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 """
 
 from typing import Annotated, Literal, Sequence
+from sqlalchemy import true
 from typing_extensions import TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -113,18 +114,27 @@ def agent_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     intent = state.get("intent")
 
-    # NEW_SEARCH인 경우: 마지막 HumanMessage만 사용
+    # ToolMessage가 있는지 확인 (도구 실행 후인지 판단)
+    has_tool_message = any(
+        hasattr(msg, "type") and msg.type == "tool" for msg in messages
+    )
+
+    # NEW_SEARCH이고 ToolMessage가 없는 경우: 마지막 HumanMessage만 사용
     # 그 외: 최근 히스토리 유지 (최대 20개)
-    if intent == "NEW_SEARCH":
-        # 마지막 HumanMessage만 찾기
+    if intent == "NEW_SEARCH" and not has_tool_message:
+        # 첫 실행: 마지막 HumanMessage만 찾기
         history_to_use = []
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 history_to_use = [msg]
                 break
+        logger.info("[agent_node] First execution, using only HumanMessage")
     else:
-        # 최근 20개 메시지 사용
+        # 도구 실행 후 또는 REFINEMENT/CONVERSATION: 최근 히스토리 사용
         history_to_use = messages[-20:] if len(messages) > 20 else messages
+        logger.info(
+            f"[agent_node] Using recent history (has_tool_message={has_tool_message})"
+        )
 
     logger.info(f"[agent_node] Using {len(history_to_use)} messages (intent={intent})")
     logger.info(
@@ -147,20 +157,29 @@ def agent_node(state: AgentState) -> AgentState:
     return {"messages": [response]}
 
 
+def should_tool_call(last_message: BaseMessage) -> bool:
+    if isinstance(last_message, AIMessage) and getattr(last_message, "tool_calls", []):
+        # has_attr = hasattr(last_message, "tool_calls")
+        # if has_attr and tool_calls:
+        return True
+
+    return False
+
+
 def should_continue(state: AgentState) -> str:
     """도구 호출 여부 판단"""
     messages = state.get("messages", [])
+    logger.info(f"[should_continue] Messages count: {len(messages)}")
     if not messages:
         return END
 
     last_message = messages[-1]
+    logger.info("=================================================")
+    logger.info(f"[should_continue] Last message: {last_message}")
+    logger.info("=================================================")
 
-    if isinstance(last_message, AIMessage):
-        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-            logger.info(
-                f"[should_continue] Calling tools: {len(last_message.tool_calls)}"
-            )
-            return "tools"
+    if should_tool_call(last_message):
+        return "tools"
 
     logger.info("[should_continue] Ending")
     return END
