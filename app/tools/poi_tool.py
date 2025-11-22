@@ -87,23 +87,27 @@ def get_poi_tools():
             }
 
         **답변 작성 규칙:**
-        1. 분석 결과(analysis.reason)를 바탕으로 부족한 이유를 자연스럽게 설명하세요.
-        2. 추천 장소는 **이름, 주소, 카테고리, 태그, 요약**만 사용하여 소개하세요.
-        3. 기술적 정보(ID, 좌표, distance_km 등)는 절대 언급하지 마세요.
-        4. 부족한 카테고리가 없으면 "현재 일정이 균형잡혀 있습니다!"라고 답변하세요.
+        1. **analysis.reason 텍스트를 절대 바꾸지 말고 그대로 복사해서 사용**하세요.
+        2. **절대로 current_poi_count를 카테고리별 개수로 착각하지 마세요.**
+           - current_poi_count: 해당 날짜의 전체 장소 개수
+           - category_distribution: 카테고리별 개수 (예: {"음식": 0, "숙박": 1, "관광지": 2})
+        3. 추천 장소는 **이름, 주소, 카테고리, 태그, 요약**만 사용하여 소개하세요.
+        4. 기술적 정보(ID, 좌표, distance_km, recommended_category 등)는 절대 언급하지 마세요.
+        5. 부족한 카테고리가 없으면 "현재 일정이 균형잡혀 있습니다!"라고 답변하세요.
 
-        **답변 예시:**
+        **올바른 답변 예시:**
         "1일차 일정에 숙소가 없습니다. 밤을 보낼 숙소를 추가해주세요.
-        1일차에 식사 장소가 0개만 있습니다. 2개 정도 더 추가하시면 좋습니다.
+        1일차에 식사 장소(음식 카테고리)가 0개만 있습니다. (전체 장소 3개 중) 2개 정도 더 추가하시면 좋습니다.
+
         현재 추가하신 장소들 중심으로 근처 추천 장소를 알려드릴게요:
 
         **[숙박 추천]**
-        1. **제주 힐링 펜션** (제주 서귀포시...)
-           - 바다 전망, 조용한 분위기, 가족 단위 추천
+        - **제주 힐링 펜션** (제주 서귀포시...)
+          바다 전망, 조용한 분위기, 가족 단위 추천
 
         **[음식 추천]**
-        2. **성산 해물뚝배기** (제주 서귀포시 성산읍...)
-           - 신선한 해산물, 현지인 맛집, 가성비 좋음"
+        - **성산 해물뚝배기** (제주 서귀포시 성산읍...)
+          신선한 해산물, 현지인 맛집, 가성비 좋음"
         """
         print(f"[recommend_next_poi] workspaceId = {workspace_id}")
         try:
@@ -116,12 +120,6 @@ def get_poi_tools():
 
             if day_no is not None:
                 plan_day_groups = _filter_plan_day_groups(plan_day_groups, day_no)
-                if not plan_day_groups:
-                    return {
-                        "total_days": 0,
-                        "daily_reports": [],
-                        "message": f"{day_no}일차 일정이 없습니다. 다른 일차를 알려주세요.",
-                    }
 
             if not plan_day_groups:
                 return _build_empty_schedule_response()
@@ -259,7 +257,7 @@ def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupD
         logger.error(error_msg)
         raise ValueError(error_msg) from e
 
-    logger.info("총 %d일 일정 데이터 수신", len(plan_day_groups))
+    logger.info(f"총 ${len(plan_day_groups)}일 일정 데이터 수신")
     return plan_day_groups
 
 
@@ -290,11 +288,7 @@ def _collect_plan_day_details(
     ]
 
     place_ids = [poi.placeId for poi in all_poi_dtos]
-    try:
-        uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
-    except ValueError as e:
-        logger.error(f"[collect_plan_day_details] {str(e)}")
-        raise
+    uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
 
     place_map: Dict[str, Place] = {}
 
@@ -332,9 +326,7 @@ def _collect_plan_day_details(
             )
         )
 
-    logger.info(
-        "총 %d개 POI 수집 완료 (Bulk 조회: %d개 place_id)", total_pois, len(place_ids)
-    )
+    logger.info(f"총 {total_pois}개 POI 수집 완료")
 
     return plan_day_details
 
@@ -358,6 +350,7 @@ def _build_day_analysis_payload(
     category_count: Dict[str, int],
     current_poi_count: int,
 ) -> dict:
+
     return {
         "reason": reason,
         "missing_categories": missing_categories,
@@ -389,8 +382,12 @@ def _analyze_day_category_balance(
     if current_meals < required_meals:
         missing_categories.append("음식")
         shortage = required_meals - current_meals
+
+        # 전체 POI 개수 계산
+        total_pois = sum(category_count.values())
+
         reason_parts.append(
-            f"{day_label}에 식사 장소가 {current_meals}개만 있습니다. {shortage}개 정도 더 추가하시면 좋습니다."
+            f"{day_label}에 식사 장소(음식 카테고리)가 {current_meals}개만 있습니다. (전체 장소 {total_pois}개 중) {shortage}개 정도 더 추가하시면 좋습니다."
         )
 
     recommendation_reason = (
@@ -420,7 +417,7 @@ def _calculate_center_coordinates(all_pois: list[dict]) -> tuple[float, float]:
 
 
 def _recommend_places(db, center_lat: float, center_lng: float, category: str):
-    logger.info("'%s' 카테고리 장소 추천 중...", category)
+    logger.info(f"{category} 카테고리 장소 추천 중...")
     place_service = PlaceService(db)
     recommendations = place_service.get_closest_places(
         latitude=center_lat,
