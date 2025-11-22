@@ -18,9 +18,12 @@ from app.schemas.chat import IntentClassifier
 from app.common.logger import logger
 from app.agent.prompts import build_agent_prompt
 
+# 전역 에이전트 체인 (캐싱)
+_agent_chain = None
+
 
 # =========================
-# 1. 상태 정의 (표준 패턴)
+# 1. 상태 정의
 # =========================
 class AgentState(TypedDict, total=False):
     """LangGraph 표준 상태 관리"""
@@ -68,6 +71,9 @@ router_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+# =========================
+# 라우터 체인
+# =========================
 router_chain = router_prompt | global_llm.with_structured_output(IntentClassifier)
 
 
@@ -96,10 +102,6 @@ def router_node(state: AgentState) -> AgentState:
     }
 
 
-# 전역 에이전트 체인 (캐싱)
-_agent_chain = None
-
-
 def get_agent_chain():
     """에이전트 체인 생성 (한 번만)"""
     global _agent_chain
@@ -124,14 +126,14 @@ def agent_node(state: AgentState) -> AgentState:
 
     # ToolMessage가 있는지 확인 (도구 실행 후인지 판단)
     has_tool_message = any(
-        hasattr(msg, "type") and msg.type == "tool" for msg in messages
+        (hasattr(msg, "type") and msg.type == "tool") for msg in messages
     )
 
+    history_to_use = []
     # NEW_SEARCH이고 ToolMessage가 없는 경우: 마지막 HumanMessage만 사용
     # 그 외: 최근 히스토리 유지 (최대 20개)
     if intent == "NEW_SEARCH" and not has_tool_message:
         # 첫 실행: 마지막 HumanMessage만 찾기
-        history_to_use = []
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 history_to_use = [msg]
@@ -139,7 +141,7 @@ def agent_node(state: AgentState) -> AgentState:
         logger.info("[agent_node] First execution, using only HumanMessage")
     else:
         # 도구 실행 후 또는 REFINEMENT/CONVERSATION: 최근 히스토리 사용
-        history_to_use = messages[-20:] if len(messages) > 20 else messages
+        history_to_use = messages[-10:] if len(messages) > 10 else messages
         logger.info(
             f"[agent_node] Using recent history (has_tool_message={has_tool_message})"
         )
@@ -156,22 +158,8 @@ def agent_node(state: AgentState) -> AgentState:
             "session_id": state.get("session_id"),
         }
     )
-
-    logger.info(f"[agent_node] Response type: {type(response).__name__}")
-    if hasattr(response, "tool_calls"):
-        logger.info(f"[agent_node] Tool calls: {len(response.tool_calls)}")
-
     # AIMessage를 messages에 추가
     return {"messages": [response]}
-
-
-def should_tool_call(last_message: BaseMessage) -> bool:
-    if isinstance(last_message, AIMessage) and getattr(last_message, "tool_calls", []):
-        # has_attr = hasattr(last_message, "tool_calls")
-        # if has_attr and tool_calls:
-        return True
-
-    return False
 
 
 def should_continue(state: AgentState) -> str:
@@ -186,7 +174,7 @@ def should_continue(state: AgentState) -> str:
     logger.info(f"[should_continue] Last message: {last_message}")
     logger.info("=================================================")
 
-    if should_tool_call(last_message):
+    if isinstance(last_message, AIMessage) and getattr(last_message, "tool_calls", []):
         return "tools"
 
     logger.info("[should_continue] Ending")
@@ -197,7 +185,7 @@ def should_continue(state: AgentState) -> str:
 # 4. 그래프 구성
 # =========================
 def create_agent_graph():
-    """LangGraph 생성 (표준 패턴)"""
+    """LangGraph 생성"""
     workflow = StateGraph(AgentState)
 
     # 도구 노드 (표준 패턴: messages_key="messages")
