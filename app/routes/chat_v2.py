@@ -34,15 +34,15 @@ def remove_thinking_tags(text: str) -> str:
 
 def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
     """
-    LangGraph의 final_state.messages에서 ToolMessage를 찾아
+    LangGraph의 final_state.chat_history에서 ToolMessage를 찾아
     ToolCallData 리스트로 변환
     """
     tool_data_list = []
 
-    # messages에서 ToolMessage 찾기
-    messages = final_state.get("messages", [])
+    # chat_history에서 ToolMessage 찾기
+    chat_history = final_state.get("chat_history", [])
 
-    for message in messages:
+    for message in chat_history:
         # ToolMessage인지 확인 (LangGraph가 도구 실행 후 추가)
         if hasattr(message, "type") and message.type == "tool":
             tool_name = getattr(message, "name", "unknown_tool")
@@ -67,8 +67,8 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
 
 def extract_final_response(final_state: dict) -> str:
     """마지막 AIMessage(툴콜 없는 것)를 찾아서 텍스트 반환"""
-    messages = final_state.get("messages", [])
-    for msg in reversed(messages):
+    chat_history = final_state.get("chat_history", [])
+    for msg in reversed(chat_history):
         if isinstance(msg, AIMessage) and not getattr(msg, "tool_calls", []):
             value = getattr(msg, "content", "")
             return (
@@ -92,30 +92,33 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         session_history: BaseChatMessageHistory = get_session_history(
             request.session_id
         )
-        messages = list(session_history.messages)
-        messages.append(HumanMessage(content=request.query))
+        chat_history = list(session_history.messages)
 
         logger.info(f"[LangGraph] Processing query: {request.query}")
         logger.info(f"[LangGraph] Session ID: {request.session_id}")
-        logger.info(f"[LangGraph] Chat history length: {len(messages)}")
+        logger.info(f"[LangGraph] Chat history length: {len(chat_history)}")
 
         # 2. LangGraph 실행을 위한 초기 상태 구성
         initial_state: AgentState = {
-            "messages": messages,
-            "intent": None,
+            "input": request.query,
             "session_id": request.session_id,
+            "chat_history": chat_history,
+            "intent": None,
+            "filtered_history": [],
             "output": None,
+            "intermediate_steps": [],
         }
 
         # 3. LangGraph 실행
         t0 = time.perf_counter()
         final_state = agent_graph.invoke(initial_state)
         t1 = time.perf_counter()
+        logger.info(f"[ASK_AGENT] Agent_graph invoke 완료")
 
         logger.info(f"[LangGraph] Execution time: {t1 - t0:.4f} seconds")
         logger.info(f"[LangGraph] Intent classified as: {final_state.get('intent')}")
         logger.info(
-            f"[LangGraph] Chat history messages: {len(final_state.get('messages', []))}"
+            f"[LangGraph] Chat history messages: {len(final_state.get('chat_history', []))}"
         )
         logger.info(f"[LangGraph] Final output: {final_state.get('output')}")
 

@@ -5,6 +5,7 @@ LangGraph 기반 AI 에이전트 그래프 구성
 """
 
 import json
+from math import log
 import operator
 from typing import Annotated, TypedDict, Literal, cast
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -29,20 +30,20 @@ class AgentState(TypedDict):
     input: str
     session_id: str
 
-    # 대화 기록
+    # 대화 기록 (전체 히스토리, operator.add로 자동 누적)
     chat_history: Annotated[list[BaseMessage], operator.add]
 
     # 라우터 결과
     intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION"] | None
 
     # 에이전트가 사용할 히스토리 (라우터에 의해 필터링됨)
-    # - 전체 기록 중 현재 작업에 필요한 것만 추려낸 리스트
+    # NEW_SEARCH: 빈 리스트, REFINEMENT/CONVERSATION: 최근 N개 메시지
     filtered_history: list[BaseMessage]
 
     # 최종 응답
     output: str | None
 
-    # 도구 호출 기록 (intermediate_steps)
+    # 도구 호출 기록 (agent_scratchpad용)
     intermediate_steps: list
 
 
@@ -93,15 +94,27 @@ router_chain = router_prompt | global_llm.with_structured_output(IntentClassifie
 def router_node(state: AgentState) -> AgentState:
     """
     사용자 의도를 분류하는 라우터 노드
+
+    반환값:
+    - intent: 분류된 의도
+    - filtered_history: 에이전트가 사용할 히스토리
+    - chat_history: 사용자 입력을 HumanMessage로 추가 (operator.add로 누적)
     """
     logger.info("[router_node] Starting intent classification")
 
-    # 라우터에 전달할 히스토리 (최근 10개)
-    chat_history = state.get("chat_history", [])[-10:]
+    # 전체 히스토리 가져오기
+    logger.info(f"[router_node] state[input]0: {state["input"]}")
+    full_history = state.get("chat_history", [])
+
+    logger.info(f"[router_node] state[input]: {state["input"]}")
+
+    # 라우터 분류를 위해 최근 10개만 사용
+    recent_history = full_history[-10:] if len(full_history) > 10 else full_history
+    logger.info(f"[router_node] state[input]2: {state["input"]}")
 
     # 라우터 실행
     classification_result = router_chain.invoke(
-        {"input": state["input"], "chat_history": chat_history}
+        {"input": state["input"], "chat_history": recent_history}
     )
     classification_result = IntentClassifier.model_validate(classification_result)
 
@@ -113,10 +126,18 @@ def router_node(state: AgentState) -> AgentState:
         # 새로운 검색이면 과거 기억 제거
         filtered_history = []
     else:
-        # REFINEMENT 또는 CONVERSATION이면 전체 히스토리 유지
-        filtered_history = chat_history
+        # REFINEMENT 또는 CONVERSATION이면 최근 히스토리 유지
+        filtered_history = recent_history
 
-    return {**state, "intent": intent, "filtered_history": filtered_history}
+    # 사용자 입력을 HumanMessage로 chat_history에 추가
+    # operator.add 덕분에 기존 리스트에 자동으로 누적됨
+    user_message = HumanMessage(content=state["input"])
+
+    return {
+        "intent": intent,
+        "filtered_history": filtered_history,
+        "chat_history": [user_message],  # operator.add로 자동 누적
+    }
 
 
 _agent_chain = None
@@ -147,71 +168,62 @@ def get_agent_chain():
 def agent_node(state: AgentState) -> AgentState:
     """
     도구를 호출하고 응답을 생성하는 에이전트 노드
-    LangGraph의 ToolNode와 통합하여 작동
+
+    로직:
+    1. filtered_history를 사용해 에이전트 프롬프트 구성
+    2. 에이전트 실행 (도구 호출 or 최종 응답)
+    3. AIMessage를 chat_history에 추가 (operator.add로 누적)
     """
 
     logger.info("[agent_node] Starting agent execution")
 
     agent_chain = get_agent_chain()
 
-    # chat_history를 직접 사용
-    # - 처음 실행 시: router가 필터링한 filtered_history를 가져옴 (chat_history에는 아직 없음)
-    # - tools 실행 후: chat_history에 AIMessage + ToolMessage가 추가되어 있음
-    chat_history = state.get("chat_history", [])
+    # filtered_history 사용 (라우터가 필터링한 히스토리)
     filtered_history = state.get("filtered_history", [])
-
-    # 기본 히스토리: 이미 있으면 그대로, 없으면 filtered_history를 시작점으로 사용
-    # (사용자 입력은 프롬프트의 {input}에 주입되므로 chat_history에 중복 추가하지 않음)
-    base_history = chat_history if chat_history else filtered_history
-    messages_to_use = base_history
 
     # 에이전트 실행
     scratchpad = state.get("intermediate_steps", [])
     response = agent_chain.invoke(
-        # 여기서 key들은 prompt에 동적으로 전달할 것
         {
             "input": state.get("input", ""),
-            "chat_history": messages_to_use,
+            "chat_history": filtered_history,
             "session_id": state.get("session_id"),
-            "agent_scratchpad": scratchpad,  # LangGraph에서는 자동으로 관리됨
+            "agent_scratchpad": scratchpad,
         }
     )
     response: AIMessage = cast(AIMessage, response)
-    logger.info(f"[agent_node] Agent response: {response}")
+    logger.info(
+        f"[agent_node] Agent response: {response.content[:100] if response.content else 'No content'}"
+    )
 
     tool_calls = getattr(response, "tool_calls", [])
 
-    # tool_calls가 있는지 확인
+    # tool_calls가 있는 경우
     if tool_calls:
-        # 도구 호출이 필요한 경우
-        # chat_history에 AIMessage 추가 (ToolNode가 이를 참조함)
-        if base_history:
-            new_history = base_history + [response]
-        else:
-            # 대화가 비어 있으면 현재 사용자 입력부터 시작
-            new_history = [HumanMessage(content=state["input"]), response]
-
+        logger.info(f"[agent_node] Found {len(tool_calls)} tool calls")
+        # AIMessage를 chat_history에 추가 (ToolNode가 참조)
+        # operator.add로 자동 누적
         return {
-            **state,
-            "chat_history": new_history,
+            "chat_history": [response],
             "intermediate_steps": scratchpad + [(response,)],
         }
 
-    # 최종 응답
+    # 최종 응답 (도구 호출 없음)
+    logger.info("[agent_node] No tool calls, generating final output")
     value = getattr(response, "content", str(response))
-    # value = response.content if hasattr(response, "content") else str(response)
 
     output = (
         json.dumps(value, ensure_ascii=False)
         if isinstance(value, (dict, list))
         else str(value)
     )
-    if base_history:
-        new_history = base_history + [response]
-    else:
-        new_history = [HumanMessage(content=state["input"]), response]
 
-    return {**state, "chat_history": new_history, "output": output}
+    # AIMessage를 chat_history에 추가
+    return {
+        "chat_history": [response],
+        "output": output,
+    }
 
 
 def should_continue(state: AgentState) -> str:
@@ -250,11 +262,13 @@ def create_agent_graph():
     """
     # StateGraph 초기화
     workflow = StateGraph(AgentState)
+    logger.info(f"[Create agent graph] 워크 플로우 생성 완료")
 
     # 도구 노드 생성
     tools = create_nest_tools()
     # ToolNode가 chat_history를 사용하도록 messages_key 설정
     tool_node = ToolNode(tools, messages_key="chat_history")
+    logger.info(f"[Create agent graph] 툴 노드 생성 완료")
 
     # 노드 추가
     workflow.add_node("router", router_node)
