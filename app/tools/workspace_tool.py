@@ -1,4 +1,6 @@
 import httpx
+from typing import List
+
 from langchain_core.tools import tool
 
 from app.common.config import nestJSConfig
@@ -10,6 +12,63 @@ def get_workspace_tools():
     """
     [워크스페이스 관련 도구 모음] - session_id를 workspace_id에 주입합니다.
     """
+    @tool
+    def find_place_id_by_name(place_name: str) -> str:
+        """
+        장소 이름을 사용하여 데이터베이스에서 해당 장소의 고유 ID(place_id)를 찾습니다.
+        사용자가 장소 이름을 언급하며 리뷰 조회 등 추가 정보를 요청할 때, 다른 도구(get_place_reviews)를 사용하기 위해 필요한 place_id를 얻기 위한 중간 단계로 사용하세요.
+
+        Args:
+            place_name (str): ID를 찾고자 하는 장소의 이름입니다.
+
+        Returns:
+            가장 유사도가 높은 장소의 place_id(문자열) 또는 장소를 찾지 못한 경우 에러 메시지를 반환합니다.
+        """
+        try:
+            with httpx.Client() as client:
+                response = client.get(
+                    f"{BASE_URL}/places/search", params={"name": place_name}
+                )
+                response.raise_for_status()
+                places = response.json()
+
+                if not places:
+                    return f"'{place_name}'에 해당하는 장소를 찾을 수 없습니다."
+                return places["placeIds"][0] # 가장 유사한 첫 번째 결과의 ID를 반환
+        except Exception as e:
+            return f"장소 ID 조회 중 에러 발생: {str(e)}"
+
+    @tool
+    def get_place_reviews(place_id: str) -> List[str] | str:
+        """
+        장소의 고유 ID를 사용하여 해당 장소의 최신 리뷰 10개를 가져옵니다.
+        사용자가 특정 장소에 대한 리뷰나 사람들의 반응, 후기 등이 궁금하다고 할 때 사용하세요.
+
+        Args:
+            place_id (str): 리뷰를 조회할 장소의 고유 ID입니다.
+
+        [답변 작성 규칙]
+        1. 이 도구의 실행 결과는 리뷰 텍스트 목록입니다.
+        2. 사용자에게 답변할 때는 이 리뷰들을 자연스럽게 요약해서 전달해야 합니다.
+        3. "리뷰를 요약해드릴게요" 와 같은 직접적인 언급보다는, "이 장소에 대해서는 대체로 ~한 반응들이 많네요." 와 같이 자연스러운 어투를 사용하세요.
+        """
+        try:
+            with httpx.Client() as client:
+                # NestJS API 호출 (GET /place/{place_id})
+                response = client.get(
+                    f"{BASE_URL}/place-user-reviews/place/{place_id}",
+                )
+                response.raise_for_status()
+                reviews = response.json().get("data", [])
+   
+                if not reviews:
+                    return "해당 장소에 대한 리뷰를 찾을 수 없습니다."
+
+                # 리뷰 내용만 추출하여 리스트로 반환
+                return [review.get("content", "") for review in reviews]
+        except Exception as e:
+            return f"리뷰 조회 중 에러 발생: {str(e)}"
+
     @tool
     def recommend_places_by_all_users(workspace_id: str):
         """
@@ -32,7 +91,7 @@ def get_workspace_tools():
                 )
                 response.raise_for_status()
                 data = response.json()
-                return str(data) if data else "모두를 위한 추천 장소를 찾지 못했습니다."
+                return data if data else "모두를 위한 추천 장소를 찾지 못했습니다."
 
         except Exception as e:
             return f"추천 장소 검색 중 에러 발생: {str(e)}"
@@ -107,5 +166,5 @@ def get_workspace_tools():
                 return f"{day_no}일차 일정에 장소를 성공적으로 추가했습니다."
         except Exception as e:
             return f"장소 추가 중 에러 발생: {str(e)}"
-
-    return [recommend_places_by_all_users, add_place_in_travel_itinerary]
+          
+    return [recommend_places_by_all_users, find_place_id_by_name, get_place_reviews, add_place_in_travel_itinerary]

@@ -130,6 +130,7 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
 
         # 4. 대화 기록 수동 저장
         full_history.add_user_message(request.query)
+
         full_history.add_ai_message(chat_response.response)
 
         # (2) [신규] 도구 데이터(tool_data) 저장
@@ -158,8 +159,6 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
                     name=log.tool_name
                 )
                 full_history.add_message(tool_msg)
-
-        
 
         return chat_response
     except Exception as e:
