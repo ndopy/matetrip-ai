@@ -3,7 +3,7 @@ import logging
 import re
 import time
 
-from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData
+from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData, InternalToolLog, AgentResponseDTO
 from app.core.constants import TOOL_ACTION_MAP
 
 
@@ -27,7 +27,7 @@ def remove_thinking_tags(text: str) -> str:
     return re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL).strip()
 
 
-def get_agent_response(agent, request: ChatRequest, history: list) -> ChatResponse:
+def get_agent_response(agent, request: ChatRequest, history: list) -> AgentResponseDTO:
     """
     사용자 쿼리와 세션 ID를 받아,
     대화형 응답과 구조화된 도구 데이터를 함께 반환
@@ -55,6 +55,7 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> ChatRespon
     steps = result.get("intermediate_steps", [])
 
     tool_data_list = []
+    internal_logs = []
 
     for action, observation in steps:
         # observation이 보통 문자열로 되어있어 JSON이면 파싱해서 넣음
@@ -71,11 +72,29 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> ChatRespon
             )
         )
 
-    # 3. API 엔드포인트에서 사용할 수 있도록 반환
-    return ChatResponse(
+        # (2) 백엔드 저장용 데이터 포장 (ID, Args 포함)
+        # 결과값 문자열 변환 미리 수행
+        if isinstance(parsed_output, (dict, list)):
+            content_str = json.dumps(parsed_output, ensure_ascii=False)
+        else:
+            content_str = str(parsed_output)
+
+        internal_logs.append(
+            InternalToolLog(
+                tool_call_id=action.tool_call_id, # ★ 진짜 ID
+                tool_name=action.tool,
+                tool_args=action.tool_input,      # ★ 진짜 인자
+                tool_output_str=content_str
+            )
+        )
+
+    # 3. API 엔드포인트에서 사용할 수 있도록 최종 DTO 포장
+    chat_response = ChatResponse(
         response=ai_message,
         tool_data=tool_data_list,
     )
 
-
-# {"response": ai_message, "tool_data": tool_data_list}
+    return AgentResponseDTO(
+        chat_response=chat_response,
+        internal_tool_log=internal_logs,
+    )
