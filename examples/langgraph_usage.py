@@ -28,10 +28,7 @@ def send_message(query: str, session_id: str = SESSION_ID):
     Returns:
         API 응답
     """
-    payload = {
-        "query": query,
-        "session_id": session_id
-    }
+    payload = {"query": query, "session_id": session_id}
 
     print(f"\n{'='*60}")
     print(f"사용자: {query}")
@@ -43,7 +40,7 @@ def send_message(query: str, session_id: str = SESSION_ID):
         response.raise_for_status()
 
         result = response.json()
-        print(f"\nAI 응답: {result['response']}")
+        print(f"\nAI 응답: {result.get('response', '응답 없음')}")
         print(f"도구 사용: {len(result.get('tool_data', []))}개")
 
         return result
@@ -55,9 +52,9 @@ def send_message(query: str, session_id: str = SESSION_ID):
 
 def example_new_search():
     """예시 1: 새로운 검색 (NEW_SEARCH)"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("예시 1: 새로운 검색")
-    print("="*60)
+    print("=" * 60)
 
     # 완전히 새로운 검색 - 위치와 카테고리가 모두 명확함
     send_message("서울 강남구 카페 추천해줘", "session-new-search-1")
@@ -65,9 +62,9 @@ def example_new_search():
 
 def example_refinement():
     """예시 2: 검색 결과 정제 (REFINEMENT)"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("예시 2: 검색 결과 정제")
-    print("="*60)
+    print("=" * 60)
 
     session_id = "session-refinement-1"
 
@@ -81,9 +78,9 @@ def example_refinement():
 
 def example_conversation():
     """예시 3: 일반 대화 (CONVERSATION)"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("예시 3: 일반 대화")
-    print("="*60)
+    print("=" * 60)
 
     session_id = "session-conversation-1"
 
@@ -96,9 +93,9 @@ def example_conversation():
 
 def example_multi_turn():
     """예시 4: 여러 턴의 대화"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("예시 4: 여러 턴의 대화")
-    print("="*60)
+    print("=" * 60)
 
     session_id = "session-multi-turn-1"
 
@@ -117,16 +114,17 @@ def check_health():
     try:
         response = requests.get(f"{CHAT_V2_URL}/health")
         response.raise_for_status()
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("LangGraph API 헬스체크")
-        print("="*60)
+        print("=" * 60)
         print(json.dumps(response.json(), indent=2, ensure_ascii=False))
     except requests.exceptions.RequestException as e:
         print(f"헬스체크 실패: {e}")
 
 
 if __name__ == "__main__":
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║         LangGraph 기반 채팅 API 사용 예시                    ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -142,7 +140,8 @@ LangGraph의 주요 기능:
 사용 전 주의사항:
 - FastAPI 서버가 http://localhost:8000 에서 실행 중이어야 합니다
 - 서버 실행: python main.py 또는 uvicorn main:app --reload
-    """)
+    """
+    )
 
     # 헬스체크
     check_health()

@@ -4,6 +4,7 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 - 에이전트: 도구 호출 및 응답 생성
 """
 
+import threading
 from typing import Annotated, Literal, Sequence
 from typing_extensions import TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -20,6 +21,7 @@ from app.agent.prompts import build_agent_prompt
 
 # 전역 에이전트 체인 (캐싱)
 _agent_chain = None
+_agent_chain = threading.Lock()
 
 
 # =========================

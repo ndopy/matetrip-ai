@@ -69,7 +69,8 @@ class BedRockConfig(BaseSettings):
         description="Amazon Titan Test Embeddings Model ID",
     )
     BEDROCK_LLM_MODEL_ID: str = Field(
-        default="global.anthropic.claude-haiku-4-5-20251001-v1:0", description="Claude 3.5 Sonnet Model ID"  #us.anthropic.claude-3-5-sonnet-20240620-v1:0"
+        default="global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        description="Claude 4.5 Sonnet Model ID",  # us.anthropic.claude-3-5-sonnet-20240620-v1:0"
     )
     AWS_ACCESS_KEY_ID: str = Field(default="", description="AWS Access Key")
     AWS_SECRET_ACCESS_KEY: str = Field(default="", description="AWS Secret Key")

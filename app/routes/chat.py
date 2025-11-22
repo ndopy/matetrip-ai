@@ -26,14 +26,11 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "You are a routing assistant. Your job is to classify the user's intent.\n"
                 "Based on the <chat_history> and <latest_message>, "
                 "you MUST classify the user's intent by outputting the 'IntentClassifier' JSON format.\n\n"
-
                 "**Key Guidelines:**\n\n"
-
                 "1. 'NEW_SEARCH': User asks for a COMPLETELY NEW and INDEPENDENT search\n"
                 "   - Examples: 'Seoul cafes' (first query), 'Show me Busan hotels' (after talking about Seoul)\n"
                 "   - Must have BOTH location AND category/intent clearly stated\n\n"
                 "   - **Context is NOT needed.**\n\n"
-
                 "2. 'REFINEMENT': User is COMPLETING or MODIFYING previous query based on context\n"
                 "   - **[CRITICAL] References to previous items:** 'first one', 'second place', 'that place', 'near there', 'around here'\n"
                 "   - Examples:\n"
@@ -41,10 +38,8 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "     * 'How about the second option?'\n"
                 "     * 'Show me cheaper ones'\n"
                 "     * 'Only Korean food'\n\n"
-
                 "3. 'CONVERSATION': Casual chat or follow-up about previous answer\n"
                 "   - Examples: 'how to get there?', 'tell me more', 'what time does it open?'\n\n"
-
                 "4. 'FOLLOW_UP': User wants to perform a SPECIFIC ACTION on the result of a previous tool\n"
                 "   - Examples: 'Add the first one to my schedule', 'Save the first one', 'Make a plan with these places', 'Put option 2 in the itinerary'\n"
                 "   - Use this when user switches from 'Searching' to 'Acting' (e.g., Search -> Add, Search -> Plan)\n"
@@ -56,7 +51,7 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "- Single keywords like '맛집', '카페', '핫플', '명소' are REFINEMENT unless it's the first message\n"
                 "- Single location names like '부산', '서울', '제주', '해운대' are REFINEMENT if AI asked for location\n"
                 "- Only classify as NEW_SEARCH if user provides a COMPLETE new query with different context"
-                "- If the user mentions **ordinal numbers** (first, 1st, second, 2nd) or **demonstratives** (this, that, there), it is **NEVER** 'NEW_SEARCH'. Classify as 'REFINEMENT' or 'FOLLOW_UP_WORK'.\n"
+                "- If the user mentions **ordinal numbers** (first, 1st, second, 2nd) or **demonstratives** (this, that, there), it is **NEVER** 'NEW_SEARCH'. Classify as 'REFINEMENT' or 'FOLLOW_UP'.\n"
                 "- Only classify as NEW_SEARCH if user provides a COMPLETE new query with different context."
             ),
         ),
@@ -141,11 +136,13 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
             ai_tool_calls = []
 
             for log in internal_logs:
-                ai_tool_calls.append({
-                    "name": log.tool_name,
-                    "args": log.tool_args,      # 저장해둔 진짜 인자
-                    "id": log.tool_call_id      # 저장해둔 진짜 ID (tooluse_...)
-                })
+                ai_tool_calls.append(
+                    {
+                        "name": log.tool_name,
+                        "args": log.tool_args,  # 저장해둔 진짜 인자
+                        "id": log.tool_call_id,  # 저장해둔 진짜 ID (tooluse_...)
+                    }
+                )
 
             # tool_calls 정보가 담긴 AIMessage를 먼저 저장합니다.
             # (이게 없으면 "Expected toolResult blocks..." 에러가 발생합니다)
@@ -154,9 +151,9 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
             # [단계 B] 도구 실행 "결과(Result)" 저장 (ToolMessage)
             for log in internal_logs:
                 tool_msg = ToolMessage(
-                    content=log.tool_output_str,   # 미리 변환해둔 결과 문자열
-                    tool_call_id=log.tool_call_id, # [중요] 위 요청 ID와 똑같아야 함
-                    name=log.tool_name
+                    content=log.tool_output_str,  # 미리 변환해둔 결과 문자열
+                    tool_call_id=log.tool_call_id,  # [중요] 위 요청 ID와 똑같아야 함
+                    name=log.tool_name,
                 )
                 full_history.add_message(tool_msg)
 
@@ -165,4 +162,3 @@ async def ask_agent(request: ChatRequest) -> ChatResponse:
         return ChatResponse(
             response=f"처리 중 오류가 발생했습니다. : {str(e)}", tool_data=[]
         )
-

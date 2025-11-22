@@ -47,8 +47,6 @@ class RouteOptimizationService:
         # start_index, end_index가 None이면 리스트 순서대로 설정
         if start_index is None:
             start_index = 0
-        # if end_index is None:
-        #     end_index = len(poi_list) - 1
         # OR-Tools에게 tsp 맡기기
         optimized_indices, total_duration, total_distance, route_summaries = (
             self._solve_tsp_with_ortools(distance_matrix, start_index, end_index)

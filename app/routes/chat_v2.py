@@ -152,7 +152,8 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
     except Exception as e:
         logger.error(f"[LangGraph] Error: {str(e)}", exc_info=True)
         return ChatResponse(
-            response=f"처리 중 오류가 발생했습니다: {str(e)}", tool_data=[]
+            response="요청을 처리하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+            tool_data=[],
         )
 
 
