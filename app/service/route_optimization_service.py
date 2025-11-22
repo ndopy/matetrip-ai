@@ -32,19 +32,23 @@ class RouteOptimizationService:
 
         Args:
             poi_list: [{"id": "poi-uuid", "longitude": 127.0, "latitude": 37.0}, ...]
-            start_index: 시작 지점 인덱스 (None이면 최적화에 포함)
-            end_index: 종료 지점 인덱스 (None이면 최적화에 포함)
+            start_index: 시작 지점 인덱스 (None이면 첫 번째 POI가 시작점)
+            end_index: 종료 지점 인덱스 (None이면 마지막 POI가 종료점)
 
         Returns:
             Optimized POI 순서 (ids), 최적 경로를 구성하는 구간 요약들 (순서대로), total duration/distance
         """
-        coordinates = self._extract_coordinates(poi_list)
+        coordinates: List[Tuple[float, float]] = self._extract_coordinates(poi_list)
         print(f"Creating distance matrix for {len(coordinates)} POIs...")
 
         # 여러 좌표 간의 거리/시간 매트릭스 생성
         distance_matrix = await self.mobility_service.get_distance_matrix(coordinates)
 
-        print("Optimizing route with OR-Tools...")
+        # start_index, end_index가 None이면 리스트 순서대로 설정
+        if start_index is None:
+            start_index = 0
+        if end_index is None:
+            end_index = len(poi_list) - 1
         # OR-Tools에게 tsp 맡기기
         optimized_indices, total_duration, total_distance, route_summaries = (
             self._solve_tsp_with_ortools(distance_matrix, start_index, end_index)
@@ -107,7 +111,8 @@ class RouteOptimizationService:
         search_parameters.local_search_metaheuristic = (
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
-        search_parameters.time_limit.seconds = 1
+
+        search_parameters.time_limit.seconds = 3
 
         solution = routing.SolveWithParameters(search_parameters)
 
