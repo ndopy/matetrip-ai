@@ -4,6 +4,7 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 - 에이전트: 도구 호출 및 응답 생성
 """
 
+import threading
 from typing import Annotated, Literal, Sequence
 from typing_extensions import TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -20,7 +21,7 @@ from app.agent.prompts import build_agent_prompt
 
 # 전역 에이전트 체인 (캐싱)
 _agent_chain = None
-# _agent_chain = threading.Lock()
+_agent_chain_lock = threading.Lock()
 
 
 # =========================
@@ -106,14 +107,15 @@ def router_node(state: AgentState) -> AgentState:
 def get_agent_chain():
     """에이전트 체인 생성 (한 번만)"""
     global _agent_chain
-    if _agent_chain is not None:
-        return _agent_chain
 
-    tools = create_nest_tools()
-    prompt = build_agent_prompt()
-    llm_with_tools = global_llm.bind_tools(tools)
+    with _agent_chain_lock:
+        if _agent_chain is None:
+            tools = create_nest_tools()
+            prompt = build_agent_prompt()
+            llm_with_tools = global_llm.bind_tools(tools)
 
-    _agent_chain = prompt | llm_with_tools
+            _agent_chain = prompt | llm_with_tools
+
     return _agent_chain
 
 
