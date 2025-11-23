@@ -22,10 +22,6 @@ router = APIRouter(
 )
 
 
-def get_naver_search_service():
-    return NaverSearchService()
-
-
 @router.post("/")
 async def create_places(
     place_list: PlaceListCreateRequest,
@@ -61,22 +57,6 @@ async def create_places(
             place_service.process_place_reviews,
             place,
         )
-
-    return {
-        "message": "success",
-    }
-
-
-@router.post("/naver-search")
-async def naver_search_test(
-    create_place: PlaceCreate,
-    naver_search_service: NaverSearchService = Depends(get_naver_search_service),
-):
-
-    urls: list[str] = naver_search_service.search_review_urls(
-        create_place.title, create_place.address
-    )
-    print(urls)
 
     return {
         "message": "success",
