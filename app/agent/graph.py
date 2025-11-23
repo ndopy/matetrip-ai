@@ -104,6 +104,15 @@ def router_node(state: AgentState) -> AgentState:
     }
 
 
+def get_last_human_message(messages: Sequence[BaseMessage]) -> HumanMessage:
+    """히스토리에서 마지막 HumanMessage만 추출"""
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            return msg
+
+    return HumanMessage(content="")
+
+
 def get_agent_chain():
     """에이전트 체인 생성 (한 번만)"""
     global _agent_chain
@@ -120,17 +129,13 @@ def get_agent_chain():
 
 
 def agent_node(state: AgentState) -> AgentState:
-    """에이전트 실행 노드 (표준 패턴)"""
+    """에이전트 실행 노드"""
     logger.info("[agent_node] Starting agent execution")
 
     agent_chain = get_agent_chain()
     messages = state.get("messages", [])
     intent = state.get("intent")
 
-    # ToolMessage가 있는지 확인 (도구 실행 후인지 판단)
-    # has_tool_message = any(
-    #     (hasattr(msg, "type") and msg.type == "tool") for msg in messages
-    # )
     has_tool_message = any(isinstance(msg, ToolMessage) for msg in messages)
 
     history_to_use = []
@@ -138,10 +143,7 @@ def agent_node(state: AgentState) -> AgentState:
     # 그 외: 최근 히스토리 유지 (최대 10개)
     if intent == "NEW_SEARCH" and not has_tool_message:
         # 첫 실행: 마지막 HumanMessage만 찾기
-        for msg in reversed(messages):
-            if isinstance(msg, HumanMessage):
-                history_to_use = [msg]
-                break
+        history_to_use = [get_last_human_message(messages)]
         logger.info("[agent_node] 첫 실행, using only HumanMessage")
     else:
         # 도구 실행 후 또는 REFINEMENT/CONVERSATION: 최근 히스토리 사용
