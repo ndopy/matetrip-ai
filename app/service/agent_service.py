@@ -48,7 +48,18 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> AgentRespo
 
     # 4. 결과 파싱
     # 4-1. AI 답변 텍스트
-    ai_message = remove_thinking_tags(result["output"])
+    # result["output"]이 리스트일 경우 처리
+    if isinstance(result["output"], list):
+        # 'type': 'text'인 요소의 'text' 값만 추출하여 합치기
+        ai_message_parts = []
+        for item in result["output"]:
+            if isinstance(item, dict) and item.get("type") == "text":
+                ai_message_parts.append(item.get("text", ""))
+        ai_message = " ".join(ai_message_parts).strip()
+    else:
+        ai_message = result["output"]
+
+    ai_message = remove_thinking_tags(ai_message)
 
     # 4-2. 도구 사용 기록 추출
     # steps 구조 : [(AgentAction, Observation), (AgentAction, Observation), ...]
