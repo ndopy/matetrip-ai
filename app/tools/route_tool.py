@@ -2,8 +2,11 @@ import logging
 from typing import List, Optional
 from langchain_core.tools import tool
 
+from app.schemas.routes import Coordinate
+from app.schemas.route_tool import TravelRouteResponse, TravelRouteWaypoint
+from app.schemas.place import NearbyPlaceResponse
 from app.service.place_service import PlaceService
-from app.database.database import get_db
+from app.database.database import get_db_session
 from app.tools.place_tool import fetch_coordinates_from_address, normalize_category
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,7 @@ def get_route_tools():
         waypoints: List[str],
         days: int = 1,
         nearby_places_per_waypoint: int = 2,
-        radius_km: float = 4.0,
+        radius_km: float = 4.0,  # 임시 4
         category: Optional[str] = None,
     ):
         """
@@ -100,93 +103,85 @@ def get_route_tools():
         - **김영해변 카페** (제주 서귀포시...)
           오션뷰, 여유로운 분위기"
         """
-        try:
-            if not waypoints or len(waypoints) == 0:
-                return "최소 1개 이상의 경유지를 지정해주세요."
+        if not waypoints or len(waypoints) == 0:
+            return "최소 1개 이상의 경유지를 지정해주세요."
 
-            if days <= 0:
-                return "여행 일수는 최소 1일 이상이어야 합니다."
+        if days <= 0:
+            return "여행 일수는 최소 1일 이상이어야 합니다."
 
-            logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
+        logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
+        # 카테고리 매핑
+        mapped_category = normalize_category(category)
 
-            # 카테고리 매핑
-            mapped_category = normalize_category(category)
-
-            route_data = []
-            db = next(get_db())
+        route_data: List[TravelRouteWaypoint] = []
+        with get_db_session() as db:
             place_service = PlaceService(db)
-
-            try:
-                for idx, waypoint in enumerate(waypoints):
-                    logger.info(f"경유지 {idx + 1}/{len(waypoints)}: {waypoint}")
-
-                    # 1. 경유지 좌표 가져오기
-                    try:
-                        latitude, longitude = fetch_coordinates_from_address(waypoint)
-                    except ValueError as e:
-                        logger.warning(
-                            f"경유지 '{waypoint}' 좌표를 찾을 수 없습니다: {e}"
-                        )
-                        route_data.append(
-                            {
-                                "waypoint_name": waypoint,
-                                "waypoint_index": idx,
-                                "coordinates": None,
-                                "nearby_places": [],
-                                "error": f"'{waypoint}' 위치를 찾을 수 없습니다.",
-                            }
-                        )
-                        continue
-
-                    # 2. 경유지 주변 장소 추천 (공간 인덱싱 사용)
-                    nearby_places = place_service.find_nearby_places(
-                        latitude=latitude,
-                        longitude=longitude,
+            for idx, waypoint in enumerate(waypoints):
+                route_data.append(
+                    _build_waypoint_route(
+                        place_service=place_service,
+                        waypoint=waypoint,
+                        waypoint_index=idx,
+                        mapped_category=mapped_category,
                         radius_km=radius_km,
-                        category=mapped_category,
-                        limit=nearby_places_per_waypoint,
+                        nearby_places_per_waypoint=nearby_places_per_waypoint,
                     )
+                )
 
-                    route_data.append(
-                        {
-                            "waypoint_name": waypoint,
-                            "waypoint_index": idx,
-                            "coordinates": {
-                                "latitude": latitude,
-                                "longitude": longitude,
-                            },
-                            "nearby_places": [
-                                {
-                                    "id": str(place.id),
-                                    "title": place.title,
-                                    "address": place.address,
-                                    "category": place.category,
-                                    "tags": place.tags,
-                                    "summary": place.summary,
-                                    "latitude": place.latitude,
-                                    "longitude": place.longitude,
-                                }
-                                for place in nearby_places
-                            ],
-                        }
-                    )
+            response = TravelRouteResponse(
+                total_days=days,
+                waypoints_count=len(waypoints),
+                route=route_data,
+            )
 
-                    logger.info(
-                        f"경유지 '{waypoint}' 주변 {len(nearby_places)}개 장소 추천 완료"
-                    )
-
-                return {
-                    "total_days": days,
-                    "waypoints_count": len(waypoints),
-                    "route": route_data,
-                }
-
-            finally:
-                db.close()
-
-        except Exception as e:
-            error_msg = f"여행 코스 생성 중 에러 발생: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return error_msg
+            return response.model_dump()
 
     return [create_travel_route]
+
+
+def _build_waypoint_route(
+    place_service: PlaceService,
+    waypoint: str,
+    waypoint_index: int,
+    mapped_category: Optional[str],
+    radius_km: float,
+    nearby_places_per_waypoint: int,
+) -> TravelRouteWaypoint:
+    """경유지 한 개에 대한 좌표 및 주변 추천 생성"""
+    logger.info(f"경유지 {waypoint_index + 1}: {waypoint}")
+
+    try:
+        latitude, longitude = fetch_coordinates_from_address(waypoint)
+    except ValueError as e:
+        logger.warning(f"경유지 '{waypoint}' 좌표를 찾을 수 없습니다: {e}")
+        return TravelRouteWaypoint(
+            waypoint_name=waypoint,
+            waypoint_index=waypoint_index,
+            coordinates=None,
+            nearby_places=[],
+            error=f"'{waypoint}' 위치를 찾을 수 없습니다.",
+        )
+
+    nearby_places_entities = place_service.find_nearby_places(
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+        category=mapped_category,
+        limit=nearby_places_per_waypoint,
+    )
+
+    logger.info(
+        f"경유지 '{waypoint}' 주변 {len(nearby_places_entities)}개 장소 추천 완료"
+    )
+
+    nearby_places = [
+        NearbyPlaceResponse.from_entity(place) for place in nearby_places_entities
+    ]
+
+    return TravelRouteWaypoint(
+        waypoint_name=waypoint,
+        waypoint_index=waypoint_index,
+        coordinates=Coordinate(latitude=latitude, longitude=longitude),
+        nearby_places=nearby_places,
+        error=None,
+    )

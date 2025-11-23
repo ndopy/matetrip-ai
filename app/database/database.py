@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -17,3 +18,13 @@ def get_db():
         yield db
     finally:
         db.close()  # 커넥션 정리 및 참조 끊음
+
+
+# TODO: get_db를 아래로 다 바꾸기
+@contextmanager
+def get_db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
