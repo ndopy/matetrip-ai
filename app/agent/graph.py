@@ -7,7 +7,7 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 import threading
 from typing import Annotated, Literal, Sequence
 from typing_extensions import TypedDict
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -128,20 +128,21 @@ def agent_node(state: AgentState) -> AgentState:
     intent = state.get("intent")
 
     # ToolMessage가 있는지 확인 (도구 실행 후인지 판단)
-    has_tool_message = any(
-        (hasattr(msg, "type") and msg.type == "tool") for msg in messages
-    )
+    # has_tool_message = any(
+    #     (hasattr(msg, "type") and msg.type == "tool") for msg in messages
+    # )
+    has_tool_message = any(isinstance(msg, ToolMessage) for msg in messages)
 
     history_to_use = []
     # NEW_SEARCH이고 ToolMessage가 없는 경우: 마지막 HumanMessage만 사용
-    # 그 외: 최근 히스토리 유지 (최대 20개)
+    # 그 외: 최근 히스토리 유지 (최대 10개)
     if intent == "NEW_SEARCH" and not has_tool_message:
         # 첫 실행: 마지막 HumanMessage만 찾기
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 history_to_use = [msg]
                 break
-        logger.info("[agent_node] First execution, using only HumanMessage")
+        logger.info("[agent_node] 첫 실행, using only HumanMessage")
     else:
         # 도구 실행 후 또는 REFINEMENT/CONVERSATION: 최근 히스토리 사용
         history_to_use = messages[-10:] if len(messages) > 10 else messages
@@ -155,7 +156,7 @@ def agent_node(state: AgentState) -> AgentState:
     )
 
     # 에이전트 실행
-    response = agent_chain.invoke(
+    response: BaseMessage = agent_chain.invoke(
         {
             "chat_history": history_to_use,
             "session_id": state.get("session_id"),

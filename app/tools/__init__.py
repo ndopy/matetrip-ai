@@ -2,6 +2,7 @@ from app.util.tieme_meter import timeMeter
 from .place_tool import get_place_tools
 from .workspace_tool import get_workspace_tools
 from .poi_tool import get_poi_tools
+from .route_tool import get_route_tools
 
 
 @timeMeter
@@ -20,5 +21,6 @@ def create_nest_tools():
     all_tools.extend(get_workspace_tools())
     all_tools.extend(get_place_tools())
     all_tools.extend(get_poi_tools())
+    all_tools.extend(get_route_tools())
 
     return all_tools
