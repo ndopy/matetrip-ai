@@ -1,5 +1,6 @@
 from typing import Sequence
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from agent.utils.agent_utils import get_last_human_message
 from app.agent.graph import AgentState
 from app.core.llm import global_llm
 from app.common.logger import logger
@@ -27,15 +28,6 @@ def get_agent_chain():
             _agent_chain = prompt | llm_with_tools
 
     return _agent_chain
-
-
-def get_last_human_message(messages: Sequence[BaseMessage]) -> HumanMessage:
-    """히스토리에서 마지막 HumanMessage만 추출"""
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            return msg
-
-    return HumanMessage(content="")
 
 
 def agent_node(state: AgentState) -> AgentState:

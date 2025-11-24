@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
+from agent.utils.agent_utils import get_last_human_message
 from app.agent.graph import AgentState
 from app.common.logger import logger
 from app.core.llm import global_llm
@@ -84,21 +85,7 @@ def refine_exclude_node(state: AgentState) -> AgentState:
     """
     logger.info("[refine_exclude_node] Starting exclusion processing")
 
-    messages = state.get("messages", [])
     last_recommended_places = state.get("last_recommended_places", [])
-
-    # 마지막 사용자 메시지 추출
-    user_message = ""
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            user_message = msg.content
-            break
-
-    logger.info(f"[refine_exclude_node] User message: {user_message}")
-    logger.info(
-        f"[refine_exclude_node] Last recommended places count: {len(last_recommended_places)}"
-    )
-
     # 이전 추천이 없으면 바로 에이전트로 넘김
     if not last_recommended_places:
         logger.warning("[refine_exclude_node] No previous recommendations found")
@@ -106,6 +93,18 @@ def refine_exclude_node(state: AgentState) -> AgentState:
             content="죄송해요, 이전 추천 기록이 없어서 제외 처리를 할 수 없어요. 먼저 장소를 추천받아주세요."
         )
         return {"messages": [response_message]}
+
+    messages = state.get("messages", [])
+    # 마지막 사용자 메시지 추출
+    user_message = get_last_human_message(messages)
+    user_message_text = (
+        user_message.content if isinstance(user_message, HumanMessage) else ""
+    )
+
+    logger.info(f"[refine_exclude_node] User message: {user_message}")
+    logger.info(
+        f"[refine_exclude_node] Last recommended places count: {len(last_recommended_places)}"
+    )
 
     # 장소 리스트를 문자열로 변환 (분석용)
     places_list = "\n".join(
@@ -117,10 +116,10 @@ def refine_exclude_node(state: AgentState) -> AgentState:
 
     # 제외 분석 실행
     try:
-        analysis: ExclusionAnalysis = exclusion_chain.invoke(
-            {"user_message": user_message, "places_list": places_list}
+        raw_analysis = exclusion_chain.invoke(
+            {"user_message": user_message_text, "places_list": places_list}
         )
-        analysis = ExclusionAnalysis.model_validate(analysis)
+        analysis: ExclusionAnalysis = ExclusionAnalysis.model_validate(raw_analysis)
 
         logger.info(f"[refine_exclude_node] Exclusion analysis: {analysis}")
 
@@ -188,9 +187,7 @@ def _filter_places(
         for keyword in analysis.excluded_keywords:
             if keyword.lower() in place["title"].lower():
                 should_exclude = True
-                logger.info(
-                    f"Excluding place by keyword '{keyword}': {place['title']}"
-                )
+                logger.info(f"Excluding place by keyword '{keyword}': {place['title']}")
                 break
 
         if not should_exclude:

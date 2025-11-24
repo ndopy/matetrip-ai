@@ -6,8 +6,12 @@
 import json
 from langchain_core.messages import ToolMessage
 
+from agent.utils.agent_utils import get_last_tool_message
 from app.agent.graph import AgentState
-from app.agent.utils.place_extractor import is_place_recommendation_tool, extract_places_from_result
+from app.agent.utils.place_extractor import (
+    is_place_recommendation_tool,
+    extract_places_from_result,
+)
 from app.common.logger import logger
 
 
@@ -22,13 +26,9 @@ def update_state_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
 
     # 마지막 ToolMessage 찾기
-    last_tool_message = None
-    for msg in reversed(messages):
-        if isinstance(msg, ToolMessage):
-            last_tool_message = msg
-            break
+    last_tool_message = get_last_tool_message(messages)
 
-    if not last_tool_message:
+    if not last_tool_message.content:
         logger.info("[update_state_node] No ToolMessage found")
         return {}
 
@@ -38,7 +38,9 @@ def update_state_node(state: AgentState) -> AgentState:
 
     # 장소 추천 도구가 아니면 스킵
     if not is_place_recommendation_tool(tool_name):
-        logger.info(f"[update_state_node] {tool_name} is not a place recommendation tool")
+        logger.info(
+            f"[update_state_node] {tool_name} is not a place recommendation tool"
+        )
         return {}
 
     # 도구 결과 파싱
@@ -50,14 +52,18 @@ def update_state_node(state: AgentState) -> AgentState:
             try:
                 content = json.loads(content)
             except json.JSONDecodeError:
-                logger.warning("[update_state_node] Failed to parse tool result as JSON")
+                logger.warning(
+                    "[update_state_node] Failed to parse tool result as JSON"
+                )
                 return {}
 
         # 장소 추출
         places = extract_places_from_result(content, tool_name)
 
         if places:
-            logger.info(f"[update_state_node] Updated last_recommended_places with {len(places)} places")
+            logger.info(
+                f"[update_state_node] Updated last_recommended_places with {len(places)} places"
+            )
             return {"last_recommended_places": places}
         else:
             logger.info("[update_state_node] No places found in tool result")
