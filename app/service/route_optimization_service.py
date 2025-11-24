@@ -105,14 +105,19 @@ class RouteOptimizationService:
         routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        # 모든 제약을 만족하는 첫 번째 feasible solution 찾기(반드시 최적은 아님)
         search_parameters.first_solution_strategy = (
             routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
         )
+
+        # 해개선 전략 => 초기해를 조금씩 뜯어고치면서 더 좋은 경로 찾기
         search_parameters.local_search_metaheuristic = (
-            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+            routing_enums_pb2.LocalSearchMetaheuristic.GREEDY_DESCENT
         )
 
         search_parameters.time_limit.seconds = 3
+        search_parameters.random_seed = 0  # 같은 결과 반환하도록
+        search_parameters.number_of_workers = 1
 
         solution = routing.SolveWithParameters(search_parameters)
 
