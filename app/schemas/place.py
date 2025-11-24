@@ -176,3 +176,11 @@ class PopularPlaceResponse(BaseModel):
 class SimplePlace(BaseModel):
     id: str = Field(..., description="장소 ID")
     title: str = Field(..., description="장소명")
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+    def __getitem__(self, key):
+        """딕셔너리처럼 접근 가능하도록"""
+        return getattr(self, key)
