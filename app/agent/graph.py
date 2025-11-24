@@ -4,20 +4,18 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 - 에이전트: 도구 호출 및 응답 생성
 """
 
-from typing import Annotated, Literal, Sequence
+from typing import Annotated, List, Literal, Sequence
 from typing_extensions import TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 import operator
 
-from agent.nodes.agent_node import agent_node, get_agent_chain
+from agent.nodes.agent_node import agent_node
 from agent.nodes.router_node import router_node
-from app.core.llm import global_llm
 from app.tools import create_nest_tools
-from app.schemas.chat import IntentClassifier
 from app.common.logger import logger
-from app.agent.prompts import build_agent_prompt
+from app.schemas.place import SimplePlace
 
 
 # =========================
@@ -32,6 +30,7 @@ class AgentState(TypedDict, total=False):
     # 추가 메타데이터
     session_id: str
     intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP"] | None
+    last_recommended_places: List[SimplePlace]
 
 
 def should_continue(state: AgentState) -> str:
