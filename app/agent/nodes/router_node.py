@@ -71,6 +71,24 @@ def router_node(state: AgentState) -> AgentState:
     # 최근 10개 메시지만 사용
     recent_messages = messages[-10:] if len(messages) > 10 else messages
 
+    # Bedrock 제약: 대화는 항상 사용자 메시지로 시작해야 함
+    first_human_idx = next(
+        (idx for idx, msg in enumerate(recent_messages) if msg.type == "human"),
+        None,
+    )
+    if first_human_idx is not None and first_human_idx > 0:
+        logger.info(
+            f"[router_node] Trimming leading messages to start with HumanMessage (dropping {first_human_idx})"
+        )
+        recent_messages = recent_messages[first_human_idx:]
+    elif first_human_idx is None:
+        # 안전장치: 없으면 원본 messages에서 마지막 사용자 메시지만 사용
+        last_human = next(
+            (msg for msg in reversed(messages) if msg.type == "human"),
+            None,
+        )
+        recent_messages = [last_human] if last_human else []
+
     # 의도 분류
     classification = router_chain.invoke({"messages": recent_messages})
     classification = IntentClassifier.model_validate(classification)
