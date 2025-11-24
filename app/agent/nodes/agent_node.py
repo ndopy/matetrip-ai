@@ -1,6 +1,5 @@
-from email import message
 from typing import Sequence
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 from app.agent.utils.agent_utils import get_last_human_message
 from app.agent.state import AgentState
 from app.core.llm import global_llm

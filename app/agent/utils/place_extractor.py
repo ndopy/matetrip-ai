@@ -7,7 +7,7 @@
 from typing import List, Any
 from app.schemas.place import SimplePlace
 from app.common.logger import logger
-from schemas.tool_response import TravelRouteData
+from app.schemas.tool_response import TravelRouteData
 
 
 def is_success(result: dict) -> bool:
@@ -28,7 +28,7 @@ def extract_places_from_result(result: dict, tool_name: str) -> List[SimplePlace
         추출된 SimplePlace 리스트
     """
     # 성공 여부 확인
-    if is_success(result):
+    if not is_success(result):
         logger.warning(f"[extract_places] {tool_name} failed: {result.get('error')}")
         return []
 

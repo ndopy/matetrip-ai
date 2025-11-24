@@ -11,7 +11,7 @@ import re
 from typing import cast
 from fastapi import APIRouter
 from langchain_core.messages import HumanMessage, AIMessage
-
+from langchain_core.runnables import RunnableConfig
 from app.agent.graph import agent_graph, AgentState
 from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData
 from app.core.memory import get_session_history
@@ -123,7 +123,7 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         )
         chat_history = list(session_history.messages)
 
-        logger.info(f"[LangGraph] Processing query: {request.query}")
+        logger.debug(f"[LangGraph] Processing query: {request.query[:50]}...")
         logger.info(f"[LangGraph] Chat history length: {len(chat_history)}")
 
         # 2. LangGraph 실행을 위한 초기 상태 구성
@@ -140,27 +140,25 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
 
         # 3. LangGraph 실행 (체크포인터 사용)
         # thread_id를 session_id로 사용하여 세션별 상태 유지
-        config = {"configurable": {"thread_id": request.session_id}}
+        config: RunnableConfig = {"configurable": {"thread_id": request.session_id}}
 
         t0 = time.perf_counter()
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()  #
         final_state = await loop.run_in_executor(
-            None, partial(agent_graph.invoke, initial_state, config)
+            None,
+            partial(agent_graph.invoke, initial_state, config),
+            # None = 기본 스레드 풀 사용하겠다는 의미
         )
         # final_state = agent_graph.invoke(initial_state, config)
         t1 = time.perf_counter()
-        logger.info(f"[ASK_AGENT] Agent_graph invoke 완료")
-        logger.info(f"[LangGraph] Execution time: {t1 - t0:.4f} seconds")
+        logger.info(f"[LangGraph_invoke완료] Execution time: {t1 - t0:.4f} seconds")
         logger.info(f"[LangGraph] Intent classified as: {final_state.get('intent')}")
-        logger.info(
-            f"[LangGraph] Messages count: {len(final_state.get('messages', []))}"
-        )
 
         # 4. 응답 추출 및 전처리
         output = extract_final_response(cast(AgentState, final_state))
         output = remove_thinking_tags(output)
 
-        logger.info(f"[LangGraph] Final output: {output[:100]}...")
+        logger.info(f"[LangGraph] Final output: {output[:70]}...")
 
         # 5. 도구 사용 기록 추출
         tool_data_list = extract_tool_data_from_graph_state(final_state)
