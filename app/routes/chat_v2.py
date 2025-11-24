@@ -41,12 +41,14 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
     ToolCallData 리스트로 변환
 
     특정 도구(create_travel_route, replace_single_place)는 마지막 호출만 반환합니다.
+    REFINE_EXCLUDE 의도일 경우 create_travel_route는 제외.
     """
     tool_data_list = []
     tool_data_dict = {}  # tool_name을 키로 하는 딕셔너리
 
     # messages에서 ToolMessage 찾기
     messages = final_state.get("messages", [])
+    intent = final_state.get("intent")
 
     for message in messages:
         # ToolMessage인지 확인 (LangGraph가 도구 실행 후 추가)
@@ -73,8 +75,12 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
                 tool_data_list.append(tool_call_data)
 
     # 마지막 create_travel_route와 replace_single_place를 리스트에 추가
+    # 단, REFINE_EXCLUDE 의도일 경우 create_travel_route는 제외
     for tool_name in ["create_travel_route", "replace_single_place"]:
         if tool_name in tool_data_dict:
+            # REFINE_EXCLUDE일 때는 create_travel_route 제외
+            if intent == "REFINE_EXCLUDE" and tool_name == "create_travel_route":
+                continue
             tool_data_list.append(tool_data_dict[tool_name])
 
     return tool_data_list
