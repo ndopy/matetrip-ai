@@ -11,8 +11,10 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 import operator
 
-from agent.nodes.agent_node import agent_node
-from agent.nodes.router_node import router_node
+from app.agent.nodes.agent_node import agent_node
+from app.agent.nodes.router_node import router_node
+from app.agent.nodes.refine_exclude_node import refine_exclude_node
+from app.agent.nodes.update_state_node import update_state_node
 from app.tools import create_nest_tools
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
@@ -31,6 +33,17 @@ class AgentState(TypedDict, total=False):
     session_id: str
     intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP", "REFINE_EXCLUDE"] | None
     last_recommended_places: List[SimplePlace]
+
+
+def route_by_intent(state: AgentState) -> str:
+    """router_node 이후 의도에 따라 분기"""
+    intent = state.get("intent")
+    logger.info(f"[route_by_intent] Intent: {intent}")
+
+    if intent == "REFINE_EXCLUDE":
+        return "refine_exclude"
+    else:
+        return "agent"
 
 
 def should_continue(state: AgentState) -> str:
@@ -67,14 +80,32 @@ def create_agent_graph():
     workflow.add_node("router", router_node)
     workflow.add_node("agent", agent_node)
     workflow.add_node("tools", tool_node)
+    workflow.add_node("update_state", update_state_node)
+    workflow.add_node("refine_exclude", refine_exclude_node)
 
     # 엣지 설정
     workflow.set_entry_point("router")
-    workflow.add_edge("router", "agent")
+
+    # router -> agent or refine_exclude (의도에 따라 분기)
+    workflow.add_conditional_edges(
+        "router",
+        route_by_intent,
+        {"agent": "agent", "refine_exclude": "refine_exclude"}
+    )
+
+    # agent -> tools or END (도구 호출 여부에 따라 분기)
     workflow.add_conditional_edges(
         "agent", should_continue, {"tools": "tools", END: END}
     )
-    workflow.add_edge("tools", "agent")
+
+    # tools -> update_state (도구 실행 후 상태 업데이트)
+    workflow.add_edge("tools", "update_state")
+
+    # update_state -> agent (상태 업데이트 후 다시 에이전트로)
+    workflow.add_edge("update_state", "agent")
+
+    # refine_exclude -> END (제외 처리 후 종료)
+    workflow.add_edge("refine_exclude", END)
 
     return workflow.compile()
 
