@@ -104,10 +104,10 @@ def get_route_tools():
           오션뷰, 여유로운 분위기"
         """
         if not waypoints or len(waypoints) == 0:
-            return "최소 1개 이상의 경유지를 지정해주세요."
+            return {"error": "최소 1개 이상의 경유지를 지정해주세요.", "route": []}
 
         if days <= 0:
-            return "여행 일수는 최소 1일 이상이어야 합니다."
+            return {"error": "여행 일수는 최소 1일 이상이어야 합니다.", "route": []}
 
         logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
         # 카테고리 매핑

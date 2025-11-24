@@ -3,6 +3,8 @@ LangGraph 기반 채팅 엔드포인트 (v2)
 기존 chat.py와 독립적으로 동작하는 새로운 API
 """
 
+import asyncio
+from functools import partial
 import time
 import json
 import re
@@ -120,7 +122,11 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
 
         # 3. LangGraph 실행
         t0 = time.perf_counter()
-        final_state = agent_graph.invoke(initial_state)
+        loop = asyncio.get_event_loop()
+        final_state = await loop.run_in_executor(
+            None, partial(agent_graph.invoke, initial_state)
+        )
+        # final_state = agent_graph.invoke(initial_state)
         t1 = time.perf_counter()
         logger.info(f"[ASK_AGENT] Agent_graph invoke 완료")
         logger.info(f"[LangGraph] Execution time: {t1 - t0:.4f} seconds")

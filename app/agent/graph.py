@@ -61,7 +61,7 @@ def create_agent_graph():
 
     # 도구 노드 (표준 패턴: messages_key="messages")
     tools = create_nest_tools()
-    tool_node = ToolNode(tools, messages_key="messages")  #
+    tool_node = ToolNode(tools, messages_key="messages")
 
     # 노드 추가
     workflow.add_node("router", router_node)

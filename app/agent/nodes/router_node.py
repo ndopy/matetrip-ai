@@ -1,6 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from agent.graph import AgentState
+from app.agent.graph import AgentState
 from schemas.chat import IntentClassifier
 from app.common.logger import logger
 from app.core.llm import global_llm
