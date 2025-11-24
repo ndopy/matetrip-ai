@@ -14,10 +14,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from app.agent.graph import agent_graph, AgentState
 from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData
-from app.core.memory import get_session_history
 from app.core.constants import TOOL_ACTION_MAP
 from app.common.logger import logger
-from langchain_core.chat_history import BaseChatMessageHistory
 
 router = APIRouter(prefix="/chat/v2", tags=["chat-v2"])
 
@@ -117,28 +115,19 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
     라우팅과 에이전트 실행을 자동으로 처리합니다.
     """
     try:
-        # 1. 세션 히스토리 가져오기
-        session_history: BaseChatMessageHistory = get_session_history(
-            request.session_id
-        )
-        chat_history = list(session_history.messages)
-
         logger.debug(f"[LangGraph] Processing query: {request.query[:50]}...")
-        logger.info(f"[LangGraph] Chat history length: {len(chat_history)}")
 
-        # 2. LangGraph 실행을 위한 초기 상태 구성
-        # 사용자 입력을 HumanMessage로 추가
-
+        # 1. LangGraph 실행을 위한 초기 상태 구성
+        # 체크포인터가 thread_id로 이전 상태를 자동으로 불러오므로 새 메시지만 추가
         user_message = HumanMessage(content=request.query)
-        initial_messages = chat_history + [user_message]
 
         initial_state: AgentState = {
-            "messages": initial_messages,
+            "messages": [user_message],
             "session_id": request.session_id,
             "intent": None,
         }
 
-        # 3. LangGraph 실행 (체크포인터 사용)
+        # 2. LangGraph 실행 (체크포인터 사용)
         # thread_id를 session_id로 사용하여 세션별 상태 유지
         config: RunnableConfig = {"configurable": {"thread_id": request.session_id}}
 
@@ -154,21 +143,18 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         logger.info(f"[LangGraph_invoke완료] Execution time: {t1 - t0:.4f} seconds")
         logger.info(f"[LangGraph] Intent classified as: {final_state.get('intent')}")
 
-        # 4. 응답 추출 및 전처리
+        # 3. 응답 추출 및 전처리
         output = extract_final_response(cast(AgentState, final_state))
         output = remove_thinking_tags(output)
 
         logger.info(f"[LangGraph] Final output: {output[:70]}...")
 
-        # 5. 도구 사용 기록 추출
+        # 4. 도구 사용 기록 추출
         tool_data_list = extract_tool_data_from_graph_state(final_state)
         logger.info(f"[LangGraph] Tools used: {len(tool_data_list)}")
 
-        # 6. 대화 히스토리 저장
-        session_history.add_user_message(request.query)
-        session_history.add_ai_message(output)
-
-        # 7. ChatResponse 형식으로 반환
+        # 5. ChatResponse 형식으로 반환
+        # 대화 히스토리는 체크포인터가 자동으로 관리
         return ChatResponse(
             response=output,
             tool_data=tool_data_list,
