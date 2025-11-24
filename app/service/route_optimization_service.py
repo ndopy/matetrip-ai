@@ -112,7 +112,7 @@ class RouteOptimizationService:
 
         # 해개선 전략 => 초기해를 조금씩 뜯어고치면서 더 좋은 경로 찾기
         search_parameters.local_search_metaheuristic = (
-            routing_enums_pb2.LocalSearchMetaheuristic.GREEDY_DESCENT
+            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
 
         search_parameters.time_limit.seconds = 3
