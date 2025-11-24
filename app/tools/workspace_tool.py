@@ -25,6 +25,7 @@ def get_workspace_tools():
             가장 유사도가 높은 장소의 place_id(문자열) 또는 장소를 찾지 못한 경우 에러 메시지를 반환합니다.
         """
         try:
+            print(f"Requesting BASE_URL: {BASE_URL}")
             with httpx.Client() as client:                
                 response = client.get(
                     f"{BASE_URL}/places/search", params={"name": place_name}
@@ -57,6 +58,7 @@ def get_workspace_tools():
         3. "리뷰를 요약해드릴게요" 와 같은 직접적인 언급보다는, "이 장소에 대해서는 대체로 ~한 반응들이 많네요." 와 같이 자연스러운 어투를 사용하세요.
         """
         try:
+            print(f"Requesting BASE_URL: {BASE_URL}")
             with httpx.Client() as client:
                 # NestJS API 호출 (GET /place/{place_id})
                 response = client.get(
@@ -88,6 +90,7 @@ def get_workspace_tools():
         3. 오직 **이름, 주소, 카테고리** 등 사람이 읽을 수 있는 정보만 사용하여 자연스럽게 요약해 주세요.
         """
         try:
+            print(f"Requesting BASE_URL: {BASE_URL}")
             with httpx.Client() as client:
                 # NestJS API 호출 (GET /workspace/{workspace_id}/recommendations)
                 response = client.get(
@@ -120,6 +123,7 @@ def get_workspace_tools():
         - User: "1일차에 뭐하지?" -> X (장소를 추가하는 의도가 아님)
         """
         try:
+            print(f"Requesting BASE_URL: {BASE_URL}")
             with httpx.Client() as client:
                 response = client.post(
                     f"{BASE_URL}/workspace/schedule/add-by-place",
