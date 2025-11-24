@@ -25,12 +25,14 @@ def get_workspace_tools():
             가장 유사도가 높은 장소의 place_id(문자열) 또는 장소를 찾지 못한 경우 에러 메시지를 반환합니다.
         """
         try:
-            with httpx.Client() as client:
-                print(f"{BASE_URL}/places/search", params={"name": place_name})
-                
+            with httpx.Client() as client:                
                 response = client.get(
                     f"{BASE_URL}/places/search", params={"name": place_name}
                 )
+
+                # 전체 URL을 로그로 출력합니다.
+                print(f"Requesting full URL: {response.request.url}")
+
                 response.raise_for_status()
                 places = response.json()
 
