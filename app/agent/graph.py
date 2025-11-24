@@ -29,7 +29,7 @@ class AgentState(TypedDict, total=False):
 
     # 추가 메타데이터
     session_id: str
-    intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP"] | None
+    intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP", "REFINE_EXCLUDE"] | None
     last_recommended_places: List[SimplePlace]
 
 
