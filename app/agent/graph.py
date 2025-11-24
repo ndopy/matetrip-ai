@@ -4,12 +4,10 @@ LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
 - 에이전트: 도구 호출 및 응답 생성
 """
 
-from typing import Annotated, List, Literal, Sequence
-from typing_extensions import TypedDict
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-import operator
+from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.nodes.agent_node import agent_node
 from app.agent.nodes.router_node import router_node
@@ -18,21 +16,7 @@ from app.agent.nodes.update_state_node import update_state_node
 from app.tools import create_nest_tools
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
-
-
-# =========================
-# 1. 상태 정의
-# =========================
-class AgentState(TypedDict, total=False):
-    """LangGraph 표준 상태 관리"""
-
-    # 메시지 히스토리 (LangGraph 표준)
-    messages: Annotated[Sequence[BaseMessage], operator.add]
-
-    # 추가 메타데이터
-    session_id: str
-    intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP", "REFINE_EXCLUDE"] | None
-    last_recommended_places: List[SimplePlace]
+from app.agent.state import AgentState
 
 
 def route_by_intent(state: AgentState) -> str:
@@ -69,7 +53,12 @@ def should_continue(state: AgentState) -> str:
 # 그래프 구성
 # =========================
 def create_agent_graph():
-    """LangGraph 생성"""
+    """
+    LangGraph 생성
+
+    MemorySaver 체크포인터를 사용하여 세션별 상태를 자동으로 저장/복원합니다.
+    이를 통해 last_recommended_places 등의 상태가 요청 간에 유지됩니다.
+    """
     workflow = StateGraph(AgentState)
 
     # 도구 노드 (표준 패턴: messages_key="messages")
@@ -104,10 +93,13 @@ def create_agent_graph():
     # update_state -> agent (상태 업데이트 후 다시 에이전트로)
     workflow.add_edge("update_state", "agent")
 
-    # refine_exclude -> END (제외 처리 후 종료)
-    workflow.add_edge("refine_exclude", END)
+    # refine_exclude -> agent (제외 처리 후 agent로 라우팅하여 새로운 추천 받기)
+    workflow.add_edge("refine_exclude", "agent")
 
-    return workflow.compile()
+    # MemorySaver 체크포인터 추가
+    # 세션별로 상태를 메모리에 저장하여 요청 간 상태 유지
+    memory = MemorySaver()
+    return workflow.compile(checkpointer=memory)
 
 
 # 전역 그래프 인스턴스

@@ -13,6 +13,7 @@ from app.schemas.place import (
     PopularPlaceRequest,
     PopularPlaceResponse,
 )
+from app.schemas.tool_response import ToolResult, PlaceRecommendationData
 
 logger = logging.getLogger(__name__)
 
@@ -221,21 +222,29 @@ def get_place_tools():
             db = next(get_db())
             try:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
-                return [
-                    place.model_dump() for place in place_responses
-                ]  # 결과 반환 (popularity_score 포함)
+                place_dicts = [place.model_dump() for place in place_responses]
+
+                return ToolResult(
+                    success=True,
+                    data=PlaceRecommendationData(
+                        places=place_dicts, count=len(place_dicts)
+                    ),
+                    message=f"{normalized_region}에서 인기 있는 장소 {len(place_dicts)}곳을 찾았습니다.",
+                ).model_dump()
 
             finally:
                 db.close()
 
-            return place_responses
-
         except ValueError as e:
             # 지역명 검증 실패 시
-            return str(e)
+            return ToolResult(
+                success=False, error=f"지역명 검증 실패: {str(e)}"
+            ).model_dump()
         except Exception as e:
             logger.error(f"인기 장소 추천 중 에러 발생: {str(e)}")
-            return f"인기 장소 추천 중 에러 발생: {str(e)}"
+            return ToolResult(
+                success=False, error=f"인기 장소 추천 중 에러 발생: {str(e)}"
+            ).model_dump()
 
     @tool
     def recommend_nearby_places(
@@ -311,7 +320,9 @@ def get_place_tools():
             try:
                 latitude, longitude = fetch_coordinates_from_address(location_name)
             except ValueError as error:
-                return str(error)
+                return ToolResult(
+                    success=False, error=f"위치 조회 실패: {str(error)}"
+                ).model_dump()
 
             t1 = time.perf_counter()
             print(f"[fetch_coordinates_from_address] took {t1-t0:.4f} seconds")
@@ -332,19 +343,127 @@ def get_place_tools():
                 place_responses = PlaceService(db).get_nearby_place(search_request)
                 t3 = time.perf_counter()
                 print(f"[PlaceService.get_nearby_place] took {t3-t2:.4f} seconds")
-                if not place_responses:
-                    category_text = f"({mapped_category}) " if mapped_category else ""
-                    return f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다."
 
-                # 결과 반환 (프론트엔드에는 전체 데이터가 전달됨)
-                return [place.model_dump() for place in place_responses]
+                place_dicts = [place.model_dump() for place in place_responses]
+
+                if not place_dicts:
+                    category_text = f"({mapped_category}) " if mapped_category else ""
+                    return ToolResult(
+                        success=False,
+                        error=f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다.",
+                    ).model_dump()
+
+                # 결과 반환
+                return ToolResult(
+                    success=True,
+                    data=PlaceRecommendationData(
+                        places=place_dicts, count=len(place_dicts)
+                    ),
+                    message=f"{location_name} 주변 {len(place_dicts)}곳을 찾았습니다.",
+                ).model_dump()
 
             finally:
                 db.close()
 
         except httpx.HTTPStatusError as e:
-            return f"API 오류 발생: {e.response.status_code} - {e.response.text}"
+            return ToolResult(
+                success=False,
+                error=f"API 오류 발생: {e.response.status_code} - {e.response.text}",
+            ).model_dump()
         except Exception as e:
-            return f"장소 추천 중 에러 발생: {str(e)}"
+            return ToolResult(
+                success=False, error=f"장소 추천 중 에러 발생: {str(e)}"
+            ).model_dump()
 
-    return [recommend_popular_places_in_region, recommend_nearby_places]
+    @tool
+    def replace_single_place(
+        excluded_place_id: str,
+        latitude: float,
+        longitude: float,
+        category: Optional[str] = None,
+        radius_km: float = 5.0,
+        excluded_place_ids: Optional[List[str]] = None,
+    ):
+        """
+        특정 장소를 대체할 새로운 장소 1개를 추천합니다.
+        기존 추천 장소 중 하나를 제외하고 같은 위치에서 새로운 장소로 교체할 때 사용합니다.
+
+        Args:
+            excluded_place_id: 제외할 장소의 ID (대체할 장소)
+            latitude: 기준 위도 (대체할 장소가 있던 경유지의 좌표)
+            longitude: 기준 경도
+            category: 추천받을 카테고리 (선택사항)
+            radius_km: 검색 반경 (km 단위, 기본값: 5km)
+            excluded_place_ids: 제외할 장소 ID 목록 (이미 추천된 장소들 + 대체할 장소)
+
+        Returns:
+            대체할 장소 1개
+
+        사용 예시:
+            - 사용자: "한라수목원 대신 다른 거 없어?"
+            - excluded_place_id: 한라수목원 ID
+            - excluded_place_ids: [한라수목원 ID, 나머지 8개 장소 IDs]
+            - 결과: 한라수목원이 있던 위치에서 새로운 장소 1개 추천
+        """
+        try:
+            # 카테고리 정규화
+            mapped_category = normalize_category(category)
+
+            # excluded_place_ids에 excluded_place_id가 포함되어 있는지 확인
+            all_excluded_ids = excluded_place_ids or []
+            if excluded_place_id not in all_excluded_ids:
+                all_excluded_ids.append(excluded_place_id)
+
+            # NearbyPlaceRequest 생성 (limit=1로 1개만 요청)
+            search_request = NearbyPlaceRequest.from_coordinates(
+                latitude=latitude,
+                longitude=longitude,
+                radius_km=radius_km,
+                category=mapped_category,
+                limit=1,  # 1개만 추천
+            )
+
+            # PlaceService 호출
+            db = next(get_db())
+            try:
+                place_service = PlaceService(db)
+                places = place_service.find_nearby_places(
+                    latitude=latitude,
+                    longitude=longitude,
+                    radius_km=radius_km,
+                    category=mapped_category,
+                    limit=1,
+                    excluded_place_ids=all_excluded_ids,
+                )
+
+                if not places:
+                    return ToolResult(
+                        success=False,
+                        error=f"해당 위치 주변에서 대체할 장소를 찾을 수 없습니다.",
+                    ).model_dump()
+
+                # Place 엔티티를 dict로 변환
+                from app.schemas.place import NearbyPlaceResponse
+                place_responses = [NearbyPlaceResponse.from_entity(place) for place in places]
+                place_dicts = [place.model_dump() for place in place_responses]
+
+                return ToolResult(
+                    success=True,
+                    data=PlaceRecommendationData(
+                        places=place_dicts,
+                        count=len(place_dicts),
+                        replaced_place_id=excluded_place_id,
+                    ),
+                    message=f"대체 장소 1곳을 찾았습니다.",
+                ).model_dump()
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"장소 대체 중 에러 발생: {str(e)}")
+            return ToolResult(
+                success=False, error=f"장소 대체 중 에러 발생: {str(e)}"
+            ).model_dump()
+
+    return [recommend_popular_places_in_region, recommend_nearby_places, replace_single_place]

@@ -1,5 +1,7 @@
 """
 장소 추천 도구 결과 추출 유틸리티
+
+모든 도구가 ToolResult 형식으로 반환하므로 추출 로직이 단순화되었습니다.
 """
 
 from typing import List, Any
@@ -7,111 +9,64 @@ from app.schemas.place import SimplePlace
 from app.common.logger import logger
 
 
-# 장소 추천 도구 목록 (하드코딩)
-PLACE_RECOMMENDATION_TOOLS = [
-    "recommend_popular_places_in_region",
-    "recommend_nearby_places",
-    "create_travel_route",
-]
-
-
-def is_place_recommendation_tool(tool_name: str) -> bool:
-    """
-    장소 추천 도구인지 확인
-
-    Args:
-        tool_name: 도구 이름
-
-    Returns:
-        장소 추천 도구이면 True
-    """
-    return tool_name in PLACE_RECOMMENDATION_TOOLS
-
-
 def extract_places_from_result(result: Any, tool_name: str) -> List[SimplePlace]:
     """
     도구 실행 결과에서 장소 목록 추출
 
+    모든 도구가 ToolResult[T] 형식으로 반환하므로 처리가 일관적입니다.
+
     Args:
-        result: 도구 실행 결과
-        tool_name: 도구 이름
+        result: 도구 실행 결과 (ToolResult의 dict 형태)
+        tool_name: 도구 이름 (로깅용)
 
     Returns:
         추출된 SimplePlace 리스트
     """
-    if not is_place_recommendation_tool(tool_name):
-        return []
-
-    places = []
-
     try:
-        if tool_name == "create_travel_route":
-            # 여행 코스: route -> waypoints -> nearby_places
-            places = _extract_from_travel_route(result)
-        else:
-            # recommend_popular_places_in_region, recommend_nearby_places
-            # 둘 다 List[Dict] 형태로 반환
-            places = _extract_from_place_list(result)
+        # result가 dict인지 확인
+        if not isinstance(result, dict):
+            logger.warning(
+                f"[extract_places_from_result] Invalid result type from {tool_name}: {type(result)}"
+            )
+            return []
 
-    except Exception as e:
-        logger.error(f"[extract_places_from_result] Error extracting places from {tool_name}: {e}")
+        # 성공 여부 확인
+        if not result.get("success", False):
+            logger.warning(
+                f"[extract_places_from_result] Tool {tool_name} failed: {result.get('error')}"
+            )
+            return []
 
-    logger.info(f"[extract_places_from_result] Extracted {len(places)} places from {tool_name}")
-    return places
+        # data 필드 추출
+        data = result.get("data", {})
+        if not data or not isinstance(data, dict):
+            logger.info(f"[extract_places_from_result] No data in result from {tool_name}")
+            return []
 
+        # places 필드 추출
+        # PlaceRecommendationData는 places 필드를 직접 가지고 있고,
+        # TravelRouteData는 places 프로퍼티를 통해 평탄화된 리스트를 반환합니다.
+        places_data = data.get("places", [])
 
-def _extract_from_travel_route(result: Any) -> List[SimplePlace]:
-    """
-    여행 코스 결과에서 장소 추출
+        if not isinstance(places_data, list):
+            logger.warning(
+                f"[extract_places_from_result] 'places' field is not a list in {tool_name}"
+            )
+            return []
 
-    구조:
-    {
-        "route": [
-            {
-                "waypoint_name": "...",
-                "nearby_places": [
-                    {"id": "...", "title": "...", ...},
-                    ...
-                ]
-            },
-            ...
-        ]
-    }
-    """
-    places = []
-
-    if not isinstance(result, dict) or "route" not in result:
-        return places
-
-    for waypoint in result.get("route", []):
-        if not isinstance(waypoint, dict):
-            continue
-
-        for place in waypoint.get("nearby_places", []):
+        # SimplePlace로 변환
+        places = []
+        for place in places_data:
             if isinstance(place, dict) and "id" in place and "title" in place:
                 places.append(SimplePlace(id=place["id"], title=place["title"]))
 
-    return places
-
-
-def _extract_from_place_list(result: Any) -> List[SimplePlace]:
-    """
-    장소 리스트 결과에서 장소 추출
-
-    구조:
-    [
-        {"id": "...", "title": "...", ...},
-        {"id": "...", "title": "...", ...},
-        ...
-    ]
-    """
-    places = []
-
-    if not isinstance(result, list):
+        logger.info(
+            f"[extract_places_from_result] Extracted {len(places)} places from {tool_name}"
+        )
         return places
 
-    for place in result:
-        if isinstance(place, dict) and "id" in place and "title" in place:
-            places.append(SimplePlace(id=place["id"], title=place["title"]))
-
-    return places
+    except Exception as e:
+        logger.error(
+            f"[extract_places_from_result] Error extracting places from {tool_name}: {e}"
+        )
+        return []

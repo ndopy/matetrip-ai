@@ -154,5 +154,12 @@ def build_agent_prompt() -> ChatPromptTemplate:
             ("system", system_prompt),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("system", "User's workspace_id: {session_id}"),
+            (
+                "system",
+                "**IMPORTANT: Excluded Places**\n"
+                "The following place IDs should be EXCLUDED from recommendations: {excluded_place_ids}\n"
+                "When calling tools, you MUST pass these IDs in the 'excluded_place_ids' parameter to ensure they are NOT recommended again.\n"
+                "These are places the user has already seen or doesn't want to see."
+            ),
         ]
     )

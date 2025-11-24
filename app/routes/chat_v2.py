@@ -39,8 +39,11 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
     """
     LangGraph의 final_state.messages에서 ToolMessage를 찾아
     ToolCallData 리스트로 변환
+
+    특정 도구(create_travel_route, replace_single_place)는 마지막 호출만 반환합니다.
     """
     tool_data_list = []
+    tool_data_dict = {}  # tool_name을 키로 하는 딕셔너리
 
     # messages에서 ToolMessage 찾기
     messages = final_state.get("messages", [])
@@ -57,13 +60,22 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
             # 매핑된 액션 가져오기
             actions = TOOL_ACTION_MAP.get(tool_name, [])
 
-            tool_data_list.append(
-                ToolCallData(
-                    tool_name=tool_name,
-                    tool_output=parsed_output,
-                    frontend_actions=actions,
-                )
+            tool_call_data = ToolCallData(
+                tool_name=tool_name,
+                tool_output=parsed_output,
+                frontend_actions=actions,
             )
+
+            # create_travel_route와 replace_single_place는 마지막 것만 유지
+            if tool_name in ["create_travel_route", "replace_single_place"]:
+                tool_data_dict[tool_name] = tool_call_data
+            else:
+                tool_data_list.append(tool_call_data)
+
+    # 마지막 create_travel_route와 replace_single_place를 리스트에 추가
+    for tool_name in ["create_travel_route", "replace_single_place"]:
+        if tool_name in tool_data_dict:
+            tool_data_list.append(tool_data_dict[tool_name])
 
     return tool_data_list
 
@@ -120,13 +132,16 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
             "intent": None,
         }
 
-        # 3. LangGraph 실행
+        # 3. LangGraph 실행 (체크포인터 사용)
+        # thread_id를 session_id로 사용하여 세션별 상태 유지
+        config = {"configurable": {"thread_id": request.session_id}}
+
         t0 = time.perf_counter()
         loop = asyncio.get_event_loop()
         final_state = await loop.run_in_executor(
-            None, partial(agent_graph.invoke, initial_state)
+            None, partial(agent_graph.invoke, initial_state, config)
         )
-        # final_state = agent_graph.invoke(initial_state)
+        # final_state = agent_graph.invoke(initial_state, config)
         t1 = time.perf_counter()
         logger.info(f"[ASK_AGENT] Agent_graph invoke 완료")
         logger.info(f"[LangGraph] Execution time: {t1 - t0:.4f} seconds")

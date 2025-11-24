@@ -81,6 +81,7 @@ class PlaceRepository:
         radius_km: float = 5.0,
         category: Optional[str] = None,
         limit: int = 10,
+        excluded_place_ids: Optional[List[str]] = None,
     ) -> List[Place]:
         """
         주어진 좌표 주변의 장소를 검색합니다. (PostGIS 사용)
@@ -91,6 +92,7 @@ class PlaceRepository:
             radius_km: 검색 반경 (km 단위, 기본값: 5km)
             category: 카테고리 필터 (예: '음식', '숙박', '레포츠' 등)
             limit: 최대 결과 개수 (기본값: 10)
+            excluded_place_ids: 제외할 장소 ID 리스트
 
         Returns:
             거리순으로 정렬된 장소 리스트
@@ -110,6 +112,11 @@ class PlaceRepository:
         # 카테고리 필터링
         if category:
             query = query.filter(Place.category == category)
+
+        # 제외할 장소 ID 필터링
+        if excluded_place_ids:
+            query = query.filter(~Place.id.in_(excluded_place_ids))
+            print(f"[Place Repository : Excluding {len(excluded_place_ids)} places]")
 
         # 거리순 정렬 및 제한
         results = query.order_by("distance").limit(limit).all()

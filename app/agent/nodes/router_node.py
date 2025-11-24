@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from app.agent.graph import AgentState
-from schemas.chat import IntentClassifier
+from app.agent.state import AgentState
+from app.schemas.chat import IntentClassifier
 from app.common.logger import logger
 from app.core.llm import global_llm
 
@@ -20,12 +20,14 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "- Questions end with '?' or ask for clarification (어디, 무엇, 어떤, etc.)\n\n"
                 "**Key Guidelines:**\n\n"
                 "1. 'REFINE_EXCLUDE': User wants to EXCLUDE specific places from previous recommendations\n"
-                "   - Keywords: '빼고', '빼줘', '제외', '말고', '제거', '없애', '삭제'\n"
+                "   - Keywords: '빼고', '빼줘', '제외', '말고', '제거', '없애', '삭제', '별론데', '별로', '대신', '바꿔'\n"
                 "   - Examples:\n"
                 "     * '첫 번째 빼고 다시 추천해줘'\n"
                 "     * '카페는 말고 맛집만'\n"
                 "     * '그거 제외하고'\n"
                 "     * '~말고 다른거'\n"
+                "     * '한라수목원 별론데 이거 대신 다른 거 없어?'\n"
+                "     * '이거 별로인데 바꿔줘'\n"
                 "   - **IMPORTANT**: This intent MUST be used when there are exclusion keywords!\n\n"
                 "2. 'REFINEMENT': User is answering AI's question or adding missing info\n"
                 "   - Examples:\n"

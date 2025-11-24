@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from app.schemas.routes import Coordinate
 from app.schemas.route_tool import TravelRouteResponse, TravelRouteWaypoint
 from app.schemas.place import NearbyPlaceResponse
+from app.schemas.tool_response import ToolResult, TravelRouteData
 from app.service.place_service import PlaceService
 from app.database.database import get_db_session
 from app.tools.place_tool import fetch_coordinates_from_address, normalize_category
@@ -25,6 +26,7 @@ def get_route_tools():
         nearby_places_per_waypoint: int = 2,
         radius_km: float = 4.0,  # 임시 4
         category: Optional[str] = None,
+        excluded_place_ids: Optional[List[str]] = None,
     ):
         """
         사용자가 지정한 경유지를 기준으로 여행 코스를 생성합니다.
@@ -57,6 +59,9 @@ def get_route_tools():
                 - '자연' 또는 '관광지': 자연관광지, 산, 바다 등
                 - '인문' 또는 '문화': 박물관, 미술관 등
                 - None이면 모든 카테고리 검색
+            excluded_place_ids: 제외할 장소 ID 리스트 (선택사항)
+                - 이미 추천받은 장소나 제외하고 싶은 장소의 ID 목록
+                - 이 ID들은 추천 결과에서 제외됩니다
 
         Returns:
             {
@@ -104,10 +109,14 @@ def get_route_tools():
           오션뷰, 여유로운 분위기"
         """
         if not waypoints or len(waypoints) == 0:
-            return {"error": "최소 1개 이상의 경유지를 지정해주세요.", "route": []}
+            return ToolResult(
+                success=False, error="최소 1개 이상의 경유지를 지정해주세요."
+            ).model_dump()
 
         if days <= 0:
-            return {"error": "여행 일수는 최소 1일 이상이어야 합니다.", "route": []}
+            return ToolResult(
+                success=False, error="여행 일수는 최소 1일 이상이어야 합니다."
+            ).model_dump()
 
         logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
         # 카테고리 매핑
@@ -125,6 +134,7 @@ def get_route_tools():
                         mapped_category=mapped_category,
                         radius_km=radius_km,
                         nearby_places_per_waypoint=nearby_places_per_waypoint,
+                        excluded_place_ids=excluded_place_ids or [],
                     )
                 )
 
@@ -134,7 +144,13 @@ def get_route_tools():
                 route=route_data,
             )
 
-            return response.model_dump()
+            # ToolResult로 감싸서 반환
+            response_dict = response.model_dump()
+            return ToolResult(
+                success=True,
+                data=TravelRouteData(**response_dict),
+                message=f"{days}일 여행 코스를 생성했습니다. (경유지 {len(waypoints)}개)",
+            ).model_dump()
 
     return [create_travel_route]
 
@@ -146,6 +162,7 @@ def _build_waypoint_route(
     mapped_category: Optional[str],
     radius_km: float,
     nearby_places_per_waypoint: int,
+    excluded_place_ids: List[str],
 ) -> TravelRouteWaypoint:
     """경유지 한 개에 대한 좌표 및 주변 추천 생성"""
     logger.info(f"경유지 {waypoint_index + 1}: {waypoint}")
@@ -168,6 +185,7 @@ def _build_waypoint_route(
         radius_km=radius_km,
         category=mapped_category,
         limit=nearby_places_per_waypoint,
+        excluded_place_ids=excluded_place_ids,
     )
 
     logger.info(
