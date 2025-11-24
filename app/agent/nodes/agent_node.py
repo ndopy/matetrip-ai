@@ -21,7 +21,7 @@ _agent_chain_lock = threading.Lock()
 def ensure_user_first(messages: Sequence[BaseMessage]):
     for idx, msg in enumerate(messages):
         if isinstance(msg, HumanMessage):
-            return list(messages[:idx])
+            return list(messages[idx:])
 
     last_human = get_last_human_message(messages)
     return [last_human] if last_human else []

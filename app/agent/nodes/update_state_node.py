@@ -7,6 +7,7 @@ import json
 from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
 from app.agent.utils.place_extractor import extract_places_from_result
+from app.agent.utils.place_normalizer import ensure_simple_places
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
 
@@ -62,17 +63,6 @@ def update_state_node(state: AgentState) -> AgentState:
         return {}
 
 
-def _ensure_simple_places(places_data) -> list[SimplePlace]:
-    """dict/Model 혼합 입력을 SimplePlace 리스트로 정규화"""
-    normalized = []
-    for place in places_data or []:
-        if isinstance(place, SimplePlace):
-            normalized.append(place)
-        elif isinstance(place, dict) and "id" in place and "title" in place:
-            normalized.append(SimplePlace(id=place["id"], title=place["title"]))
-    return normalized
-
-
 def _drop_place_by_id(places: list[SimplePlace], place_id: str) -> list[SimplePlace]:
     """주어진 ID를 제외한 새 리스트 반환"""
     return [p for p in places if getattr(p, "id", None) != place_id]
@@ -95,9 +85,7 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
     try:
         # 성공 여부 확인
         if not content.get("success", False):
-            logger.warning(
-                f"[update_state_node] replace_single_place failed: {content.get('error')}"
-            )
+            logger.warning(f"[replace_single_place] failed: {content.get('error')}")
             return {}
 
         data = content.get("data", {})
@@ -114,19 +102,17 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
         # 새로운 장소들
         new_places_data = data.get("places", [])
         if not new_places_data:
-            logger.warning(
-                "[update_state_node] No new places in replace_single_place result"
-            )
+            logger.warning("[update_state_node] No new places")
             return {}
 
-        new_places = _ensure_simple_places(new_places_data)
+        new_places = ensure_simple_places(new_places_data)
 
         if not new_places:
             logger.warning("[update_state_node] Failed to convert new places")
             return {}
 
         # 기존 last_recommended_places 가져오기
-        last_recommended_places = _ensure_simple_places(
+        last_recommended_places: list[SimplePlace] = ensure_simple_places(
             state.get("last_recommended_places", [])
         )
 
@@ -136,10 +122,7 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
         # 새로운 장소 추가
         updated_places.extend(new_places)
 
-        logger.info(
-            f"[update_state_node] Replaced place {replaced_place_id} with {len(new_places)} new places. "
-            f"Total: {len(updated_places)} places"
-        )
+        logger.info(f"[update_state_node] Replaced place")
 
         return {"last_recommended_places": updated_places}
 

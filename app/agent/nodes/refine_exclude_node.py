@@ -3,23 +3,17 @@
 사용자가 특정 장소를 제외하고 다시 추천받고 싶을 때 처리하는 노드입니다.
 """
 
-from typing import List, Optional
+from typing import List
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from app.agent.utils.agent_utils import get_last_human_message
+from app.agent.utils.place_normalizer import ensure_simple_places
 from app.agent.state import AgentState
 from app.common.logger import logger
 from app.core.llm import global_llm
 from app.schemas.place import SimplePlace
-
-
-def _place_attr(place: SimplePlace | dict, key: str, default=None):
-    """SimplePlace(객체)와 dict 양쪽을 안전하게 접근"""
-    if isinstance(place, dict):
-        return place.get(key, default)
-    return getattr(place, key, default)
 
 
 class ExclusionAnalysis(BaseModel):
@@ -93,7 +87,9 @@ def refine_exclude_node(state: AgentState) -> AgentState:
     """
     logger.info("[refine_exclude_node] Starting exclusion processing")
 
-    last_recommended_places = state.get("last_recommended_places", [])
+    last_recommended_places = ensure_simple_places(
+        state.get("last_recommended_places", [])
+    )
     # 이전 추천이 없으면 바로 에이전트로 넘김
     if not last_recommended_places:
         logger.warning("[refine_exclude_node] No previous recommendations found")
@@ -110,16 +106,11 @@ def refine_exclude_node(state: AgentState) -> AgentState:
     )
 
     logger.info(f"[refine_exclude_node] User message: {user_message}")
-    logger.info(
-        f"[refine_exclude_node] Last recommended places count: {len(last_recommended_places)}"
-    )
 
     # 장소 리스트를 문자열로 변환 (분석용)
     places_list_parts = []
     for i, place in enumerate(last_recommended_places):
-        title = _place_attr(place, "title", "")
-        pid = _place_attr(place, "id", "")
-        places_list_parts.append(f"{i+1}. {title} (ID: {pid})")
+        places_list_parts.append(f"{i+1}. {place.title} (ID: {place.id})")
     places_list = "\n".join(places_list_parts)
 
     # 제외 분석 실행
@@ -140,34 +131,27 @@ def refine_exclude_node(state: AgentState) -> AgentState:
                 "intent": "REFINEMENT",  # Agent로 라우팅하여 일반 대화로 처리
             }
 
-        logger.info(
-            f"[refine_exclude_node] Excluded place IDs: {excluded_ids}"
-        )
+        logger.info(f"[refine_exclude_node] Excluded place IDs: {excluded_ids}")
 
         # 제외할 장소 정보 찾기 (첫 번째 제외 장소만 처리)
         excluded_place_id = excluded_ids[0]
         excluded_place = next(
-            (p for p in last_recommended_places if _place_attr(p, "id") == excluded_place_id),
-            None,
+            (p for p in last_recommended_places if p.id == excluded_place_id), None
         )
 
         if not excluded_place:
-            logger.error(f"[refine_exclude_node] Excluded place not found: {excluded_place_id}")
             return {
                 "intent": "REFINEMENT",
             }
 
         # 기존 추천 전체를 excluded_place_ids에 추가 (중복 방지)
-        all_existing_ids = [_place_attr(place, "id") for place in last_recommended_places]
+        all_existing_ids = [place.id for place in last_recommended_places]
 
-        excluded_title = _place_attr(excluded_place, "title", "")
+        excluded_title = excluded_place.title
         logger.info(f"[refine_exclude_node] Replacing place: {excluded_title}")
-        logger.info(
-            f"[refine_exclude_node] Excluding {len(all_existing_ids)} places total"
-        )
 
-        latitude = _place_attr(excluded_place, "latitude")
-        longitude = _place_attr(excluded_place, "longitude")
+        latitude = getattr(excluded_place, "latitude", None)
+        longitude = getattr(excluded_place, "longitude", None)
         coord_text = (
             f"좌표: latitude={latitude}, longitude={longitude}\n"
             if latitude is not None and longitude is not None
@@ -219,8 +203,8 @@ def _get_excluded_place_ids(
 
     for i, place in enumerate(places):
         should_exclude = False
-        title = _place_attr(place, "title", "")
-        pid = _place_attr(place, "id")
+        title = place.title
+        pid = place.id
 
         # 1. 인덱스로 제외 (1-based)
         if (i + 1) in analysis.excluded_indices:

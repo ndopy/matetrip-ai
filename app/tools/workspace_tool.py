@@ -12,6 +12,7 @@ def get_workspace_tools():
     """
     [워크스페이스 관련 도구 모음] - session_id를 workspace_id에 주입합니다.
     """
+
     @tool
     def find_place_id_by_name(place_name: str) -> str:
         """
@@ -34,7 +35,7 @@ def get_workspace_tools():
 
                 if not places:
                     return f"'{place_name}'에 해당하는 장소를 찾을 수 없습니다."
-                return places["placeIds"][0] # 가장 유사한 첫 번째 결과의 ID를 반환
+                return places["placeIds"][0]  # 가장 유사한 첫 번째 결과의 ID를 반환
         except Exception as e:
             return f"장소 ID 조회 중 에러 발생: {str(e)}"
 
@@ -60,7 +61,7 @@ def get_workspace_tools():
                 )
                 response.raise_for_status()
                 reviews = response.json().get("data", [])
-   
+
                 if not reviews:
                     return "해당 장소에 대한 리뷰를 찾을 수 없습니다."
 
@@ -95,7 +96,7 @@ def get_workspace_tools():
 
         except Exception as e:
             return f"추천 장소 검색 중 에러 발생: {str(e)}"
-        
+
     @tool
     def add_schedule_by_place(workspace_id: str, place_id: str, day_no: int) -> str:
         """
@@ -131,11 +132,18 @@ def get_workspace_tools():
             if e.response.status_code == 404:
                 try:
                     error_message = e.response.json().get("message", e.response.text)
-                except:
+                except (ValueError, KeyError):
                     error_message = e.response.text
                 return f"장소 추가 중 에러 발생: {error_message}"
-            return f"장소 추가 중 에러 발생: {e.response.status_code} - {e.response.text}"
+            return (
+                f"장소 추가 중 에러 발생: {e.response.status_code} - {e.response.text}"
+            )
         except Exception as e:
             return f"장소 추가 중 에러 발생: {str(e)}"
-          
-    return [recommend_places_by_all_users, find_place_id_by_name, get_place_reviews, add_schedule_by_place]
+
+    return [
+        recommend_places_by_all_users,
+        find_place_id_by_name,
+        get_place_reviews,
+        add_schedule_by_place,
+    ]
