@@ -4,13 +4,11 @@
 """
 
 import json
-from langchain_core.messages import ToolMessage
-
 from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
 from app.agent.utils.place_extractor import extract_places_from_result
 from app.common.logger import logger
-from schemas.tool_response import ToolResult
+from app.schemas.place import SimplePlace
 
 
 def update_state_node(state: AgentState) -> AgentState:
@@ -32,20 +30,18 @@ def update_state_node(state: AgentState) -> AgentState:
     if not last_tool_message or not last_tool_message.content:
         logger.info("[update_state_node] No ToolMessage found")
         return {}
-    
+
     content = last_tool_message.content
     tool_name = getattr(last_tool_message, "name", "")
     logger.info(f"[update_state_node] Processing tool: {tool_name}")
 
     # replace_single_place의 경우 특별 처리
     if tool_name == "replace_single_place":
-        if isinstance(content, dict):
-            return _handle_replace_single_place(state, content)
-        else:
-            logger.warning(
-                "[update_state_node] Invalid content type for replace_single_place"
-            )
-        return {}
+        return (
+            _handle_replace_single_place(state, content)
+            if isinstance(content, dict)
+            else {}
+        )
 
     try:
 
@@ -64,6 +60,22 @@ def update_state_node(state: AgentState) -> AgentState:
     except Exception as e:
         logger.error(f"[update_state_node] Error processing tool result: {e}")
         return {}
+
+
+def _ensure_simple_places(places_data) -> list[SimplePlace]:
+    """dict/Model 혼합 입력을 SimplePlace 리스트로 정규화"""
+    normalized = []
+    for place in places_data or []:
+        if isinstance(place, SimplePlace):
+            normalized.append(place)
+        elif isinstance(place, dict) and "id" in place and "title" in place:
+            normalized.append(SimplePlace(id=place["id"], title=place["title"]))
+    return normalized
+
+
+def _drop_place_by_id(places: list[SimplePlace], place_id: str) -> list[SimplePlace]:
+    """주어진 ID를 제외한 새 리스트 반환"""
+    return [p for p in places if getattr(p, "id", None) != place_id]
 
 
 def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState:
@@ -107,25 +119,19 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
             )
             return {}
 
-        # SimplePlace로 변환
-        from app.schemas.place import SimplePlace
-
-        new_places = []
-        for place in new_places_data:
-            if isinstance(place, dict) and "id" in place and "title" in place:
-                new_places.append(SimplePlace(id=place["id"], title=place["title"]))
+        new_places = _ensure_simple_places(new_places_data)
 
         if not new_places:
             logger.warning("[update_state_node] Failed to convert new places")
             return {}
 
         # 기존 last_recommended_places 가져오기
-        last_recommended_places = state.get("last_recommended_places", [])
+        last_recommended_places = _ensure_simple_places(
+            state.get("last_recommended_places", [])
+        )
 
         # 제외된 장소 제거
-        updated_places = [
-            place for place in last_recommended_places if place.id != replaced_place_id
-        ]
+        updated_places = _drop_place_by_id(last_recommended_places, replaced_place_id)
 
         # 새로운 장소 추가
         updated_places.extend(new_places)

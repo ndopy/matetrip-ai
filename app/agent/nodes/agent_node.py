@@ -1,3 +1,4 @@
+from email import message
 from typing import Sequence
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from app.agent.utils.agent_utils import get_last_human_message
@@ -13,6 +14,17 @@ from app.tools import create_nest_tools
 # 전역 에이전트 체인 (캐싱)
 _agent_chain = None
 _agent_chain_lock = threading.Lock()
+
+
+# Bedrock 제약 : Bedrock은 히스토리 전체를 볼 때 첫 메시지가 human이 아니면 에러를 냄
+# 대화 슬라이스를 HumanMessage부터 시작하도록 자르는 것
+def ensure_user_first(messages: Sequence[BaseMessage]):
+    for idx, msg in enumerate(messages):
+        if isinstance(msg, HumanMessage):
+            return list(messages[:idx])
+
+    last_human = get_last_human_message(messages)
+    return [last_human] if last_human else []
 
 
 def get_agent_chain():
@@ -37,7 +49,6 @@ def agent_node(state: AgentState) -> AgentState:
     agent_chain = get_agent_chain()
     messages = state.get("messages", [])
     intent = state.get("intent")
-    excluded_place_ids = state.get("excluded_place_ids", [])
 
     has_tool_message = any(isinstance(msg, ToolMessage) for msg in messages)
 
@@ -55,36 +66,18 @@ def agent_node(state: AgentState) -> AgentState:
             f"[agent_node] Using recent history (has_tool_message={has_tool_message})"
         )
 
-    # Bedrock 제약: 대화는 무조건 사용자 메시지로 시작해야 함
-    first_human_idx = next(
-        (idx for idx, msg in enumerate(history_to_use) if isinstance(msg, HumanMessage)),
-        None,
-    )
-    if first_human_idx is not None and first_human_idx > 0:
-        logger.info(
-            f"[agent_node] Trimming leading messages to start with HumanMessage (dropping {first_human_idx})"
-        )
-        history_to_use = history_to_use[first_human_idx:]
-    elif first_human_idx is None:
-        # 안전장치: HumanMessage가 없으면 마지막 사용자 메시지를 추가
-        last_human = get_last_human_message(messages)
-        history_to_use = [last_human] if last_human else []
-
+    # Bedrock 제약때문에 무조건 사용자 메시지로 시작하게 하는 것
+    history_to_use = ensure_user_first(history_to_use)
     logger.info(f"[agent_node] Using {len(history_to_use)} messages (intent={intent})")
-    logger.info(
-        f"[agent_node] Message types: {[type(m).__name__ for m in history_to_use]}"
-    )
-
-    # excluded_place_ids 로깅
-    if excluded_place_ids:
-        logger.info(f"[agent_node] Excluded place IDs: {len(excluded_place_ids)} places")
 
     # 에이전트 실행
     response: BaseMessage = agent_chain.invoke(
         {
             "chat_history": history_to_use,
             "session_id": state.get("session_id"),
-            "excluded_place_ids": excluded_place_ids,  # excluded_place_ids 전달
+            "excluded_place_ids": state.get(
+                "excluded_place_ids", []
+            ),  # excluded_place_ids 전달
         }
     )
     # AIMessage를 messages에 추가
