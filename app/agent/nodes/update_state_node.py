@@ -10,6 +10,7 @@ from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
 from app.agent.utils.place_extractor import extract_places_from_result
 from app.common.logger import logger
+from schemas.tool_response import ToolResult
 
 
 def update_state_node(state: AgentState) -> AgentState:
@@ -24,7 +25,6 @@ def update_state_node(state: AgentState) -> AgentState:
     - 새로운 장소를 추가합니다
     """
     logger.info("[update_state_node] Starting state update")
-
     messages = state.get("messages", [])
 
     # 마지막 ToolMessage 찾기
@@ -32,42 +32,34 @@ def update_state_node(state: AgentState) -> AgentState:
     if not last_tool_message or not last_tool_message.content:
         logger.info("[update_state_node] No ToolMessage found")
         return {}
-
+    
+    content = last_tool_message.content
     tool_name = getattr(last_tool_message, "name", "")
     logger.info(f"[update_state_node] Processing tool: {tool_name}")
 
+    # replace_single_place의 경우 특별 처리
+    if tool_name == "replace_single_place":
+        if isinstance(content, dict):
+            return _handle_replace_single_place(state, content)
+        else:
+            logger.warning(
+                "[update_state_node] Invalid content type for replace_single_place"
+            )
+        return {}
+
     try:
-        content = last_tool_message.content
 
         # 문자열인 경우 JSON 파싱
         if isinstance(content, str):
-            try:
-                content = json.loads(content)
-            except json.JSONDecodeError:
-                logger.warning(
-                    "[update_state_node] Failed to parse tool result as JSON"
-                )
-                return {}
+            content = json.loads(content)
 
-        # replace_single_place의 경우 특별 처리
-        if tool_name == "replace_single_place":
-            if isinstance(content, dict):
-                return _handle_replace_single_place(state, content)
-            else:
-                logger.warning("[update_state_node] Invalid content type for replace_single_place")
-                return {}
-
-        # 장소 추출 (ToolResult 표준 형식 처리)
+        # 장소 추출 (dict형식으로 표준 형식 처리)
         places = extract_places_from_result(content, tool_name)
-
         if places:
-            logger.info(
-                f"[update_state_node] Updated last_recommended_places with {len(places)} places"
-            )
             return {"last_recommended_places": places}
-        else:
-            logger.info("[update_state_node] No places extracted from tool result")
-            return {}
+
+        logger.info("[update_state_node] No places extracted from tool result")
+        return {}
 
     except Exception as e:
         logger.error(f"[update_state_node] Error processing tool result: {e}")
@@ -110,7 +102,9 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
         # 새로운 장소들
         new_places_data = data.get("places", [])
         if not new_places_data:
-            logger.warning("[update_state_node] No new places in replace_single_place result")
+            logger.warning(
+                "[update_state_node] No new places in replace_single_place result"
+            )
             return {}
 
         # SimplePlace로 변환
@@ -130,9 +124,7 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
 
         # 제외된 장소 제거
         updated_places = [
-            place
-            for place in last_recommended_places
-            if place.id != replaced_place_id
+            place for place in last_recommended_places if place.id != replaced_place_id
         ]
 
         # 새로운 장소 추가

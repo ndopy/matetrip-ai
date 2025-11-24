@@ -9,7 +9,7 @@ from app.schemas.place import SimplePlace
 from app.common.logger import logger
 
 
-def extract_places_from_result(result: Any, tool_name: str) -> List[SimplePlace]:
+def extract_places_from_result(result: dict, tool_name: str) -> List[SimplePlace]:
     """
     도구 실행 결과에서 장소 목록 추출
 
@@ -23,13 +23,6 @@ def extract_places_from_result(result: Any, tool_name: str) -> List[SimplePlace]
         추출된 SimplePlace 리스트
     """
     try:
-        # result가 dict인지 확인
-        if not isinstance(result, dict):
-            logger.warning(
-                f"[extract_places_from_result] Invalid result type from {tool_name}: {type(result)}"
-            )
-            return []
-
         # 성공 여부 확인
         if not result.get("success", False):
             logger.warning(
@@ -40,7 +33,9 @@ def extract_places_from_result(result: Any, tool_name: str) -> List[SimplePlace]
         # data 필드 추출
         data = result.get("data", {})
         if not data or not isinstance(data, dict):
-            logger.info(f"[extract_places_from_result] No data in result from {tool_name}")
+            logger.info(
+                f"[extract_places_from_result] No data in result from {tool_name}"
+            )
             return []
 
         # places 필드 추출
