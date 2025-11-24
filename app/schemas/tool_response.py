@@ -6,6 +6,8 @@
 from typing import List, Optional, TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 
+from schemas.place import SimplePlace
+
 T = TypeVar("T")
 
 
@@ -44,7 +46,9 @@ class PlaceRecommendationData(BaseModel):
 
     places: List[dict] = Field(description="추천된 장소 목록 (dict 형태)")
     count: int = Field(description="추천된 장소 개수")
-    replaced_place_id: Optional[str] = Field(default=None, description="대체된 장소 ID (replace_single_place에서만 사용)")
+    replaced_place_id: Optional[str] = Field(
+        default=None, description="대체된 장소 ID (replace_single_place에서만 사용)"
+    )
 
 
 class TravelRouteData(BaseModel):
@@ -59,25 +63,28 @@ class TravelRouteData(BaseModel):
     total_days: int = Field(description="총 여행 일수")
     waypoints_count: int = Field(description="경유지 개수")
     route: List[dict] = Field(description="경유지별 상세 정보")
-    places: List[dict] = Field(default_factory=list, description="전체 장소 목록 (id, title만)")
+    places: List[SimplePlace] = Field(
+        default_factory=list, description="전체 장소 목록 (id, title만)"
+    )
 
+    # Pydantic V2 훅 중 하나 : 모델 인스턴스가 생성된 직후 자동 호출 됨
     def model_post_init(self, __context: Any) -> None:
         """
         모델 초기화 후 places 필드를 자동으로 계산
         route에서 모든 nearby_places를 평탄화하여 SimplePlace 형태로 저장
         """
         # route에서 모든 nearby_places 추출하여 SimplePlace 형태로 변환
-        all_places = []
+        all_places: List[SimplePlace] = []
         for waypoint in self.route:
-            if isinstance(waypoint, dict):
-                nearby_places = waypoint.get("nearby_places", [])
-                for place in nearby_places:
-                    if isinstance(place, dict) and "id" in place and "title" in place:
-                        # SimplePlace 형태로 변환 (id, title만)
-                        all_places.append({
-                            "id": place["id"],
-                            "title": place["title"]
-                        })
+            if not isinstance(waypoint, dict):
+                continue
+
+            for place in waypoint.get("nearby_places", []):
+                if isinstance(place, dict) and "id" in place and "title" in place:
+                    # SimplePlace 인스턴스로 강제 생성하여 타입 일치
+                    all_places.append(
+                        SimplePlace(id=str(place["id"]), title=str(place["title"]))
+                    )
 
         # places 필드에 저장
         self.places = all_places

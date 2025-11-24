@@ -10,6 +10,10 @@ from app.common.logger import logger
 from schemas.tool_response import TravelRouteData
 
 
+def is_success(result: dict) -> bool:
+    return result.get("success", False)
+
+
 def extract_places_from_result(result: dict, tool_name: str) -> List[SimplePlace]:
     """
     도구 실행 결과에서 장소 목록 추출
@@ -24,11 +28,10 @@ def extract_places_from_result(result: dict, tool_name: str) -> List[SimplePlace
         추출된 SimplePlace 리스트
     """
     # 성공 여부 확인
-    if not result.get("success", False):
-        logger.warning(
-            f"[extract_places_from_result] Tool {tool_name} failed: {result.get('error')}"
-        )
+    if is_success(result):
+        logger.warning(f"[extract_places] {tool_name} failed: {result.get('error')}")
         return []
+
     # data 필드 추출
     data = result.get("data", {})
     if not data or not isinstance(data, dict):
@@ -38,14 +41,7 @@ def extract_places_from_result(result: dict, tool_name: str) -> List[SimplePlace
     # places 필드 추출
     # PlaceRecommendationData는 places 필드를 직접 가지고 있고,
     # TravelRouteData는 places 프로퍼티를 통해 평탄화된 리스트를 반환합니다.
-    places_data = TravelRouteData.model_validate(data).places
-
-    # SimplePlace로 변환
-    places = []
-    for place in places_data:
-        if "id" in place and "title" in place:
-            places.append(SimplePlace(id=place["id"], title=place["title"]))
-
+    places: List[SimplePlace] = TravelRouteData.model_validate(data).places
     logger.info(
         f"[extract_places_from_result] Extracted {len(places)} places from {tool_name}"
     )
