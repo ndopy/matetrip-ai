@@ -26,6 +26,8 @@ def get_workspace_tools():
         """
         try:
             with httpx.Client() as client:
+                print(f"{BASE_URL}/places/search", params={"name": place_name})
+                
                 response = client.get(
                     f"{BASE_URL}/places/search", params={"name": place_name}
                 )
