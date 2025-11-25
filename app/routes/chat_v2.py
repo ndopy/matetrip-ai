@@ -132,7 +132,7 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         config: RunnableConfig = {"configurable": {"thread_id": request.session_id}}
 
         t0 = time.perf_counter()
-        loop = asyncio.get_running_loop()  #
+        loop = asyncio.get_running_loop()
         final_state = await loop.run_in_executor(
             None,
             partial(agent_graph.invoke, initial_state, config),

@@ -6,7 +6,7 @@
 from typing import List, Optional, TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 
-from schemas.place import SimplePlace
+from app.schemas.place import SimplePlace
 
 T = TypeVar("T")
 

@@ -87,7 +87,7 @@ def refine_exclude_node(state: AgentState) -> AgentState:
     """
     logger.info("[refine_exclude_node] Starting exclusion processing")
 
-    last_recommended_places = ensure_simple_places(
+    last_recommended_places: List[SimplePlace] = ensure_simple_places(
         state.get("last_recommended_places", [])
     )
     # 이전 추천이 없으면 바로 에이전트로 넘김
@@ -100,11 +100,7 @@ def refine_exclude_node(state: AgentState) -> AgentState:
 
     messages = state.get("messages", [])
     # 마지막 사용자 메시지 추출
-    user_message = get_last_human_message(messages)
-    user_message_text = (
-        user_message.content if isinstance(user_message, HumanMessage) else ""
-    )
-
+    user_message: HumanMessage = get_last_human_message(messages)
     logger.info(f"[refine_exclude_node] User message: {user_message}")
 
     # 장소 리스트를 문자열로 변환 (분석용)
@@ -116,7 +112,7 @@ def refine_exclude_node(state: AgentState) -> AgentState:
     # 제외 분석 실행
     try:
         raw_analysis = exclusion_chain.invoke(
-            {"user_message": user_message_text, "places_list": places_list}
+            {"user_message": user_message.content, "places_list": places_list}
         )
         analysis: ExclusionAnalysis = ExclusionAnalysis.model_validate(raw_analysis)
 

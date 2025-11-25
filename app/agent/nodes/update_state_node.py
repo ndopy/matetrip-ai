@@ -7,6 +7,7 @@ import json
 from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
 from app.agent.utils.place_extractor import extract_places_from_result
+from langchain_core.messages import BaseMessage
 from app.agent.utils.place_normalizer import ensure_simple_places
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
@@ -27,12 +28,12 @@ def update_state_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
 
     # 마지막 ToolMessage 찾기
-    last_tool_message = get_last_tool_message(messages)
-    if not last_tool_message or not last_tool_message.content:
+    last_tool_message: BaseMessage = get_last_tool_message(messages)
+    content = last_tool_message.content
+    if content:
         logger.info("[update_state_node] No ToolMessage found")
         return {}
 
-    content = last_tool_message.content
     tool_name = getattr(last_tool_message, "name", "")
     logger.info(f"[update_state_node] Processing tool: {tool_name}")
 
