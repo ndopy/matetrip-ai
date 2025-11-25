@@ -6,7 +6,7 @@
 import json
 from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
-from app.agent.utils.place_extractor import extract_places_from_result
+from app.agent.utils.place_extractor import extract_simple_places_from_result
 from langchain_core.messages import BaseMessage
 from app.agent.utils.place_normalizer import to_simple_places
 from app.common.logger import logger
@@ -28,7 +28,7 @@ def update_state_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
 
     # 마지막 ToolMessage 찾기
-    last_tool_message: BaseMessage = get_last_tool_message(messages)
+    last_tool_message: ToolMessage = get_last_tool_message(messages)
     content = getattr(last_tool_message, "content", None)
     if not content:
         logger.info("[update_state_node] No ToolMessage found")
@@ -53,7 +53,7 @@ def update_state_node(state: AgentState) -> AgentState:
         return {}
 
     # 장소 추출 (dict형식으로 표준 형식 처리)
-    places = extract_places_from_result(content, tool_name)
+    places = extract_simple_places_from_result(content, tool_name)
     return {"last_recommended_places": places}
 
 

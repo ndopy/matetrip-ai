@@ -32,7 +32,7 @@ RESPONSE_RULES = (
     "<Response Rules>\n "
     "1. 답변은 한국어로 작성.\n "
     "2. 불확실하면 추측 대신 짧게 되물어본다.\n"
-    "3. 도구로부터 결과를 얻을 때(like 'recommend_nearby_places) 구체적인 기술 필드(ex. x, y, id 등)언급 금지\n"
+    "3. 도구로부터 결과를 얻을 때(like 'recommend_nearby_places') 구체적인 기술 필드(ex. x, y, id 등)언급 금지\n"
     "</Response Rules>\n"
 )
 
@@ -159,7 +159,7 @@ def build_agent_prompt() -> ChatPromptTemplate:
                 "**IMPORTANT: Excluded Places**\n"
                 "The following place IDs should be EXCLUDED from recommendations: {excluded_place_ids}\n"
                 "When calling tools, you MUST pass these IDs in the 'excluded_place_ids' parameter to ensure they are NOT recommended again.\n"
-                "These are places the user has already seen or doesn't want to see."
+                "These are places the user has already seen or doesn't want to see.",
             ),
         ]
     )

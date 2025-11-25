@@ -15,7 +15,6 @@ from app.agent.nodes.refine_exclude_node import refine_exclude_node
 from app.agent.nodes.update_state_node import update_state_node
 from app.tools import create_nest_tools
 from app.common.logger import logger
-from app.schemas.place import SimplePlace
 from app.agent.state import AgentState
 
 
@@ -79,7 +78,7 @@ def create_agent_graph():
     workflow.add_conditional_edges(
         "router",
         route_by_intent,
-        {"agent": "agent", "refine_exclude": "refine_exclude"}
+        {"agent": "agent", "refine_exclude": "refine_exclude"},
     )
 
     # agent -> tools or END (도구 호출 여부에 따라 분기)

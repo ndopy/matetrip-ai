@@ -24,9 +24,7 @@ def to_string_from_places(places: List[SimplePlace]) -> str:
     )
 
 
-def _build_replacement_message(
-    excluded_place: SimplePlace
-) -> HumanMessage:
+def _build_replacement_message(excluded_place: SimplePlace) -> HumanMessage:
     """replace_single_place 호출용 프롬프트를 생성"""
     excluded_place_id = excluded_place.id
     excluded_title = excluded_place.title

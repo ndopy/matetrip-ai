@@ -1,5 +1,5 @@
 from typing import Sequence
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 from app.common.logger import logger
 
 
@@ -12,13 +12,13 @@ def get_last_human_message(messages: Sequence[BaseMessage]) -> HumanMessage:
     return HumanMessage(content="")
 
 
-def get_last_tool_message(messages: Sequence[BaseMessage]) -> BaseMessage:
+def get_last_tool_message(messages: Sequence[BaseMessage]) -> ToolMessage:
     """히스토리에서 마지막 ToolMessage만 추출"""
     for msg in reversed(messages):
-        if isinstance(msg, BaseMessage):
+        if isinstance(msg, ToolMessage):
             return msg
 
-    return BaseMessage(content="")
+    return ToolMessage(content="")
 
 
 def messages_after_last_human(messages: Sequence) -> list:

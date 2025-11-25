@@ -46,11 +46,6 @@ class BehaviorService:
             planday_id=dto.planday_id,
         )
 
-        log.info(
-            f"[행동 이벤트 저장] user_id={dto.user_id}, "
-            f"event_type={dto.event_type}, place_id={dto.place_id}, planday_id={dto.planday_id}, event_id={event_id}"
-        )
-
         # 2. 이벤트 개수 확인
         total_events = self.repository.count_user_events(dto.user_id)
 
@@ -82,9 +77,7 @@ class BehaviorService:
         )
 
         if not weighted_places:
-            log.warning(
-                f"[행동 임베딩 재생성 실패] 사용자의 행동 데이터가 없습니다. user_id={user_id}"
-            )
+            log.warning(f"[행동 임베딩 재생성 실패] 사용자의 행동 데이터가 없습니다.")
             return
 
         # 2. 시간 기반 감쇠 적용 (최근 행동에 더 높은 가중치)
@@ -187,10 +180,10 @@ class BehaviorService:
         Args:
             user_id: 사용자 ID
             date_range_days: 최근 날짜 범위 (일 단위)
-            event_types: 조회할 이벤트 타입 리스트 (기본: POI_MARK, POI_SCHEDULE)
+            event_type: 조회할 이벤트 타입
 
         Returns:
-            marking 이벤트 DTO 리스트
+            사용자 이벤트 DTO 리스트
         """
 
         return self.repository.get_user_recent_events(
