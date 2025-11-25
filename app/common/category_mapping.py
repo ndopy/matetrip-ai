@@ -49,14 +49,4 @@ CATEGORY_MAPPING = {
     "코스": "추천코스",
     "추천코스": "추천코스",
 }
-
-
-# def map_category(user_input: Optional[str]) -> Optional[str]:
-#     """사용자 입력 카테고리를 매핑 (한글 입력 기준, 소문자 변환 없이 그대로 처리)"""
-#     if not user_input:
-#         return None
-#     return CATEGORY_MAPPING.get(user_input, user_input)
-
-
-# __all__ = ["CATEGORY_MAPPING", "map_category"]
 __all__ = ["CATEGORY_MAPPING"]

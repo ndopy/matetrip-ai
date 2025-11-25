@@ -1,5 +1,6 @@
 from typing import Sequence
 from langchain_core.messages import BaseMessage, HumanMessage
+from app.common.logger import logger
 
 
 def get_last_human_message(messages: Sequence[BaseMessage]) -> HumanMessage:
@@ -18,3 +19,13 @@ def get_last_tool_message(messages: Sequence[BaseMessage]) -> BaseMessage:
             return msg
 
     return BaseMessage(content="")
+
+
+def messages_after_last_human(messages: Sequence) -> list:
+    """마지막 HumanMessage 이후의 메시지들만 반환"""
+    for idx in range(len(messages) - 1, -1, -1):
+        if getattr(messages[idx], "type", None) == "human":
+            return list(messages[idx + 1 :])
+
+    logger.warning("[extract_tool_data] No HumanMessage found")
+    return []

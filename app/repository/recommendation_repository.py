@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Sequence  # Sequence comes from typing
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from common.embedding_utils import EmbeddingUtils
+
 
 class RecommendationRepository:
     """장소 임베딩 기반 추천 쿼리 전담."""
@@ -9,18 +11,13 @@ class RecommendationRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    @staticmethod
-    def _to_vector_literal(embedding: Sequence[float]) -> str:
-        return "[" + ",".join(map(str, embedding)) + "]"
-
     def find_by_user_embedding(
         self,
         user_embedding: Sequence[float],
         limit: int,
     ) -> List[Dict[str, Any]]:
 
-        embedding_literal = self._to_vector_literal(user_embedding)
-        embedding_literal = self._to_vector_literal(user_embedding)
+        embedding_literal = EmbeddingUtils._to_vector_literal(user_embedding)
 
         sql = text(
             """
