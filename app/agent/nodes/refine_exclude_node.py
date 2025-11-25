@@ -141,7 +141,7 @@ async def refine_exclude_node(state: AgentState) -> AgentState:
 
     # 제외 분석 실행
     try:
-        raw_analysis = exclusion_chain.ainvoke(
+        raw_analysis = await exclusion_chain.ainvoke(
             {"user_message": user_message.content, "places_list": places_list}
         )
         analysis: ExclusionAnalysis = ExclusionAnalysis.model_validate(raw_analysis)

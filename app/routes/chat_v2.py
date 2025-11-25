@@ -3,12 +3,10 @@ LangGraph 기반 채팅 엔드포인트 (v2)
 기존 chat.py와 독립적으로 동작하는 새로운 API
 """
 
-import asyncio
-from functools import partial
 import time
 import json
 import re
-from typing import cast
+from typing import cast, Sequence
 from fastapi import APIRouter
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
@@ -33,22 +31,33 @@ def remove_thinking_tags(text: str) -> str:
     return re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL).strip()
 
 
+def _messages_after_last_human(messages: Sequence) -> list:
+    """마지막 HumanMessage 이후의 메시지들만 반환"""
+    for idx in range(len(messages) - 1, -1, -1):
+        if getattr(messages[idx], "type", None) == "human":
+            return list(messages[idx + 1 :])
+
+    logger.warning("[extract_tool_data] No HumanMessage found")
+    return []
+
+
 def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
     """
     LangGraph의 final_state.messages에서 ToolMessage를 찾아
     ToolCallData 리스트로 변환
 
-    특정 도구(create_travel_route, replace_single_place)는 마지막 호출만 반환합니다.
-    REFINE_EXCLUDE 의도일 경우 create_travel_route는 제외.
+    마지막 HumanMessage 이후의 ToolMessage만 처리하여
+    이전 세션의 도구 호출이 중복되지 않도록 합니다.
     """
     tool_data_list = []
-    tool_data_dict = {}  # tool_name을 키로 하는 딕셔너리
-
-    # messages에서 ToolMessage 찾기
     messages = final_state.get("messages", [])
-    intent = final_state.get("intent")
 
-    for message in messages:
+    # 마지막 HumanMessage 이후의 메시지만 처리
+    messages_after_human = _messages_after_last_human(messages)
+    if not messages_after_human:
+        return []
+
+    for message in messages_after_human:
         # ToolMessage인지 확인 (LangGraph가 도구 실행 후 추가)
         if hasattr(message, "type") and message.type == "tool":
             tool_name = getattr(message, "name", "unknown_tool")
@@ -66,20 +75,8 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
                 frontend_actions=actions,
             )
 
-            # create_travel_route와 replace_single_place는 마지막 것만 유지
-            if tool_name in ["create_travel_route", "replace_single_place"]:
-                tool_data_dict[tool_name] = tool_call_data
-            else:
-                tool_data_list.append(tool_call_data)
-
-    # 마지막 create_travel_route와 replace_single_place를 리스트에 추가
-    # 단, REFINE_EXCLUDE 의도일 경우 create_travel_route는 제외
-    for tool_name in ["create_travel_route", "replace_single_place"]:
-        if tool_name in tool_data_dict:
-            # REFINE_EXCLUDE일 때는 create_travel_route 제외
-            if intent == "REFINE_EXCLUDE" and tool_name == "create_travel_route":
-                continue
-            tool_data_list.append(tool_data_dict[tool_name])
+            # 모든 도구 호출을 리스트에 추가
+            tool_data_list.append(tool_call_data)
 
     return tool_data_list
 
@@ -132,13 +129,8 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         config: RunnableConfig = {"configurable": {"thread_id": request.session_id}}
 
         t0 = time.perf_counter()
-        loop = asyncio.get_running_loop()
-        final_state = await loop.run_in_executor(
-            None,
-            partial(agent_graph.invoke, initial_state, config),
-            # None = 기본 스레드 풀 사용하겠다는 의미
-        )
-        # final_state = agent_graph.invoke(initial_state, config)
+        # ainvoke를 사용하여 async 노드 지원
+        final_state = await agent_graph.ainvoke(initial_state, config)
         t1 = time.perf_counter()
         logger.info(f"[LangGraph_invoke완료] Execution time: {t1 - t0:.4f} seconds")
         logger.info(f"[LangGraph] Intent classified as: {final_state.get('intent')}")
