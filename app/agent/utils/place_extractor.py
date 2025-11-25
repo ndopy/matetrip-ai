@@ -34,13 +34,11 @@ def extract_places_from_result(result: dict, tool_name: str) -> List[SimplePlace
 
     # data 필드 추출
     data = result.get("data", {})
-    if not data or not isinstance(data, dict):
+    if data is None or not isinstance(data, dict):
         logger.info(f"[extract_places_from_result] No data in result from {tool_name}")
         return []
 
     # places 필드 추출
-    # PlaceRecommendationData는 places 필드를 직접 가지고 있고,
-    # TravelRouteData는 places 프로퍼티를 통해 평탄화된 리스트를 반환합니다.
     places: List[SimplePlace] = TravelRouteData.model_validate(data).places
     logger.info(
         f"[extract_places_from_result] Extracted {len(places)} places from {tool_name}"

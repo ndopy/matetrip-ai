@@ -109,7 +109,7 @@ exclusion_chain = exclusion_prompt | global_llm.with_structured_output(
 )
 
 
-def refine_exclude_node(state: AgentState) -> AgentState:
+async def refine_exclude_node(state: AgentState) -> AgentState:
     """
     사용자가 특정 장소를 제외하고 싶을 때 처리하는 노드
 
