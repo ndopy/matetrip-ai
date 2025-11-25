@@ -9,11 +9,45 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from app.agent.utils.agent_utils import get_last_human_message
-from app.agent.utils.place_normalizer import ensure_simple_places
+from app.agent.utils.place_normalizer import to_simple_places
 from app.agent.state import AgentState
 from app.common.logger import logger
 from app.core.llm import global_llm
 from app.schemas.place import SimplePlace
+
+
+def to_string_from_places(places: List[SimplePlace]) -> str:
+    """번호를 매긴 장소 목록 문자열 생성"""
+    return "\n".join(
+        f"{idx}. {place.title} (ID: {place.id})"
+        for idx, place in enumerate(places, start=1)
+    )
+
+
+def _build_replacement_message(
+    excluded_place: SimplePlace, all_existing_ids: list[str]
+) -> HumanMessage:
+    """replace_single_place 호출용 프롬프트를 생성"""
+    excluded_place_id = excluded_place.id
+    excluded_title = excluded_place.title
+
+    latitude = getattr(excluded_place, "latitude", None)
+    longitude = getattr(excluded_place, "longitude", None)
+    coord_text = (
+        f"좌표: latitude={latitude}, longitude={longitude}\n"
+        if latitude is not None and longitude is not None
+        else ""
+    )
+
+    replacement_prompt = (
+        f"사용자가 '{excluded_title}'를 제외하고 싶어합니다. "
+        f"replace_single_place 도구를 사용하여 대체 장소 1개를 추천해주세요.\n"
+        f"제외할 장소 ID: {excluded_place_id}\n"
+        f"{coord_text}"
+        f"기존 추천 장소들은 제외해주세요: {all_existing_ids}"
+    )
+
+    return HumanMessage(content=replacement_prompt)
 
 
 class ExclusionAnalysis(BaseModel):
@@ -87,7 +121,7 @@ def refine_exclude_node(state: AgentState) -> AgentState:
     """
     logger.info("[refine_exclude_node] Starting exclusion processing")
 
-    last_recommended_places: List[SimplePlace] = ensure_simple_places(
+    last_recommended_places: List[SimplePlace] = to_simple_places(
         state.get("last_recommended_places", [])
     )
     # 이전 추천이 없으면 바로 에이전트로 넘김
@@ -98,20 +132,16 @@ def refine_exclude_node(state: AgentState) -> AgentState:
         )
         return {"messages": [response_message]}
 
-    messages = state.get("messages", [])
-    # 마지막 사용자 메시지 추출
-    user_message: HumanMessage = get_last_human_message(messages)
-    logger.info(f"[refine_exclude_node] User message: {user_message}")
-
     # 장소 리스트를 문자열로 변환 (분석용)
-    places_list_parts = []
-    for i, place in enumerate(last_recommended_places):
-        places_list_parts.append(f"{i+1}. {place.title} (ID: {place.id})")
-    places_list = "\n".join(places_list_parts)
+    places_list: str = to_string_from_places(last_recommended_places)
+
+    # 마지막 사용자 메시지 추출
+    user_message: HumanMessage = get_last_human_message(state.get("messages", []))
+    logger.info(f"[refine_exclude_node] User message: {user_message}")
 
     # 제외 분석 실행
     try:
-        raw_analysis = exclusion_chain.invoke(
+        raw_analysis = exclusion_chain.ainvoke(
             {"user_message": user_message.content, "places_list": places_list}
         )
         analysis: ExclusionAnalysis = ExclusionAnalysis.model_validate(raw_analysis)
@@ -142,34 +172,14 @@ def refine_exclude_node(state: AgentState) -> AgentState:
 
         # 기존 추천 전체를 excluded_place_ids에 추가 (중복 방지)
         all_existing_ids = [place.id for place in last_recommended_places]
-
-        excluded_title = excluded_place.title
-        logger.info(f"[refine_exclude_node] Replacing place: {excluded_title}")
-
-        latitude = getattr(excluded_place, "latitude", None)
-        longitude = getattr(excluded_place, "longitude", None)
-        coord_text = (
-            f"좌표: latitude={latitude}, longitude={longitude}\n"
-            if latitude is not None and longitude is not None
-            else ""
-        )
-
-        # replace_single_place 도구 사용을 위한 프롬프트 생성
-        replacement_prompt = (
-            f"사용자가 '{excluded_title}'를 제외하고 싶어합니다. "
-            f"replace_single_place 도구를 사용하여 대체 장소 1개를 추천해주세요.\n"
-            f"제외할 장소 ID: {excluded_place_id}\n"
-            f"{coord_text}"
-            f"기존 추천 장소들은 제외해주세요: {all_existing_ids}"
-        )
-
-        # Agent로 라우팅하도록 프롬프트를 메시지로 추가
-        system_message = HumanMessage(content=replacement_prompt)
+        logger.info(f"[refine_exclude_node] Replacing place: {excluded_place.title}")
 
         # Agent로 다시 라우팅하도록 intent 변경
-        # excluded_place_ids를 state에 설정하여 도구가 이미 본 장소를 제외하도록 함
+        prompt: HumanMessage = _build_replacement_message(
+            excluded_place, all_existing_ids
+        )
         return {
-            "messages": [system_message],
+            "messages": [prompt],  # Agent로 라우팅하도록 프롬프트를 메시지로 추가
             "excluded_place_ids": all_existing_ids,
             "intent": "REFINEMENT",  # Agent로 라우팅
         }
@@ -186,7 +196,7 @@ def _get_excluded_place_ids(
     places: List[SimplePlace], analysis: ExclusionAnalysis
 ) -> List[str]:
     """
-    분석 결과를 기반으로 제외할 장소 ID 리스트 추출
+    분석 결과를 기반으로 제외할 장소 ID 리스트 추출 (우선순위 보장)
 
     Args:
         places: 원본 장소 리스트
@@ -195,31 +205,30 @@ def _get_excluded_place_ids(
     Returns:
         제외할 장소 ID 리스트
     """
-    excluded_ids = []
+    excluded_ids: list[str] = []
+    existing_ids = {place.id for place in places}
 
-    for i, place in enumerate(places):
-        should_exclude = False
-        title = place.title
-        pid = place.id
-
-        # 1. 인덱스로 제외 (1-based)
-        if (i + 1) in analysis.excluded_indices:
-            should_exclude = True
-            logger.info(f"Excluding place by index {i+1}: {title}")
-
-        # 2. ID로 제외
-        if pid in analysis.excluded_place_ids:
-            should_exclude = True
-            logger.info(f"Excluding place by ID: {title}")
-
-        # 3. 키워드로 제외 (title에 키워드가 포함되어 있으면 제외)
-        for keyword in analysis.excluded_keywords:
-            if keyword.lower() in title.lower():
-                should_exclude = True
-                logger.info(f"Excluding place by keyword '{keyword}': {title}")
-                break
-
-        if should_exclude:
+    def _add(pid: str):
+        if pid and pid in existing_ids and pid not in excluded_ids:
             excluded_ids.append(pid)
+
+    # 1) 명시적 ID 우선
+    for pid in analysis.excluded_place_ids:
+        _add(pid)
+
+    # 2) 인덱스 기반 (1-based)
+    for idx in analysis.excluded_indices:
+        if 1 <= idx <= len(places):
+            _add(places[idx - 1].id)
+
+    # 3) 키워드 기반 (title 매칭 순서대로)
+    if analysis.excluded_keywords:
+        for place in places:
+            title = place.title
+            for keyword in analysis.excluded_keywords:
+                if keyword.lower() in title.lower():
+                    logger.info(f"Excluding place by keyword '{keyword}': {title}")
+                    _add(place.id)
+                    break
 
     return excluded_ids

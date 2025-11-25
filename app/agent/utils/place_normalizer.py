@@ -5,7 +5,7 @@ from typing import Iterable, List
 from app.schemas.place import SimplePlace
 
 
-def ensure_simple_places(
+def to_simple_places(
     places_data: Iterable[SimplePlace | dict],
 ) -> List[SimplePlace]:
     """dict/Model 혼합 입력을 SimplePlace 리스트로 정규화."""
