@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import httpx
@@ -394,34 +395,25 @@ def get_place_tools():
             longitude: 기준 경도
             category: 추천받을 카테고리 (선택사항)
             radius_km: 검색 반경 (km 단위, 기본값: 5km)
-            excluded_place_ids: 제외할 장소 ID 목록 (이미 추천된 장소들 + 대체할 장소)
+            excluded_place_ids: 제외할 장소 ID 목록 (리스트 형식, 예: ["id1", "id2", "id3"])
+                **중요**: 반드시 리스트(list) 타입으로 전달해야 합니다. 문자열로 전달하지 마세요.
 
         Returns:
             대체할 장소 1개
 
         사용 예시:
             - 사용자: "한라수목원 대신 다른 거 없어?"
-            - excluded_place_id: 한라수목원 ID
-            - excluded_place_ids: [한라수목원 ID, 나머지 8개 장소 IDs]
+            - excluded_place_id: "b648df96-5325-4b06-ba09-95f848ea86f5"
+            - excluded_place_ids: ["b648df96-5325-4b06-ba09-95f848ea86f5", "c016f3f3-9cec-4544-abfb-2f4b7c786c6a"]
             - 결과: 한라수목원이 있던 위치에서 새로운 장소 1개 추천
         """
         try:
             # 카테고리 정규화
             mapped_category = normalize_category(category)
-
             # excluded_place_ids에 excluded_place_id가 포함되어 있는지 확인
             all_excluded_ids = excluded_place_ids or []
             if excluded_place_id not in all_excluded_ids:
                 all_excluded_ids.append(excluded_place_id)
-
-            # NearbyPlaceRequest 생성 (limit=1로 1개만 요청)
-            search_request = NearbyPlaceRequest.from_coordinates(
-                latitude=latitude,
-                longitude=longitude,
-                radius_km=radius_km,
-                category=mapped_category,
-                limit=1,  # 1개만 추천
-            )
 
             # PlaceService 호출
             db = next(get_db())
@@ -444,7 +436,10 @@ def get_place_tools():
 
                 # Place 엔티티를 dict로 변환
                 from app.schemas.place import NearbyPlaceResponse
-                place_responses = [NearbyPlaceResponse.from_entity(place) for place in places]
+
+                place_responses = [
+                    NearbyPlaceResponse.from_entity(place) for place in places
+                ]
                 place_dicts = [place.model_dump() for place in place_responses]
 
                 return ToolResult(
@@ -466,4 +461,8 @@ def get_place_tools():
                 success=False, error=f"장소 대체 중 에러 발생: {str(e)}"
             ).model_dump()
 
-    return [recommend_popular_places_in_region, recommend_nearby_places, replace_single_place]
+    return [
+        recommend_popular_places_in_region,
+        recommend_nearby_places,
+        replace_single_place,
+    ]

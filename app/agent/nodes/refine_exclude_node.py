@@ -25,7 +25,7 @@ def to_string_from_places(places: List[SimplePlace]) -> str:
 
 
 def _build_replacement_message(
-    excluded_place: SimplePlace, all_existing_ids: list[str]
+    excluded_place: SimplePlace
 ) -> HumanMessage:
     """replace_single_place 호출용 프롬프트를 생성"""
     excluded_place_id = excluded_place.id
@@ -44,7 +44,7 @@ def _build_replacement_message(
         f"replace_single_place 도구를 사용하여 대체 장소 1개를 추천해주세요.\n"
         f"제외할 장소 ID: {excluded_place_id}\n"
         f"{coord_text}"
-        f"기존 추천 장소들은 제외해주세요: {all_existing_ids}"
+        f"기존 추천 장소들은 excluded_place_ids 파라미터로 자동 전달됩니다."
     )
 
     return HumanMessage(content=replacement_prompt)
@@ -192,7 +192,7 @@ def _build_replacement_response(
 
     # Agent로 다시 라우팅하도록 intent 변경
     # excluded_place_ids를 state에 설정하여 도구가 이미 본 장소를 제외하도록 함
-    prompt: HumanMessage = _build_replacement_message(excluded_place, all_existing_ids)
+    prompt: HumanMessage = _build_replacement_message(excluded_place)
     return {
         "messages": [prompt],  # Agent로 라우팅하도록 프롬프트를 메시지로 추가
         "excluded_place_ids": all_existing_ids,
@@ -234,10 +234,8 @@ def _get_excluded_place_ids(
     # 3) 키워드 기반 (title 매칭 순서대로)
     if analysis.excluded_keywords:
         for place in places:
-            title = place.title
             for keyword in analysis.excluded_keywords:
-                if keyword.lower() in title.lower():
-                    logger.info(f"Excluding place by keyword '{keyword}': {title}")
+                if keyword.lower() in place.title.lower():
                     pid = place.id
                     if pid and pid in existing_ids and pid not in seen:
                         excluded_ids.append(pid)
