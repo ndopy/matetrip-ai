@@ -108,14 +108,29 @@ def get_route_tools():
         - **김영해변 카페** (제주 서귀포시...)
           오션뷰, 여유로운 분위기"
         """
+        # 입력값 검증
         if not waypoints or len(waypoints) == 0:
             return ToolResult(
                 success=False, error="최소 1개 이상의 경유지를 지정해주세요."
             ).model_dump()
 
+        # 경유지 개수 제한 (최대 5개)
+        if len(waypoints) > 5:
+            return ToolResult(
+                success=False,
+                error=f"경유지는 최대 5개까지 지정할 수 있습니다. (현재: {len(waypoints)}개)",
+            ).model_dump()
+
         if days <= 0:
             return ToolResult(
                 success=False, error="여행 일수는 최소 1일 이상이어야 합니다."
+            ).model_dump()
+
+        # 경유지당 추천 개수 제한 (최대 5개)
+        if nearby_places_per_waypoint > 5:
+            return ToolResult(
+                success=False,
+                error=f"경유지당 추천 장소는 최대 5개까지 가능합니다. (현재: {nearby_places_per_waypoint}개)",
             ).model_dump()
 
         logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
