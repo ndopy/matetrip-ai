@@ -67,17 +67,17 @@ def run_performance_test():
             print()
 
             # 1. PostGIS 공간 인덱스 사용
-            # print("  [방법 1] PostGIS 공간 인덱스 사용")
-            # places_postgis, time_postgis = measure_time(
-            #     service.find_nearby_places,
-            #     latitude=test_case["latitude"],
-            #     longitude=test_case["longitude"],
-            #     radius_km=test_case["radius_km"],
-            #     category=test_case["category"],
-            #     limit=test_case["limit"],
-            # )
-            # print(f"    ⏱️  실행 시간: {time_postgis:.4f}초")
-            # print(f"    📍 결과 개수: {len(places_postgis)}개")
+            print("  [방법 1] PostGIS 공간 인덱스 사용")
+            places_postgis, time_postgis = measure_time(
+                service.find_nearby_places,
+                latitude=test_case["latitude"],
+                longitude=test_case["longitude"],
+                radius_km=test_case["radius_km"],
+                category=test_case["category"],
+                limit=test_case["limit"],
+            )
+            print(f"실행 시간: {time_postgis:.4f}초")
+            print(f"결과 개수: {len(places_postgis)}개")
 
             # 2. Haversine 공식 (공간 인덱스 미사용)
             print()
@@ -90,30 +90,30 @@ def run_performance_test():
                 category=test_case["category"],
                 limit=test_case["limit"],
             )
-            print(f"    ⏱️  실행 시간: {time_haversine:.4f}초")
-            print(f"    📍 결과 개수: {len(places_haversine)}개")
+            print(f"실행 시간: {time_haversine:.4f}초")
+            print(f"결과 개수: {len(places_haversine)}개")
 
-            # # 성능 비교
-            # print()
-            # if time_haversine > 0:
-            #     speedup = time_haversine / time_postgis
-            #     percentage = ((time_haversine - time_postgis) / time_haversine) * 100
-            #     print(f"  📊 성능 비교:")
-            #     print(f"    - PostGIS가 {speedup:.2f}배 빠름")
-            #     print(f"    - PostGIS가 {percentage:.1f}% 더 빠름")
+            # 성능 비교
+            print()
+            if time_haversine > 0:
+                speedup = time_haversine / time_postgis
+                percentage = ((time_haversine - time_postgis) / time_haversine) * 100
+                print(f"성능 비교:")
+                print(f"- PostGIS가 {speedup:.2f}배 빠름")
+                print(f"- PostGIS가 {percentage:.1f}% 더 빠름")
 
-            # # 결과 샘플 출력 (상위 3개)
-            # if places_postgis:
-            #     print()
-            #     print("  📍 PostGIS 결과 샘플 (상위 3개):")
-            #     for i, place in enumerate(places_postgis[:3], 1):
-            #         print(f"    {i}. {place.title} ({place.address})")
+            # 결과 샘플 출력 (상위 3개)
+            if places_postgis:
+                print()
+                print("PostGIS 결과 샘플 (상위 3개):")
+                for i, place in enumerate(places_postgis[:3], 1):
+                    print(f"    {i}. {place.title} ({place.address})")
 
-            # if places_haversine:
-            #     print()
-            #     print("  📍 Haversine 결과 샘플 (상위 3개):")
-            #     for i, place in enumerate(places_haversine[:3], 1):
-            #         print(f"    {i}. {place.title} ({place.address})")
+            if places_haversine:
+                print()
+                print("Haversine 결과 샘플 (상위 3개):")
+                for i, place in enumerate(places_haversine[:3], 1):
+                    print(f"    {i}. {place.title} ({place.address})")
 
             print()
             print("-" * 80)

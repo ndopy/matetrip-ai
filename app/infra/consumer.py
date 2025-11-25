@@ -28,10 +28,14 @@ from app.schemas.rabbitmq_schema import (
 load_dotenv(PROJECT_ROOT / ".env")
 
 
-rabbitmq_url = os.getenv("AWS_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+rabbitmq_url = os.getenv("AWS_RABBITMQ_URL")
 _raw_profile_queue = os.getenv("RABBITMQ_PROFILE_QUEUE")
 _raw_behavior_queue = os.getenv("RABBITMQ_BEHAVIOR_QUEUE")
-if (_raw_profile_queue is None) or (_raw_behavior_queue is None):
+if (
+    (rabbitmq_url is None)
+    or (_raw_profile_queue is None)
+    or (_raw_behavior_queue is None)
+):
     raise ValueError("환경변수로부터 QUEUE이름을 불러오지 못 했습니다.")
 
 profile_queue: Final[str] = _raw_profile_queue
@@ -72,6 +76,8 @@ def consume_behavior_embedding(channel, method, properties, body):
 
 def create_consumer():
     logger.info(f"RabbitMQ 연결 시도: {rabbitmq_url}")
+    if rabbitmq_url is None:
+        raise ValueError("RabbitMQ 연결 문자열을 찾을 수 없습니다.")
     params = pika.URLParameters(rabbitmq_url)
     params.blocked_connection_timeout = 300  # 5min
     params.heartbeat = 60  # 1분마다 heartbeat

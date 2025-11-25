@@ -1,7 +1,5 @@
 """
 이미 DB에 수집된 장소들에 대해 전체 파이프라인을 **병렬**로 실행하는 스크립트
-
-주요 개선사항:
 1. 병렬 배치 처리 (동시에 N개씩 처리)
 2. 재시작 가능 (이미 처리된 장소 건너뛰기)
 3. 진행률 추적 (매 10개마다 로그)
@@ -22,7 +20,6 @@
     # 테스트 (10개만, 배치 크기 3)
     uv run python scripts/process_existing_places_parallel.py --limit 10 --batch-size 3
 """
-
 import sys
 import os
 import asyncio

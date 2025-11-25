@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
+from pydantic import ConfigDict
 from sqlalchemy import TEXT, TIMESTAMP, Numeric, Integer, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
@@ -62,6 +63,8 @@ class UserBehaviorEvent(Base):
         index=True,
     )
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserBehaviorEmbedding(Base):
     """사용자별 집계된 행동 임베딩"""
@@ -98,3 +101,5 @@ class UserBehaviorEmbedding(Base):
     total_events_count: Mapped[int] = mapped_column(
         Integer, server_default="0", nullable=False
     )
+
+    model_config = ConfigDict(from_attributes=True)

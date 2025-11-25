@@ -208,6 +208,7 @@ class PlaceService:
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
 
+    # 테스트 비교용(product 환경에서 안쓰는 메서드)
     def find_nearby_places_haversine(
         self,
         latitude: float,

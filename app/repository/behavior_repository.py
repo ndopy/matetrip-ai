@@ -7,33 +7,21 @@ from sqlalchemy.orm import Session
 
 from app.common.embedding_utils import EmbeddingUtils
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
-from app.models.user import User  # noqa: F401
-from app.models.workspace import Workspace  # noqa: F401
-from app.models.plan_day import PlanDay  # noqa: F401
-
-# Place를 import하기 전에 PlaceReview를 먼저 import (relationship 초기화를 위해)
-from app.models.review import PlaceReview  # noqa: F401
 from app.models.place import Place
 from app.schemas.behavior import (
     UserEventResDto,
     WeightedPlaceEmbeddingDto,
 )
 from app.enums.user_behavior import BehaviorEventType
+
 logger = logging.getLogger(__name__)
+
 
 class BehaviorRepository:
     """사용자 행동 이벤트 및 임베딩 저장/조회 전담"""
 
     def __init__(self, db: Session) -> None:
         self._db = db
-
-    @staticmethod
-    def _to_vector_literal(embedding: Sequence[float]) -> str:
-        """임베딩 배열을 PostgreSQL vector 리터럴로 변환"""
-        if not all(isinstance(x, (int, float)) for x in embedding):
-            raise ValueError("Embedding must contain only numeric values")
-
-        return "[" + ",".join(map(str, embedding)) + "]"
 
     # ===== user_behavior_events 관련 =====
 
@@ -100,7 +88,7 @@ class BehaviorRepository:
     ) -> None:
         """사용자의 행동 임베딩을 저장 또는 업데이트 (ORM + Raw SQL)"""
         # pgvector는 ORM에서 직접 upsert가 까다로우므로 raw SQL 사용
-        embedding_literal = self._to_vector_literal(behavior_embedding)
+        embedding_literal = EmbeddingUtils._to_vector_literal(behavior_embedding)
 
         sql = text(
             """
@@ -133,7 +121,7 @@ class BehaviorRepository:
         except Exception as e:
             logger.error("Failed to upsert behavior embedding: %s", e)
             self._db.rollback()
-            
+
     def get_behavior_embedding(self, user_id: UUID) -> Optional[UserBehaviorEmbedding]:
         """특정 사용자의 행동 임베딩 조회"""
         stmt = select(UserBehaviorEmbedding).where(
