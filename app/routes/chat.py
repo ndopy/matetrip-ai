@@ -52,7 +52,6 @@ router_prompt = ChatPromptTemplate.from_messages(
                 "- Single location names like '부산', '서울', '제주', '해운대' are REFINEMENT if AI asked for location\n"
                 "- Only classify as NEW_SEARCH if user provides a COMPLETE new query with different context"
                 "- If the user mentions **ordinal numbers** (first, 1st, second, 2nd) or **demonstratives** (this, that, there), it is **NEVER** 'NEW_SEARCH'. Classify as 'REFINEMENT' or 'FOLLOW_UP'.\n"
-                "- Only classify as NEW_SEARCH if user provides a COMPLETE new query with different context."
             ),
         ),
         MessagesPlaceholder(variable_name="chat_history"),

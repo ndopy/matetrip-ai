@@ -35,3 +35,11 @@ class EmbeddingUtils:
             return [float(component) for component in value]
 
         raise TypeError(f"Unsupported embedding value type: {type(value)!r}")
+
+    @staticmethod
+    def _to_vector_literal(embedding: Sequence[float]) -> str:
+        """임베딩 배열을 PostgreSQL vector 리터럴로 변환"""
+        if not all(isinstance(x, (int, float)) for x in embedding):
+            raise ValueError("Embedding must contain only numeric values")
+
+        return "[" + ",".join(map(str, embedding)) + "]"

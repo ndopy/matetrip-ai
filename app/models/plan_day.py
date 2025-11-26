@@ -1,6 +1,7 @@
 from typing import Optional
 from uuid import UUID, uuid4
 from datetime import datetime, date
+from pydantic import ConfigDict
 from sqlalchemy import INTEGER, DATE, TIMESTAMP, ForeignKey, func, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -40,3 +41,4 @@ class PlanDay(Base):
     plan_date: Mapped[Optional[date]] = mapped_column(DATE, nullable=True)
 
     __table_args__ = (CheckConstraint("day_no >= 1", name="check_day_no_positive"),)
+    model_config = ConfigDict(from_attributes=True)

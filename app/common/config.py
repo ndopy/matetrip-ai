@@ -35,33 +35,6 @@ class NaverSearchConfig(BaseSettings):
     )
 
 
-class EmbeddingConfig(BaseSettings):
-    LOCAL_EMBEDDING_MODEL: str = Field(
-        default="jhgan/ko-sroberta-multitask",
-        description="SentenceTransformer model name for local embeddings",
-    )
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
-class OpenAIConfig(BaseSettings):
-    OPENAI_API_KEY: str = Field(default="", description="OpenAI API Key")
-    OPENAI_MODEL: str = Field(default="gpt-4o-mini", description="OpenAI Model")
-    OPENAI_EMBEDDING_MODEL: str = Field(
-        default="text-embedding-3-small", description="OpenAI Embedding Model"
-    )
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
 class BedRockConfig(BaseSettings):
     AWS_REGION: str = Field(default="us-east-1", description="AWS Region")
     BEDROCK_EMBEDDING_MODEL_ID: str = Field(
@@ -141,10 +114,8 @@ class RabbitMQConfig(BaseSettings):
     )
 
 
-openaiConfig = OpenAIConfig()
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
-embeddingConfig = EmbeddingConfig()
 bedrockConfig = BedRockConfig()
 tourAPIConfig = TourAPIConfig()
 kakaoMobilityConfig = KakaoMobilityConfig()

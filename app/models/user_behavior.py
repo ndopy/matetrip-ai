@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 from datetime import datetime
+from pydantic import ConfigDict
 from sqlalchemy import TEXT, TIMESTAMP, Numeric, Integer, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID

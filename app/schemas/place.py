@@ -1,6 +1,6 @@
 from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from app.enums.place import RegionGroupType
 
@@ -166,10 +166,21 @@ class PopularPlaceResponse(BaseModel):
     latitude: float = Field(..., description="위도")
     longitude: float = Field(..., description="경도")
     region: Optional[str] = Field(None, description="지역")
-    popularity_score: int = Field(
-        0, description="인기도 점수 (마크/일정 추가 횟수)"
-    )
+    popularity_score: int = Field(0, description="인기도 점수 (마크/일정 추가 횟수)")
 
     model_config = {
         "from_attributes": True,
     }
+
+
+class SimplePlace(BaseModel):
+    id: str = Field(..., description="장소 ID")
+    title: str = Field(..., description="장소명")
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+    def __getitem__(self, key):
+        """딕셔너리처럼 접근 가능하도록"""
+        return getattr(self, key)

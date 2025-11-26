@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.place import Place
 from app.service.crawling.crawl_service import CrawlService
 from app.service.crawling.naver_search_service import NaverSearchService
-from app.service.review_service import ReviewService
+from app.service.crawling.review_service import ReviewService
 from app.service.crawling.bedrock_llm_service import BedrockLLMService
 from app.service.crawling.review_filter_service import ReviewFilterService
 from app.service.place_embedding_service import PlaceEmbeddingService
@@ -154,6 +154,7 @@ class PlaceService:
         radius_km: float = 5.0,
         category: Optional[str] = None,
         limit: int = 10,
+        excluded_place_ids: Optional[List[str]] = None,
     ) -> List[Place]:
         """
         주변 장소를 검색합니다.
@@ -164,6 +165,7 @@ class PlaceService:
             radius_km: 검색 반경 (km)
             category: 카테고리 (예: '음식', '숙박', '레포츠' 등)
             limit: 최대 결과 개수
+            excluded_place_ids: 제외할 장소 ID 리스트
 
         Returns:
             거리순으로 정렬된 장소 리스트
@@ -175,6 +177,7 @@ class PlaceService:
             radius_km=radius_km,
             category=category,
             limit=limit,
+            excluded_place_ids=excluded_place_ids or [],
         )
 
     def get_nearby_place(
@@ -205,6 +208,7 @@ class PlaceService:
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
 
+    # 테스트 비교용(product 환경에서 안쓰는 메서드)
     def find_nearby_places_haversine(
         self,
         latitude: float,
