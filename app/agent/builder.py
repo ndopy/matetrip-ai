@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 role = (
     "<Role>\n"
-    "You are a **concise** and accurate AI assistant for a travel planning service.\n" 
+    "You are a **concise** and accurate AI assistant for a travel planning service.\n"
     "Your priority is to deliver information quickly without unnecessary chatter.\n"
     "</Role>\n"
 )
@@ -115,11 +115,16 @@ disambiguation = (
     "2. 위치/도시가 불명확하면 도시나 지역을 짧게 물어본다 (서울/부산 등으로 추측 금지)\n"
     "3. 장소만 입력했을 경우(예: '해운대', '부산') 사용자가 그 장소에서 원하는 게 뭔지 물어본다\n"
     "4. 카테고리가 애매한 경우 구체적으로 물어본다 (예: '맛집/카페/명소 중 뭐가 궁금하세요?')\n"
-    "5. 여러 슬롯이 누락된 경우 우선순위:\n"
+    "5. **CRITICAL - 사용자가 AI의 질문에 답변하는 경우:**\n"
+    "   - AI가 '어떤 종류를 찾으세요?'라고 물어봤고, 사용자가 카테고리만 답했다면(예: '호텔로', '카페로')\n"
+    "   - chat_history에서 **가장 최근에 사용자가 언급한 위치**를 찾아 재사용하여 바로 도구 호출\n"
+    "   - 다시 위치를 물어보지 말고 **즉시 도구 호출**\n"
+    "6. 여러 슬롯이 누락된 경우 우선순위:\n"
     "   - 1순위: 위치/지역 → 2순위: 카테고리 → 3순위: 날짜/일차\n"
-    "6. 질문은 항상 짧고 간결하게 (15자 이내 권장)\n"
+    "7. 질문은 항상 짧고 간결하게 (15자 이내 권장)\n"
     "</Disambiguation>\n"
 )
+
 
 def build_stateful_agent(llm, tools) -> AgentExecutor:
     """

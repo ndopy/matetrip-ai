@@ -145,11 +145,16 @@ def get_place_tools():
     def recommend_popular_places_in_region(
         region: str,
         category: Optional[str] = None,
-        limit: int = 20,
+        limit: int = 10,
     ):
         """
-        **ONLY use for these broad regions: '서울', '부산', '대전', '대구', '광주', '울산', '세종', '인천', '제주도', '강원도', '경기도', '경상도', '전라도', '충청도'**
-        **For specific locations (like '강남', '홍대') → use recommend_nearby_places instead!**
+        **[PRIMARY TOOL for BROAD regions]**
+        **CRITICAL: This is the MAIN tool when user asks about popular/famous places in BROAD regions!**
+
+        **ONLY use for these broad regions:**
+        '서울', '부산', '대전', '대구', '광주', '울산', '세종', '인천', '제주도', '제주', '강원도', '강원', '경기도', '경기', '경상도', '전라도', '충청도'
+
+        **For specific locations (like '강남', '홍대', '해운대', '경주', '전주') → use recommend_nearby_places instead!**
 
         광역 지역 또는 광역시에서 인기 있는 장소를 추천합니다.
 
@@ -159,7 +164,7 @@ def get_place_tools():
         Args:
             region: 광역 지역명 또는 광역시명
                 - 광역시: '서울', '부산', '대전', '대구', '광주', '인천', '울산', '세종'
-                - 광역 지역: '제주도', '강원도', '경기도', '경상도', '전라도', '충청도'
+                - 광역 지역: '제주도', '제주', '강원도', '강원', '경기도', '경기', '경상도', '전라도', '충청도'
             category: 추천받을 카테고리 (선택사항)
                 - '음식' 또는 '맛집': 레스토랑, 카페 등
                 - '숙박' 또는 '호텔': 호텔, 펜션, 게스트하우스, 캠핑장 등
@@ -171,8 +176,10 @@ def get_place_tools():
             limit: 추천할 장소 개수 (기본값: 20개)
 
         올바른 사용 예시:
+            - "제주도 인기장소" → recommend_popular_places_in_region("제주도", None, 10)
             - "제주도에서 놀려고 하는데 사람들이 많이 가는 곳 추천해줘"
               → recommend_popular_places_in_region("제주도", None, 10)
+            - "제주 핫플" → recommend_popular_places_in_region("제주", None, 10)
             - "부산에서 사람들이 많이 찾는 맛집 알려줘"
               → recommend_popular_places_in_region("부산", "음식", 10)
             - "서울에서 인기 많은 관광지 5곳만"

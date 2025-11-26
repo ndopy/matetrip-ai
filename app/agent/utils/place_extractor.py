@@ -9,6 +9,10 @@ from app.schemas.place import SimplePlace
 from app.common.logger import logger
 from app.schemas.tool_response import ToolResult, TravelRouteData
 
+# PlaceRecommendationData: places, count만 포함
+# (recommend_popular_places_in_region, recommend_nearby_places, replace_single_place)
+from app.schemas.tool_response import PlaceRecommendationData
+
 
 def is_success(result: dict) -> bool:
     return result.get("success", False)
@@ -36,7 +40,19 @@ def extract_simple_places_from_result(
         logger.info(f"[extract_places_from_result] No data in result from {tool_name}")
         return []
 
-    places: List[SimplePlace] = TravelRouteData.model_validate(data).places
+    # 도구별로 다른 스키마 사용
+    if tool_name == "create_travel_route":
+        # TravelRouteData: total_days, waypoints_count, route, places 포함
+        places: List[SimplePlace] = TravelRouteData.model_validate(data).places
+    else:
+        place_data = PlaceRecommendationData.model_validate(data)
+        # dict를 SimplePlace로 변환
+        places = [
+            SimplePlace(id=str(p.get("id", "")), title=str(p.get("title", "")))
+            for p in place_data.places
+            if isinstance(p, dict) and "id" in p and "title" in p
+        ]
+
     logger.info(
         f"[extract_places_from_result] Extracted {len(places)} places from {tool_name}"
     )
