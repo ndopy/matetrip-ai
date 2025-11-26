@@ -9,7 +9,7 @@ from typing import cast
 from fastapi import APIRouter
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-from agent.utils.agent_utils import messages_after_last_human
+from app.agent.utils.agent_utils import messages_after_last_human
 from app.agent.graph import agent_graph, AgentState
 from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData
 from app.core.constants import TOOL_ACTION_MAP

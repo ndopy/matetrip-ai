@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, Type, TypeVar
 from pydantic import BaseModel, ValidationError
 from app.database.database import get_db
-from service.behavior_service import BehaviorService
+from app.service.behavior_service import BehaviorService
 from app.schemas.behavior import SaveBehaviorEventDto
 from app.common.logger import logger
 from app.schemas.rabbitmq_schema import (
