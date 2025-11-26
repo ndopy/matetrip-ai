@@ -4,13 +4,19 @@
 """
 
 import json
+from app.agent.nodes.node_enums import NON_RECOMMENDATION_TOOLS
 from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
 from app.agent.utils.place_extractor import extract_simple_places_from_result
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, ToolMessage
 from app.agent.utils.place_normalizer import to_simple_places
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
+
+
+def _is_place_recommendation_tool(tool_name: str) -> bool:
+    """장소 추천 결과를 반환하는 도구인지 여부"""
+    return tool_name not in NON_RECOMMENDATION_TOOLS
 
 
 def update_state_node(state: AgentState) -> AgentState:
@@ -36,6 +42,13 @@ def update_state_node(state: AgentState) -> AgentState:
 
     tool_name = getattr(last_tool_message, "name", "")
     logger.info(f"[update_state_node] Processing tool: {tool_name}")
+
+    # 장소 추천 도구가 아닌 경우 상태 업데이트 불필요
+    if not _is_place_recommendation_tool(tool_name):
+        logger.info(
+            f"[update_state_node] Skipping state update for non-recommendation tool: {tool_name}"
+        )
+        return {}
 
     # replace_single_place의 경우 특별 처리
     if tool_name == "replace_single_place":
