@@ -45,6 +45,7 @@ def update_state_node(state: AgentState) -> AgentState:
     logger.info(f"[update_state_node] Processing tool: {tool_name}")
 
     # create_travel_route 도구인 경우 Backend에 알림
+    # todo: 이렇게 처리말고 더 좋은 패턴 없는지 확인
     if tool_name == "create_travel_route":
         handle_travel_route_notification(state, content)
 
