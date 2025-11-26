@@ -6,7 +6,8 @@
 from typing import List, Optional, TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 
-from app.schemas.place import SimplePlace
+from app.schemas.place import NearbyPlaceResponse, SimplePlace
+from app.schemas.route_tool import TravelRouteWaypoint
 
 T = TypeVar("T")
 
@@ -62,7 +63,7 @@ class TravelRouteData(BaseModel):
 
     total_days: int = Field(description="총 여행 일수")
     waypoints_count: int = Field(description="경유지 개수")
-    route: List[dict] = Field(description="경유지별 상세 정보")
+    route: List[TravelRouteWaypoint] = Field(description="경유지별 상세 정보")
     places: List[SimplePlace] = Field(
         default_factory=list, description="전체 장소 목록 (id, title만)"
     )
@@ -73,18 +74,19 @@ class TravelRouteData(BaseModel):
         모델 초기화 후 places 필드를 자동으로 계산
         route에서 모든 nearby_places를 평탄화하여 SimplePlace 형태로 저장
         """
-        # route에서 모든 nearby_places 추출하여 SimplePlace 형태로 변환
-        all_places: List[SimplePlace] = []
+        flattened_places: List[SimplePlace] = []
+
         for waypoint in self.route:
-            if not isinstance(waypoint, dict):
-                continue
+            waypoint = TravelRouteWaypoint.model_validate(waypoint)
+            for place in waypoint.nearby_places:
+                if not isinstance(place, NearbyPlaceResponse):
+                    try:
+                        place = NearbyPlaceResponse.model_validate(place)
+                    except Exception:
+                        continue
 
-            for place in waypoint.get("nearby_places", []):
-                if isinstance(place, dict) and "id" in place and "title" in place:
-                    # SimplePlace 인스턴스로 강제 생성하여 타입 일치
-                    all_places.append(
-                        SimplePlace(id=str(place["id"]), title=str(place["title"]))
-                    )
+                flattened_places.append(
+                    SimplePlace(id=str(place.id), title=str(place.title))
+                )
 
-        # places 필드에 저장
-        self.places = all_places
+        self.places = flattened_places

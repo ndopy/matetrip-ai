@@ -8,8 +8,9 @@ from app.agent.nodes.node_enums import NON_RECOMMENDATION_TOOLS
 from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
 from app.agent.utils.place_extractor import extract_simple_places_from_result
-from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.messages import ToolMessage
 from app.agent.utils.place_normalizer import to_simple_places
+from app.agent.services.travel_route_notifier import handle_travel_route_notification
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
 
@@ -42,6 +43,11 @@ def update_state_node(state: AgentState) -> AgentState:
 
     tool_name = getattr(last_tool_message, "name", "")
     logger.info(f"[update_state_node] Processing tool: {tool_name}")
+
+    # create_travel_route 도구인 경우 Backend에 알림
+    # todo: 이렇게 처리말고 더 좋은 패턴 없는지 확인
+    if tool_name == "create_travel_route":
+        handle_travel_route_notification(state, content)
 
     # 장소 추천 도구가 아닌 경우 상태 업데이트 불필요
     if not _is_place_recommendation_tool(tool_name):

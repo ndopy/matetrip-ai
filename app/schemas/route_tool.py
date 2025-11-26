@@ -11,6 +11,10 @@ class TravelRouteWaypoint(BaseModel):
 
     waypoint_name: str = Field(..., description="경유지 이름")
     waypoint_index: int = Field(..., description="경유지 순서 (0부터 시작)")
+    day: int = Field(..., description="여행 일자 (1부터 시작, 1일차, 2일차 등)")
+    sequence_in_day: int = Field(
+        ..., description="해당 일자 내에서의 순서 (0부터 시작)"
+    )
     coordinates: Optional[Coordinate] = Field(
         None, description="경유지 좌표 (위치 찾기 실패 시 None)"
     )
@@ -28,3 +32,6 @@ class TravelRouteResponse(BaseModel):
     total_days: int = Field(..., description="총 여행 일수")
     waypoints_count: int = Field(..., description="경유지 개수")
     route: List[TravelRouteWaypoint] = Field(..., description="경유지별 추천 결과")
+
+
+# todo: TravelRouteResponse랑 TravelRouteData 뭔가 겹치는 느낌인데....
