@@ -137,30 +137,13 @@ def get_route_tools():
         - **김영해변 카페** (제주 서귀포시...)
           오션뷰, 여유로운 분위기"
         """
-        # 입력값 검증
-        if not waypoints or len(waypoints) == 0:
-            return ToolResult(
-                success=False, error="최소 1개 이상의 경유지를 지정해주세요."
-            ).model_dump()
-
-        # 경유지 개수 제한 (최대 5개)
-        if len(waypoints) > 5:
-            return ToolResult(
-                success=False,
-                error=f"경유지는 최대 5개까지 지정할 수 있습니다. (현재: {len(waypoints)}개)",
-            ).model_dump()
-
-        if days <= 0:
-            return ToolResult(
-                success=False, error="여행 일수는 최소 1일 이상이어야 합니다."
-            ).model_dump()
-
-        # 경유지당 추천 개수 제한 (최대 5개)
-        if nearby_places_per_waypoint > 5:
-            return ToolResult(
-                success=False,
-                error=f"경유지당 추천 장소는 최대 5개까지 가능합니다. (현재: {nearby_places_per_waypoint}개)",
-            ).model_dump()
+        validation_error = _validate_route_inputs(
+            waypoints=waypoints,
+            days=days,
+            nearby_places_per_waypoint=nearby_places_per_waypoint,
+        )
+        if validation_error:
+            return validation_error
 
         logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
         # 카테고리 매핑
@@ -170,43 +153,66 @@ def get_route_tools():
         # 예: 5개 경유지, 2일 -> [3, 2] (1일차 3개, 2일차 2개)
         waypoints_per_day = _distribute_waypoints_by_days(len(waypoints), days)
 
-        route_data: List[TravelRouteWaypoint] = []
-        with get_db_session() as db:
-            place_service = PlaceService(db)
-            waypoint_idx = 0
-            for day_num, count_in_day in enumerate(waypoints_per_day, start=1):
-                for seq_in_day in range(count_in_day):
-                    waypoint = waypoints[waypoint_idx]
-                    route_data.append(
-                        _build_waypoint_route(
-                            place_service=place_service,
-                            waypoint=waypoint,
-                            waypoint_index=waypoint_idx,
-                            day=day_num,
-                            sequence_in_day=seq_in_day,
-                            mapped_category=mapped_category,
-                            radius_km=radius_km,
-                            nearby_places_per_waypoint=nearby_places_per_waypoint,
-                            excluded_place_ids=excluded_place_ids or [],
-                        )
-                    )
-                    waypoint_idx += 1
+        route_data: List[TravelRouteWaypoint] = _build_route_way_points(
+            waypoints=waypoints,
+            waypoints_per_day=waypoints_per_day,
+            mapped_category=mapped_category,
+            radius_km=radius_km,
+            nearby_places_per_waypoint=nearby_places_per_waypoint,
+            excluded_place_ids=excluded_place_ids,
+        )
 
-            response = TravelRouteResponse(
-                total_days=days,
-                waypoints_count=len(waypoints),
-                route=route_data,
-            )
+        response = TravelRouteResponse(
+            total_days=days,
+            waypoints_count=len(waypoints),
+            route=route_data,
+        )
 
-            # ToolResult로 감싸서 반환
-            response_dict = response.model_dump()
-            return ToolResult(
-                success=True,
-                data=TravelRouteData(**response_dict),
-                message=f"{days}일 여행 코스를 생성했습니다. (경유지 {len(waypoints)}개)",
-            ).model_dump()
+        # ToolResult로 감싸서 반환
+        response_dict = response.model_dump()
+        return ToolResult(
+            success=True,
+            data=TravelRouteData(**response_dict),
+            message=f"{days}일 여행 코스를 생성했습니다. (경유지 {len(waypoints)}개)",
+        ).model_dump()
 
     return [create_travel_route]
+
+
+def _build_route_way_points(
+    waypoints: List[str],
+    waypoints_per_day: List[int],
+    mapped_category: Optional[str],
+    radius_km: float,
+    nearby_places_per_waypoint: int,
+    excluded_place_ids: Optional[List[str]],
+) -> List[TravelRouteWaypoint]:
+    """경유지별 추천을 생성"""
+    excluded_ids = excluded_place_ids or []
+
+    with get_db_session() as db:
+        place_service = PlaceService(db)
+        route: List[TravelRouteWaypoint] = []
+        waypoint_iter = enumerate(waypoints)
+
+        for day_num, count_in_day in enumerate(waypoints_per_day, start=1):
+            for seq_in_day in range(count_in_day):
+                waypoint_idx, waypoint = next(waypoint_iter)
+                route.append(
+                    _build_waypoint_route(
+                        place_service=place_service,
+                        waypoint=waypoint,
+                        waypoint_index=waypoint_idx,
+                        day=day_num,
+                        sequence_in_day=seq_in_day,
+                        mapped_category=mapped_category,
+                        radius_km=radius_km,
+                        nearby_places_per_waypoint=nearby_places_per_waypoint,
+                        excluded_place_ids=excluded_ids,
+                    )
+                )
+
+        return route
 
 
 def _build_waypoint_route(
@@ -265,3 +271,32 @@ def _build_waypoint_route(
         nearby_places=nearby_places,
         error=None,
     )
+
+
+def _validate_route_inputs(
+    waypoints: List[str], days: int, nearby_places_per_waypoint: int
+) -> Optional[dict]:
+    """create_travel_route 입력값 검증"""
+    if not waypoints:
+        return ToolResult(
+            success=False, error="최소 1개 이상의 경유지를 지정해주세요."
+        ).model_dump()
+
+    if len(waypoints) > 5:
+        return ToolResult(
+            success=False,
+            error=f"경유지는 최대 5개까지 지정할 수 있습니다. (현재: {len(waypoints)}개)",
+        ).model_dump()
+
+    if days <= 0:
+        return ToolResult(
+            success=False, error="여행 일수는 최소 1일 이상이어야 합니다."
+        ).model_dump()
+
+    if nearby_places_per_waypoint > 5:
+        return ToolResult(
+            success=False,
+            error=f"경유지당 추천 장소는 최대 5개까지 가능합니다. (현재: {nearby_places_per_waypoint}개)",
+        ).model_dump()
+
+    return None
