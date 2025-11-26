@@ -9,8 +9,37 @@ from app.schemas.tool_response import ToolResult, TravelRouteData
 from app.service.place_service import PlaceService
 from app.database.database import get_db_session
 from app.tools.place_tool import fetch_coordinates_from_address, normalize_category
+from app.utils.backend_notifier import notify_backend_route_created
 
 logger = logging.getLogger(__name__)
+
+
+def _distribute_waypoints_by_days(total_waypoints: int, days: int) -> List[int]:
+    """
+    경유지를 일자별로 균등하게 분배
+
+    예시:
+        - 5개 경유지, 2일 -> [3, 2] (1일차 3개, 2일차 2개)
+        - 7개 경유지, 3일 -> [3, 2, 2]
+        - 3개 경유지, 2일 -> [2, 1]
+
+    Args:
+        total_waypoints: 총 경유지 개수
+        days: 여행 일수
+
+    Returns:
+        각 일자별 경유지 개수 리스트
+    """
+    base_count = total_waypoints // days  # 각 날짜에 최소한 배치될 개수
+    remainder = total_waypoints % days  # 남은 경유지 개수
+
+    result = []
+    for day_idx in range(days):
+        # 앞쪽 날짜부터 남은 경유지 하나씩 추가 배치
+        count = base_count + (1 if day_idx < remainder else 0)
+        result.append(count)
+
+    return result
 
 
 def get_route_tools():
@@ -137,21 +166,31 @@ def get_route_tools():
         # 카테고리 매핑
         mapped_category = normalize_category(category)
 
+        # 경유지를 일자별로 분배
+        # 예: 5개 경유지, 2일 -> [3, 2] (1일차 3개, 2일차 2개)
+        waypoints_per_day = _distribute_waypoints_by_days(len(waypoints), days)
+
         route_data: List[TravelRouteWaypoint] = []
         with get_db_session() as db:
             place_service = PlaceService(db)
-            for idx, waypoint in enumerate(waypoints):
-                route_data.append(
-                    _build_waypoint_route(
-                        place_service=place_service,
-                        waypoint=waypoint,
-                        waypoint_index=idx,
-                        mapped_category=mapped_category,
-                        radius_km=radius_km,
-                        nearby_places_per_waypoint=nearby_places_per_waypoint,
-                        excluded_place_ids=excluded_place_ids or [],
+            waypoint_idx = 0
+            for day_num, count_in_day in enumerate(waypoints_per_day, start=1):
+                for seq_in_day in range(count_in_day):
+                    waypoint = waypoints[waypoint_idx]
+                    route_data.append(
+                        _build_waypoint_route(
+                            place_service=place_service,
+                            waypoint=waypoint,
+                            waypoint_index=waypoint_idx,
+                            day=day_num,
+                            sequence_in_day=seq_in_day,
+                            mapped_category=mapped_category,
+                            radius_km=radius_km,
+                            nearby_places_per_waypoint=nearby_places_per_waypoint,
+                            excluded_place_ids=excluded_place_ids or [],
+                        )
                     )
-                )
+                    waypoint_idx += 1
 
             response = TravelRouteResponse(
                 total_days=days,
@@ -174,13 +213,17 @@ def _build_waypoint_route(
     place_service: PlaceService,
     waypoint: str,
     waypoint_index: int,
+    day: int,
+    sequence_in_day: int,
     mapped_category: Optional[str],
     radius_km: float,
     nearby_places_per_waypoint: int,
     excluded_place_ids: List[str],
 ) -> TravelRouteWaypoint:
     """경유지 한 개에 대한 좌표 및 주변 추천 생성"""
-    logger.info(f"경유지 {waypoint_index + 1}: {waypoint}")
+    logger.info(
+        f"경유지 {waypoint_index + 1} ({day}일차, 순서 {sequence_in_day}): {waypoint}"
+    )
 
     try:
         latitude, longitude = fetch_coordinates_from_address(waypoint)
@@ -189,6 +232,8 @@ def _build_waypoint_route(
         return TravelRouteWaypoint(
             waypoint_name=waypoint,
             waypoint_index=waypoint_index,
+            day=day,
+            sequence_in_day=sequence_in_day,
             coordinates=None,
             nearby_places=[],
             error=f"'{waypoint}' 위치를 찾을 수 없습니다.",
@@ -214,6 +259,8 @@ def _build_waypoint_route(
     return TravelRouteWaypoint(
         waypoint_name=waypoint,
         waypoint_index=waypoint_index,
+        day=day,
+        sequence_in_day=sequence_in_day,
         coordinates=Coordinate(latitude=latitude, longitude=longitude),
         nearby_places=nearby_places,
         error=None,
