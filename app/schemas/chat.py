@@ -25,13 +25,12 @@ class IntentClassifier(BaseModel):
     """
     라우터 AI가 반환할 Pydantic 모델 (JSON 양식) 정의
     """
-    intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP", "REFINE_EXCLUDE"] = Field(
+    intent: Literal["NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP"] = Field(
         description=(
             "Classify as 'NEW_SEARCH' if user requests a completely new place search (e.g., 'Busan restaurants' after asking 'Seoul cafes').\n"
-            "Classify as 'REFINEMENT' if user wants to filter/modify existing search results (e.g., 'only Korean food from those', 'cheaper options').\n"
+            "Classify as 'REFINEMENT' if user wants to filter/modify existing search results (e.g., 'only Korean food from those', 'cheaper options', '첫 번째 빼고', '~말고 다른거').\n"
             "Classify as 'CONVERSATION' for casual chat or follow-up questions about previous responses (e.g., 'how do I get there?', 'tell me more').\n"
-            "Classify as 'FOLLOW_UP' if user wants to perform a specific action on previous results (e.g., 'add the first one to my schedule', 'save that place').\n"
-            "Classify as 'REFINE_EXCLUDE' if user wants to exclude/remove specific places from recommendations (e.g., '첫 번째 빼고', '~말고', '제외하고', '빼줘', '~는 빼고')."
+            "Classify as 'FOLLOW_UP' if user wants to perform a specific action on previous results (e.g., 'add the first one to my schedule', 'save that place')."
         )
     )
 

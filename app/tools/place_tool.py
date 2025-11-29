@@ -384,43 +384,54 @@ def get_place_tools():
             ).model_dump()
 
     @tool
-    def replace_single_place(
-        excluded_place_id: str,
+    def replace_places(
+        replace_target_ids: List[str],
         latitude: float,
         longitude: float,
+        excluded_place_ids: List[str],
         category: Optional[str] = None,
         radius_km: float = 5.0,
-        excluded_place_ids: Optional[List[str]] = None,
     ):
         """
-        특정 장소를 대체할 새로운 장소 1개를 추천합니다.
-        기존 추천 장소 중 하나를 제외하고 같은 위치에서 새로운 장소로 교체할 때 사용합니다.
+        특정 장소들을 대체할 새로운 장소들을 추천합니다.
+        기존 추천 장소 중 일부를 제외하고 같은 위치에서 새로운 장소로 교체할 때 사용합니다.
 
         Args:
-            excluded_place_id: 제외할 장소의 ID (대체할 장소)
-            latitude: 기준 위도 (대체할 장소가 있던 경유지의 좌표)
+            replace_target_ids: 교체 대상 장소 ID 리스트 (이 개수만큼 새로운 장소 추천)
+                - 예: ["place1_id", "place3_id"] → 2개의 새로운 장소 추천
+            latitude: 기준 위도 (교체할 장소들이 있던 지역의 좌표)
             longitude: 기준 경도
+            excluded_place_ids: 추천에서 제외할 모든 장소 ID 리스트 (기존 추천 전체 + 교체 대상 포함)
+                - 중복 방지를 위해 이미 추천된 모든 장소 ID를 포함해야 합니다
             category: 추천받을 카테고리 (선택사항)
             radius_km: 검색 반경 (km 단위, 기본값: 5km)
-            excluded_place_ids: 제외할 장소 ID 목록 (리스트 형식, 예: ["id1", "id2", "id3"])
-                **중요**: 반드시 리스트(list) 타입으로 전달해야 합니다. 문자열로 전달하지 마세요.
 
         Returns:
-            대체할 장소 1개
+            len(replace_target_ids)만큼의 새로운 장소 리스트
 
         사용 예시:
-            - 사용자: "한라수목원 대신 다른 거 없어?"
-            - excluded_place_id: "b648df96-5325-4b06-ba09-95f848ea86f5"
-            - excluded_place_ids: ["b648df96-5325-4b06-ba09-95f848ea86f5", "c016f3f3-9cec-4544-abfb-2f4b7c786c6a"]
-            - 결과: 한라수목원이 있던 위치에서 새로운 장소 1개 추천
+            - 사용자: "1번이랑 3번 빼고 다른 거로 바꿔줘"
+            - replace_target_ids: ["place1_id", "place3_id"]
+            - excluded_place_ids: ["place1_id", "place2_id", ..., "place10_id"] (전체 기존 추천)
+            - 결과: 2개의 새로운 장소 추천
+
+            - 사용자: "카페 다 빼고"
+            - replace_target_ids: ["cafe1_id", "cafe2_id"]
+            - excluded_place_ids: [모든 기존 추천 장소 ID들]
+            - 결과: 2개의 새로운 장소 추천
         """
         try:
+            if not replace_target_ids:
+                return ToolResult(
+                    success=False,
+                    error="교체할 장소가 지정되지 않았습니다.",
+                ).model_dump()
+
             # 카테고리 정규화
             mapped_category = normalize_category(category)
-            # excluded_place_ids에 excluded_place_id가 포함되어 있는지 확인
-            all_excluded_ids = excluded_place_ids or []
-            if excluded_place_id not in all_excluded_ids:
-                all_excluded_ids.append(excluded_place_id)
+
+            # 교체할 개수
+            count = len(replace_target_ids)
 
             # PlaceService 호출
             db = next(get_db())
@@ -431,8 +442,8 @@ def get_place_tools():
                     longitude=longitude,
                     radius_km=radius_km,
                     category=mapped_category,
-                    limit=1,
-                    excluded_place_ids=all_excluded_ids,
+                    limit=count,
+                    excluded_place_ids=excluded_place_ids,
                 )
 
                 if not places:
@@ -454,9 +465,9 @@ def get_place_tools():
                     data=PlaceRecommendationData(
                         places=place_dicts,
                         count=len(place_dicts),
-                        replaced_place_id=excluded_place_id,
+                        replaced_place_ids=replace_target_ids,
                     ),
-                    message=f"대체 장소 1곳을 찾았습니다.",
+                    message=f"대체 장소 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
 
             finally:
@@ -471,5 +482,5 @@ def get_place_tools():
     return [
         recommend_popular_places_in_region,
         recommend_nearby_places,
-        replace_single_place,
+        replace_places,
     ]

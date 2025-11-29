@@ -12,7 +12,7 @@ class AgentState(TypedDict, total=False):
     session_id: str
     intent: (
         Literal[
-            "NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP", "REFINE_EXCLUDE"
+            "NEW_SEARCH", "REFINEMENT", "CONVERSATION", "FOLLOW_UP"
         ]
         | None
     )

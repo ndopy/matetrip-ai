@@ -89,7 +89,7 @@ async def notify_backend_route_created(
             response = await client.post(
                 f"{nestjs_server_url}/workspace/{workspace_id}/ai/schedule-batch",
                 json=payload,
-                headers={"x-ai-api-key": api_key},
+                # headers={"x-ai-api-key": api_key},
                 timeout=30.0,
             )
             response.raise_for_status()

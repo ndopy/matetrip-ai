@@ -11,7 +11,6 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.nodes.agent_node import agent_node
 from app.agent.nodes.router_node import router_node
-from app.agent.nodes.refine_exclude_node import refine_exclude_node
 from app.agent.nodes.update_state_node import update_state_node
 from app.tools import create_nest_tools
 from app.common.logger import logger
@@ -23,10 +22,9 @@ def route_by_intent(state: AgentState) -> str:
     intent = state.get("intent")
     logger.info(f"[route_by_intent] Intent: {intent}")
 
-    if intent == "REFINE_EXCLUDE":
-        return "refine_exclude"
-    else:
-        return "agent"
+    # 모든 경우 agent로 라우팅
+    ## 임시 :
+    return "agent"
 
 
 def should_continue(state: AgentState) -> str:
@@ -69,17 +67,12 @@ def create_agent_graph():
     workflow.add_node("agent", agent_node)
     workflow.add_node("tools", tool_node)
     workflow.add_node("update_state", update_state_node)
-    workflow.add_node("refine_exclude", refine_exclude_node)
 
     # 엣지 설정
     workflow.set_entry_point("router")
 
-    # router -> agent or refine_exclude (의도에 따라 분기)
-    workflow.add_conditional_edges(
-        "router",
-        route_by_intent,
-        {"agent": "agent", "refine_exclude": "refine_exclude"},
-    )
+    # router -> agent
+    workflow.add_edge("router", "agent")
 
     # agent -> tools or END (도구 호출 여부에 따라 분기)
     workflow.add_conditional_edges(
@@ -91,9 +84,6 @@ def create_agent_graph():
 
     # update_state -> agent (상태 업데이트 후 다시 에이전트로)
     workflow.add_edge("update_state", "agent")
-
-    # refine_exclude -> agent (제외 처리 후 agent로 라우팅하여 새로운 추천 받기)
-    workflow.add_edge("refine_exclude", "agent")
 
     # MemorySaver 체크포인터 추가
     # 세션별로 상태를 메모리에 저장하여 요청 간 상태 유지

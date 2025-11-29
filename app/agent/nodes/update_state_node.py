@@ -27,9 +27,9 @@ def update_state_node(state: AgentState) -> AgentState:
     모든 장소 추천 도구가 ToolResult 형식으로 반환하므로
     처리 로직이 단순화되었습니다.
 
-    replace_single_place의 경우:
-    - 기존 last_recommended_places에서 제외된 장소를 제거하고
-    - 새로운 장소를 추가합니다
+    replace_places의 경우:
+    - 기존 last_recommended_places에서 제외된 장소들을 제거하고
+    - 새로운 장소들을 추가합니다
     """
     logger.info("[update_state_node] Starting state update")
     messages = state.get("messages", [])
@@ -56,12 +56,12 @@ def update_state_node(state: AgentState) -> AgentState:
         )
         return {}
 
-    # replace_single_place의 경우 특별 처리
-    if tool_name == "replace_single_place":
+    # replace_places의 경우 특별 처리
+    if tool_name == "replace_places":
         if not isinstance(content, dict):
             return {}
 
-        return _handle_replace_single_place(state, content)
+        return _handle_replace_places(state, content)
 
     try:
         # 문자열인 경우 JSON 파싱
@@ -76,21 +76,24 @@ def update_state_node(state: AgentState) -> AgentState:
     return {"last_recommended_places": places}
 
 
-def _drop_place_by_id(places: list[SimplePlace], place_id: str) -> list[SimplePlace]:
-    """주어진 ID를 제외한 새 리스트 반환"""
-    return [p for p in places if getattr(p, "id", None) != place_id]
+def _drop_places_by_ids(
+    places: list[SimplePlace], place_ids: list[str]
+) -> list[SimplePlace]:
+    """주어진 ID들을 제외한 새 리스트 반환"""
+    place_ids_set = set(place_ids)
+    return [p for p in places if getattr(p, "id", None) not in place_ids_set]
 
 
-def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState:
+def _handle_replace_places(state: AgentState, content: dict) -> AgentState:
     """
-    replace_single_place 도구 결과 처리
+    replace_places 도구 결과 처리
 
-    기존 last_recommended_places에서 제외된 장소를 제거하고
-    새로운 장소를 추가합니다.
+    기존 last_recommended_places에서 제외된 장소들을 제거하고
+    새로운 장소들을 추가합니다.
 
     Args:
         state: 현재 AgentState
-        content: replace_single_place 도구 실행 결과
+        content: replace_places 도구 실행 결과
 
     Returns:
         업데이트된 상태
@@ -98,18 +101,18 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
     try:
         # 성공 여부 확인
         if not content.get("success", False):
-            logger.warning(f"[replace_single_place] failed: {content.get('error')}")
+            logger.warning(f"[replace_places] failed: {content.get('error')}")
             return {}
 
         data = content.get("data", {})
         if not data:
-            logger.warning("[update_state_node] No data in replace_single_place result")
+            logger.warning("[update_state_node] No data in replace_places result")
             return {}
 
-        # 제외된 장소 ID
-        replaced_place_id = data.get("replaced_place_id")
-        if not replaced_place_id:
-            logger.warning("[update_state_node] No replaced_place_id in result")
+        # 제외된 장소 ID 리스트
+        replaced_place_ids = data.get("replaced_place_ids", [])
+        if not replaced_place_ids:
+            logger.warning("[update_state_node] No replaced_place_ids in result")
             return {}
 
         # 새로운 장소들
@@ -129,16 +132,20 @@ def _handle_replace_single_place(state: AgentState, content: dict) -> AgentState
             state.get("last_recommended_places", [])
         )
 
-        # 제외된 장소 제거
-        updated_places = _drop_place_by_id(last_recommended_places, replaced_place_id)
+        # 제외된 장소들 제거
+        updated_places = _drop_places_by_ids(
+            last_recommended_places, replaced_place_ids
+        )
 
         # 새로운 장소 추가
         updated_places.extend(new_places)
 
-        logger.info(f"[update_state_node] Replaced place")
+        logger.info(
+            f"[update_state_node] Replaced {len(replaced_place_ids)} places with {len(new_places)} new places"
+        )
 
         return {"last_recommended_places": updated_places}
 
     except Exception as e:
-        logger.error(f"[update_state_node] Error handling replace_single_place: {e}")
+        logger.error(f"[update_state_node] Error handling replace_places: {e}")
         return {}
