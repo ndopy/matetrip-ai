@@ -65,4 +65,13 @@ def router_node(state: AgentState) -> AgentState:
 
     logger.info(f"[router_node] Classified intent: {classification.intent}")
 
+    # NEW_SEARCH일 때 excluded_place_ids 초기화
+    # 완전히 새로운 검색이므로 이전 제외 목록은 무효화
+    if classification.intent == "NEW_SEARCH":
+        logger.info("[router_node] NEW_SEARCH detected - resetting excluded_place_ids")
+        return {
+            "intent": classification.intent,
+            "excluded_place_ids": [],
+        }
+
     return {"intent": classification.intent}
