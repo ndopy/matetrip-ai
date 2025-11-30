@@ -8,7 +8,7 @@ from langchain_core.tools import tool
 
 from app.common.category_mapping import CATEGORY_MAPPING
 from app.service.place_service import PlaceService
-from app.database.database import get_db
+from app.database.database import get_db, get_db_session
 from app.schemas.place import (
     NearbyPlaceRequest,
     NearbyPlaceResponse,
@@ -228,17 +228,9 @@ def get_place_tools():
                 limit=limit,
             )
 
-            # ========================================
-            # Service Layer 호출 (순수 비즈니스 로직)
-            # ========================================
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
                 place_dicts = [place.model_dump() for place in place_responses]
-
-                # ========================================
-                # Tool Layer: ToolResult로 포장 (LLM 어댑터)
-                # ========================================
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -246,9 +238,6 @@ def get_place_tools():
                     ),
                     message=f"{normalized_region}에서 인기 있는 장소 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
-
-            finally:
-                db.close()
 
         except ValueError as e:
             return ToolResult(
@@ -347,11 +336,7 @@ def get_place_tools():
                 limit=limit,
             )
 
-            # ========================================
-            # Service Layer 호출 (순수 비즈니스 로직)
-            # ========================================
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 t2 = time.perf_counter()
                 place_responses = PlaceService(db).get_nearby_place(search_request)
                 t3 = time.perf_counter()
@@ -366,9 +351,6 @@ def get_place_tools():
                         error=f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다.",
                     ).model_dump()
 
-                # ========================================
-                # Tool Layer: ToolResult로 포장 (LLM 어댑터)
-                # ========================================
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -376,9 +358,6 @@ def get_place_tools():
                     ),
                     message=f"{location_name} 주변 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
-
-            finally:
-                db.close()
 
         except httpx.HTTPStatusError as e:
             return ToolResult(
@@ -427,37 +406,24 @@ def get_place_tools():
             - excluded_place_ids: [모든 기존 추천 장소 ID들]
             - 결과: 2개의 새로운 장소 추천
         """
+        if not replace_target_ids:
+            return ToolResult(
+                success=False,
+                error="교체할 장소가 지정되지 않았습니다.",
+            ).model_dump()
+
         try:
-            if not replace_target_ids:
-                return ToolResult(
-                    success=False,
-                    error="교체할 장소가 지정되지 않았습니다.",
-                ).model_dump()
-
-            # 카테고리 정규화
-            mapped_category = normalize_category(category)
-
-            # 교체할 개수
-            replace_count = len(replace_target_ids)
-
-            # DTO 생성 (3개 이상 파라미터는 DTO로 캡슐화)
             request = ReplacePlaceRequest.create(
                 latitude=latitude,
                 longitude=longitude,
-                replace_count=replace_count,
+                replace_count=len(replace_target_ids),  # 교체할 개수
                 excluded_place_ids=excluded_place_ids,
-                category=mapped_category,
+                category=normalize_category(category),  # 카테고리 정규화
                 radius_km=radius_km,
             )
 
-            # ========================================
-            # Service Layer 호출 (순수 비즈니스 로직)
-            # ========================================
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 place_service = PlaceService(db)
-
-                # 순수 비즈니스 로직: DB에서 교체용 장소만 조회
                 place_responses = place_service.find_replacement_places(request)
 
                 if not place_responses:
@@ -468,10 +434,6 @@ def get_place_tools():
 
                 place_dicts = [place.model_dump() for place in place_responses]
 
-                # ========================================
-                # Tool Layer: ToolResult로 포장 (LLM 어댑터)
-                # 메타데이터 추가: replaced_place_ids
-                # ========================================
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -481,9 +443,6 @@ def get_place_tools():
                     ),
                     message=f"대체 장소 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
-
-            finally:
-                db.close()
 
         except Exception as e:
             logger.error(f"장소 대체 중 에러 발생: {str(e)}")
