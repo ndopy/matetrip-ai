@@ -42,4 +42,19 @@ def handle_place_recommendation_node(state: AgentState) -> AgentState:
         f"[handle_place_recommendation_node] Extracted {len(places)} places from {tool_name}"
     )
 
-    return {"last_recommended_places": places}
+    # 새로 추천한 장소 ID 추출
+    new_place_ids = [p.id for p in places if hasattr(p, "id") and p.id]
+
+    # 기존 excluded_place_ids에 추가 (중복 제거)
+    current_excluded = state.get("excluded_place_ids", [])
+    updated_excluded = list(set(current_excluded + new_place_ids))
+
+    logger.info(
+        f"[handle_place_recommendation_node] Added {len(new_place_ids)} IDs to exclusion list "
+        f"(total: {len(updated_excluded)})"
+    )
+
+    return {
+        "last_recommended_places": places,
+        "excluded_place_ids": updated_excluded,
+    }

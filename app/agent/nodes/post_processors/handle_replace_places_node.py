@@ -71,9 +71,20 @@ def handle_replace_places_node(state: AgentState) -> AgentState:
     # 새 장소 추가
     updated_places.extend(new_places)
 
+    # 새로 추천한 장소 ID 추출
+    new_place_ids = [p.id for p in new_places if hasattr(p, "id") and p.id]
+
+    # 기존 excluded_place_ids에 추가 (중복 제거)
+    current_excluded = state.get("excluded_place_ids", [])
+    updated_excluded = list(set(current_excluded + new_place_ids))
+
     logger.info(
         f"[handle_replace_places_node] Replaced {len(replaced_place_ids)} places "
-        f"with {len(new_places)} new places"
+        f"with {len(new_places)} new places. Added {len(new_place_ids)} IDs to exclusion list "
+        f"(total: {len(updated_excluded)})"
     )
 
-    return {"last_recommended_places": updated_places}
+    return {
+        "last_recommended_places": updated_places,
+        "excluded_place_ids": updated_excluded,
+    }

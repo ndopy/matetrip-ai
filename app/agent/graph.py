@@ -28,7 +28,7 @@ from app.agent.state import AgentState
 from app.tools import create_nest_tools
 from app.utils.agent_message_utils import get_last_tool_message
 
-# Tool → 후처리 노드 매핑 (중앙 집중 관리)
+# Tool -> 후처리 노드 매핑 (중앙 집중 관리)
 TOOL_POSTPROCESSING_ROUTES: dict[Hashable, str] = {
     "replace_places": "handle_replace_places",
     "recommend_nearby_places": "handle_place_recommendation",
@@ -69,12 +69,11 @@ def should_continue(state: AgentState) -> str:
 def route_after_tools(state: AgentState) -> str:
     """
     Tool 실행 후 어떤 후처리 노드로 보낼지 결정
-
-    각 Tool은 전용 후처리 노드가 상태 변경을 담당합니다:
+    각 Tool은 전용 후처리 노드가 상태 변경을 담당
+    예시
     - replace_places → handle_replace_places
     - recommend_* → handle_place_recommendation
     - create_travel_route → handle_travel_route
-    - 기타 → agent (상태 변경 없음)
     """
     last_tool_message = get_last_tool_message(state.get("messages", []))
     if not last_tool_message:
@@ -98,7 +97,6 @@ def route_after_tools(state: AgentState) -> str:
 def create_agent_graph():
     """
     LangGraph 생성 - 후처리 노드 분리 패턴
-
     구조:
     1. Router → Agent → Tools (도구 실행)
     2. Tools → route_after_tools (라우터)
@@ -108,11 +106,6 @@ def create_agent_graph():
        - create_travel_route → handle_travel_route
        - 기타 → agent (바로 복귀)
     4. 후처리 노드 → agent (상태 업데이트 후 복귀)
-
-    장점:
-    - Tool은 순수 함수 (DB 조회만 담당)
-    - Node가 상태 변경 담당 (책임 분리)
-    - Tool별 분기가 명시적
     """
     workflow = StateGraph(AgentState)
 
@@ -140,13 +133,12 @@ def create_agent_graph():
     )
 
     # tools -> route_after_tools (Tool별 후처리 노드로 분기)
+
     postprocess_edges: dict[Hashable, str] = {
         node: node for node in TOOL_POSTPROCESSING_ROUTES.values()
     }
     postprocess_edges["agent"] = "agent"  # 기본 경로
-    workflow.add_conditional_edges(
-        "tools", route_after_tools, postprocess_edges
-    )
+    workflow.add_conditional_edges("tools", route_after_tools, postprocess_edges)
 
     # 각 후처리 노드 -> agent (상태 업데이트 후 에이전트로 복귀)
     workflow.add_edge("handle_replace_places", "agent")
