@@ -1,0 +1,55 @@
+"""
+일반 장소 추천 도구 전용 후처리 노드
+recommend_nearby_places, recommend_popular_places_in_region 등의 결과를 처리합니다.
+"""
+
+import json
+from app.agent.state import AgentState
+from app.common.logger import logger
+from app.utils.agent_message_utils import get_last_tool_message
+from app.utils.place_extractor import extract_simple_places_from_result
+
+
+def handle_place_recommendation_node(state: AgentState) -> AgentState:
+    """
+    일반 장소 추천 도구 결과를 처리하여 상태를 업데이트하는 노드
+
+    책임:
+    1. Tool이 반환한 장소 정보 파싱
+    2. last_recommended_places 상태 업데이트 (전체 교체)
+
+    처리 대상 Tool:
+    - recommend_nearby_places
+    - recommend_popular_places_in_region
+    """
+    logger.info("[handle_place_recommendation_node] Starting")
+
+    # 마지막 ToolMessage 가져오기
+    last_tool_message = get_last_tool_message(state.get("messages", []))
+    if not last_tool_message:
+        logger.warning("[handle_place_recommendation_node] No tool message found")
+        return {}
+
+    content = getattr(last_tool_message, "content", None)
+    tool_name = getattr(last_tool_message, "name", "")
+
+    if not content:
+        logger.warning("[handle_place_recommendation_node] No content")
+        return {}
+
+    try:
+        # 문자열인 경우 JSON 파싱
+        if isinstance(content, str):
+            content = json.loads(content)
+    except Exception as e:
+        logger.error(f"[handle_place_recommendation_node] JSON parse error: {e}")
+        return {}
+
+    # 장소 추출
+    places = extract_simple_places_from_result(content, tool_name)
+
+    logger.info(
+        f"[handle_place_recommendation_node] Extracted {len(places)} places from {tool_name}"
+    )
+
+    return {"last_recommended_places": places}

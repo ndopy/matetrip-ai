@@ -11,8 +11,10 @@ from app.service.place_service import PlaceService
 from app.database.database import get_db
 from app.schemas.place import (
     NearbyPlaceRequest,
+    NearbyPlaceResponse,
     PopularPlaceRequest,
     PopularPlaceResponse,
+    ReplacePlaceRequest,
 )
 from app.schemas.tool_response import ToolResult, PlaceRecommendationData
 
@@ -210,10 +212,10 @@ def get_place_tools():
         6. "다른 사용자들이 많이 찾는" 또는 "인기 있는" 장소임을 자연스럽게 언급하세요.
         """
         try:
-
             if limit <= 0 or limit > 100:
                 raise ValueError(f"limit must be between 1 and 100, but got {limit}")
-            # 지역명 정규화 (약칭이 있을 수 있으니.. 이거 너무 하드코딩같은데 쩔수일 듯)
+
+            # 지역명 정규화
             normalized_region = normalize_region_name(region.strip())
 
             # 카테고리를 DB 카테고리로 매핑
@@ -226,12 +228,17 @@ def get_place_tools():
                 limit=limit,
             )
 
-            # PlaceService를 통해 인기 장소 조회
+            # ========================================
+            # Service Layer 호출 (순수 비즈니스 로직)
+            # ========================================
             db = next(get_db())
             try:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
                 place_dicts = [place.model_dump() for place in place_responses]
 
+                # ========================================
+                # Tool Layer: ToolResult로 포장 (LLM 어댑터)
+                # ========================================
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -244,7 +251,6 @@ def get_place_tools():
                 db.close()
 
         except ValueError as e:
-            # 지역명 검증 실패 시
             return ToolResult(
                 success=False, error=f"지역명 검증 실패: {str(e)}"
             ).model_dump()
@@ -319,9 +325,6 @@ def get_place_tools():
         try:
             # 카테고리를 DB 카테고리로 매핑
             mapped_category = normalize_category(category)
-            mapped_category = (
-                CATEGORY_MAPPING.get(category.lower(), category) if category else None
-            )
 
             # 1. Kakao Local API로 장소명을 좌표로 변환
             t0 = time.perf_counter()
@@ -344,7 +347,9 @@ def get_place_tools():
                 limit=limit,
             )
 
-            # 2. PlaceService를 직접 호출 (같은 서버 내부 호출)
+            # ========================================
+            # Service Layer 호출 (순수 비즈니스 로직)
+            # ========================================
             db = next(get_db())
             try:
                 t2 = time.perf_counter()
@@ -361,7 +366,9 @@ def get_place_tools():
                         error=f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다.",
                     ).model_dump()
 
-                # 결과 반환
+                # ========================================
+                # Tool Layer: ToolResult로 포장 (LLM 어댑터)
+                # ========================================
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -431,41 +438,46 @@ def get_place_tools():
             mapped_category = normalize_category(category)
 
             # 교체할 개수
-            count = len(replace_target_ids)
+            replace_count = len(replace_target_ids)
 
-            # PlaceService 호출
+            # DTO 생성 (3개 이상 파라미터는 DTO로 캡슐화)
+            request = ReplacePlaceRequest.create(
+                latitude=latitude,
+                longitude=longitude,
+                replace_count=replace_count,
+                excluded_place_ids=excluded_place_ids,
+                category=mapped_category,
+                radius_km=radius_km,
+            )
+
+            # ========================================
+            # Service Layer 호출 (순수 비즈니스 로직)
+            # ========================================
             db = next(get_db())
             try:
                 place_service = PlaceService(db)
-                places = place_service.find_nearby_places(
-                    latitude=latitude,
-                    longitude=longitude,
-                    radius_km=radius_km,
-                    category=mapped_category,
-                    limit=count,
-                    excluded_place_ids=excluded_place_ids,
-                )
 
-                if not places:
+                # 순수 비즈니스 로직: DB에서 교체용 장소만 조회
+                place_responses = place_service.find_replacement_places(request)
+
+                if not place_responses:
                     return ToolResult(
                         success=False,
                         error=f"해당 위치 주변에서 대체할 장소를 찾을 수 없습니다.",
                     ).model_dump()
 
-                # Place 엔티티를 dict로 변환
-                from app.schemas.place import NearbyPlaceResponse
-
-                place_responses = [
-                    NearbyPlaceResponse.from_entity(place) for place in places
-                ]
                 place_dicts = [place.model_dump() for place in place_responses]
 
+                # ========================================
+                # Tool Layer: ToolResult로 포장 (LLM 어댑터)
+                # 메타데이터 추가: replaced_place_ids
+                # ========================================
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
                         places=place_dicts,
                         count=len(place_dicts),
-                        replaced_place_ids=replace_target_ids,
+                        replaced_place_ids=replace_target_ids,  # 메타정보
                     ),
                     message=f"대체 장소 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()

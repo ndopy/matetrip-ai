@@ -17,6 +17,7 @@ from app.schemas.place import (
     NearbyPlaceResponse,
     PopularPlaceRequest,
     PopularPlaceResponse,
+    ReplacePlaceRequest,
 )
 from app.repository.place_repository import PlaceRepository
 
@@ -270,3 +271,29 @@ class PlaceService:
             category=request.category,
             limit=request.limit,
         )
+
+    def find_replacement_places(
+        self, request: ReplacePlaceRequest
+    ) -> List[NearbyPlaceResponse]:
+        """
+        교체용 장소를 검색합니다. (순수 비즈니스 로직)
+
+        이 메서드는 LangGraph나 ToolResult에 대해 전혀 모릅니다.
+        순수하게 DB에서 조회한 결과를 DTO로 반환합니다.
+
+        Args:
+            request: 장소 교체 요청 DTO (3개 이상 파라미터는 DTO로 캡슐화)
+
+        Returns:
+            장소 응답 DTO 리스트 (순수 데이터)
+        """
+        places = self.repository.find_places_within_radius(
+            latitude=request.latitude,
+            longitude=request.longitude,
+            radius_km=request.radius_km,
+            category=request.category,
+            limit=request.replace_count,
+            excluded_place_ids=request.excluded_place_ids,
+        )
+
+        return [NearbyPlaceResponse.from_entity(place) for place in places]

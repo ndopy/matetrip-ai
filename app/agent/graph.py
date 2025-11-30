@@ -1,7 +1,8 @@
 """
-LangGraph 기반 AI 에이전트 그래프 구성 (표준 패턴)
+LangGraph 기반 AI 에이전트 그래프 구성 (후처리 노드 분리 패턴)
 - 라우터: 사용자 의도 분류 (NEW_SEARCH, REFINEMENT, CONVERSATION)
 - 에이전트: 도구 호출 및 응답 생성
+- 후처리 노드: Tool별로 전용 노드가 상태 업데이트 담당
 """
 
 from langchain_core.messages import AIMessage
@@ -11,10 +12,15 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.nodes.agent_node import agent_node
 from app.agent.nodes.router_node import router_node
-from app.agent.nodes.update_state_node import update_state_node
+from app.agent.nodes.handle_replace_places_node import handle_replace_places_node
+from app.agent.nodes.handle_place_recommendation_node import (
+    handle_place_recommendation_node,
+)
+from app.agent.nodes.handle_travel_route_node import handle_travel_route_node
 from app.common.logger import logger
 from app.agent.state import AgentState
 from app.tools import create_nest_tools
+from app.utils.agent_message_utils import get_last_tool_message
 
 
 # def route_by_intent(state: AgentState) -> str:
@@ -46,15 +52,58 @@ def should_continue(state: AgentState) -> str:
     return END
 
 
+def route_after_tools(state: AgentState) -> str:
+    """
+    Tool 실행 후 어떤 후처리 노드로 보낼지 결정
+
+    각 Tool은 전용 후처리 노드가 상태 변경을 담당합니다:
+    - replace_places → handle_replace_places
+    - recommend_* → handle_place_recommendation
+    - create_travel_route → handle_travel_route
+    - 기타 → agent (상태 변경 없음)
+    """
+    last_tool_message = get_last_tool_message(state.get("messages", []))
+    if not last_tool_message:
+        logger.warning("[route_after_tools] No tool message found, routing to agent")
+        return "agent"
+
+    tool_name = getattr(last_tool_message, "name", "")
+    logger.info(f"[route_after_tools] Tool executed: {tool_name}")
+
+    # Tool별 라우팅
+    if tool_name == "replace_places":
+        return "handle_replace_places"
+    elif tool_name in ["recommend_nearby_places", "recommend_popular_places_in_region"]:
+        return "handle_place_recommendation"
+    elif tool_name == "create_travel_route":
+        return "handle_travel_route"
+    else:
+        # 상태 변경이 필요 없는 Tool들 (get_place_reviews 등)
+        logger.info(f"[route_after_tools] No post-processing needed for {tool_name}")
+        return "agent"
+
+
 # =========================
-# 그래프 구성
+# 그래프 구성 (후처리 노드 분리 패턴)
 # =========================
 def create_agent_graph():
     """
-    LangGraph 생성
+    LangGraph 생성 - 후처리 노드 분리 패턴
 
-    MemorySaver 체크포인터를 사용하여 세션별 상태를 자동으로 저장/복원합니다.
-    이를 통해 last_recommended_places 등의 상태가 요청 간에 유지됩니다.
+    구조:
+    1. Router → Agent → Tools (도구 실행)
+    2. Tools → route_after_tools (라우터)
+    3. route_after_tools → 각 Tool별 전용 후처리 노드
+       - replace_places → handle_replace_places
+       - recommend_* → handle_place_recommendation
+       - create_travel_route → handle_travel_route
+       - 기타 → agent (바로 복귀)
+    4. 후처리 노드 → agent (상태 업데이트 후 복귀)
+
+    장점:
+    - Tool은 순수 함수 (DB 조회만 담당)
+    - Node가 상태 변경 담당 (책임 분리)
+    - Tool별 분기가 명시적
     """
     workflow = StateGraph(AgentState)
 
@@ -66,7 +115,9 @@ def create_agent_graph():
     workflow.add_node("router", router_node)
     workflow.add_node("agent", agent_node)
     workflow.add_node("tools", tool_node)
-    workflow.add_node("update_state", update_state_node)
+    workflow.add_node("handle_replace_places", handle_replace_places_node)
+    workflow.add_node("handle_place_recommendation", handle_place_recommendation_node)
+    workflow.add_node("handle_travel_route", handle_travel_route_node)
 
     # 엣지 설정
     workflow.set_entry_point("router")
@@ -79,11 +130,22 @@ def create_agent_graph():
         "agent", should_continue, {"tools": "tools", END: END}
     )
 
-    # tools -> update_state (도구 실행 후 상태 업데이트)
-    workflow.add_edge("tools", "update_state")
+    # tools -> route_after_tools (Tool별 후처리 노드로 분기)
+    workflow.add_conditional_edges(
+        "tools",
+        route_after_tools,
+        {
+            "handle_replace_places": "handle_replace_places",
+            "handle_place_recommendation": "handle_place_recommendation",
+            "handle_travel_route": "handle_travel_route",
+            "agent": "agent",
+        },
+    )
 
-    # update_state -> agent (상태 업데이트 후 다시 에이전트로)
-    workflow.add_edge("update_state", "agent")
+    # 각 후처리 노드 -> agent (상태 업데이트 후 에이전트로 복귀)
+    workflow.add_edge("handle_replace_places", "agent")
+    workflow.add_edge("handle_place_recommendation", "agent")
+    workflow.add_edge("handle_travel_route", "agent")
 
     # MemorySaver 체크포인터 추가
     # 세션별로 상태를 메모리에 저장하여 요청 간 상태 유지
