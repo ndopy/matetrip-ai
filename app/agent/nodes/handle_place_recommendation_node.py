@@ -11,17 +11,7 @@ from app.utils.place_extractor import extract_simple_places_from_result
 
 
 def handle_place_recommendation_node(state: AgentState) -> AgentState:
-    """
-    일반 장소 추천 도구 결과를 처리하여 상태를 업데이트하는 노드
-
-    책임:
-    1. Tool이 반환한 장소 정보 파싱
-    2. last_recommended_places 상태 업데이트 (전체 교체)
-
-    처리 대상 Tool:
-    - recommend_nearby_places
-    - recommend_popular_places_in_region
-    """
+    """일반 장소 추천 도구 결과를 처리하여 상태를 업데이트합니다."""
     logger.info("[handle_place_recommendation_node] Starting")
 
     # 마지막 ToolMessage 가져오기

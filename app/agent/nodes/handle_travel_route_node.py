@@ -10,15 +10,7 @@ from app.utils.agent_message_utils import get_last_tool_message
 
 
 def handle_travel_route_node(state: AgentState) -> AgentState:
-    """
-    create_travel_route 도구 결과를 처리하는 노드
-
-    책임:
-    1. Tool 실행 결과 확인
-    2. Backend에 여행 루트 생성 알림 전송
-
-    주의: 상태(state) 변경은 하지 않고, 외부 알림만 처리합니다.
-    """
+    """create_travel_route 도구 결과를 처리하고 Backend에 알림을 전송합니다."""
     logger.info("[handle_travel_route_node] Starting")
 
     # 마지막 ToolMessage 가져오기

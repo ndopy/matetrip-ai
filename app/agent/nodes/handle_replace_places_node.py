@@ -19,17 +19,7 @@ def _drop_places_by_ids(
 
 
 def handle_replace_places_node(state: AgentState) -> AgentState:
-    """
-    replace_places 도구 결과를 처리하여 상태를 업데이트하는 노드
-
-    책임:
-    1. Tool이 반환한 새 장소 정보 파싱
-    2. 기존 last_recommended_places에서 교체 대상 제거
-    3. 새 장소 추가
-
-    Tool은 순수 함수로서 새 데이터만 반환하고,
-    이 Node가 실제 상태 변경을 담당합니다.
-    """
+    """replace_places 도구 결과를 처리하여 상태를 업데이트합니다."""
     logger.info("[handle_replace_places_node] Starting")
 
     # 마지막 ToolMessage 가져오기
