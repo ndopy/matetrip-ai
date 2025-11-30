@@ -2,14 +2,13 @@ from langchain_core.messages import BaseMessage, ToolMessage
 from app.agent.state import AgentState
 from app.core.llm import global_llm
 from app.common.logger import logger
-from app.agent.builder2 import build_agent_prompt
-import threading
-
-from app.tools import create_nest_tools
 from app.utils.agent_message_utils import (
     get_last_human_message,
     prepare_messages_for_bedrock,
 )
+from app.agent.builder2 import build_agent_prompt
+import threading
+from app.tools import create_nest_tools
 
 
 # 전역 에이전트 체인 (캐싱)
@@ -60,6 +59,7 @@ def agent_node(state: AgentState) -> AgentState:
         {
             "chat_history": history_to_use,
             "session_id": state.get("session_id"),
+            "excluded_place_ids": state.get("excluded_place_ids", []),
         }
     )
     # AIMessage를 messages에 추가

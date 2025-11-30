@@ -35,7 +35,7 @@ def update_state_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
 
     # 마지막 ToolMessage 찾기
-    last_tool_message: ToolMessage = get_last_tool_message(messages)
+    last_tool_message: ToolMessage | None = get_last_tool_message(messages)
     content = getattr(last_tool_message, "content", None)
     if not content:
         logger.info("[update_state_node] No ToolMessage found")

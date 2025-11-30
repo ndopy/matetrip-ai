@@ -100,7 +100,6 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         final_state = await agent_graph.ainvoke(initial_state, config)
         t1 = time.perf_counter()
         logger.info(f"[LangGraph_invoke완료] Execution time: {t1 - t0:.4f} seconds")
-        logger.info(f"[LangGraph] Intent classified as: {final_state.get('intent')}")
 
         # 3. 응답 추출 및 전처리
         output = extract_final_response(cast(AgentState, final_state))
