@@ -9,6 +9,7 @@ from langchain_core.tools import tool
 from app.common.category_mapping import CATEGORY_MAPPING
 from app.service.place_service import PlaceService
 from app.database.database import get_db, get_db_session
+from app.utils.geocoding import fetch_coordinates_from_address
 from app.schemas.place import (
     NearbyPlaceRequest,
     NearbyPlaceResponse,
@@ -103,40 +104,6 @@ def normalize_category(category: Optional[str]) -> Optional[str]:
 
 
 # TODO: 다른 서비스에 넣어놓기
-def fetch_coordinates_from_address(location_name: str) -> tuple[float, float]:
-    """Return (latitude, longitude) searched by Kakao Local API."""
-    if not KAKAO_REST_API_KEY:
-        raise ValueError(
-            "Kakao API 키가 설정되지 않았습니다. .env 파일에 KAKAO_REST_API_KEY를 추가해주세요."
-        )
-
-    with httpx.Client(timeout=60.0) as client:
-        headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-        search_response = client.get(
-            KAKAO_LOCAL_SEARCH_URL,
-            headers=headers,
-            params={"query": location_name, "size": 1},
-        )
-        logger.debug("Kakao Local API 호출 완료")
-        search_response.raise_for_status()
-        search_data = search_response.json()
-
-    documents = search_data.get("documents", [])
-    if not documents:
-        raise ValueError(
-            f"'{location_name}' 위치를 찾을 수 없습니다. 다른 장소명을 시도해보세요."
-        )
-
-    first_place = documents[0]
-    latitude = float(first_place.get("y", 0))
-    longitude = float(first_place.get("x", 0))
-
-    if not latitude or not longitude:
-        raise ValueError("위치 좌표를 가져올 수 없습니다.")
-
-    return latitude, longitude
-
-
 def get_place_tools():
     """
     [장소 추천 관련 도구 모음]

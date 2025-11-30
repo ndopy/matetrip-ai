@@ -1,8 +1,10 @@
 """여행 루트 생성 서비스 (순수 비즈니스 로직)"""
 
 from typing import List, Optional, Tuple
+
 from app.common.logger import logger
 from app.service.place_service import PlaceService
+from app.utils.geocoding import fetch_coordinates_from_address
 from app.schemas.route_request import CreateRouteRequest
 from app.schemas.route_tool import TravelRouteResponse, TravelRouteWaypoint
 from app.schemas.routes import Coordinate
@@ -95,8 +97,6 @@ class RouteService:
         excluded_place_ids: List[str],
     ) -> TravelRouteWaypoint:
         """경유지 한 개에 대한 정보 및 주변 추천 생성"""
-        from app.tools.place_tool import fetch_coordinates_from_address
-
         logger.info(f"경유지 {waypoint_index + 1} ({day}일차, 순서 {sequence_in_day}): {waypoint}")
 
         try:

@@ -8,7 +8,7 @@ from app.common.logger import logger
 from app.database.database import get_db_session
 from app.repository.place_repository import PlaceRepository
 from app.service.poi_analysis_service import PoiAnalysisService
-from app.schemas.poi_analysis import AnalyzePoiRequest
+from app.schemas.poi_analysis import AnalyzePoiRequest, PoiAnalysisResponse
 from app.schemas.tool_response import ToolResult
 
 
@@ -99,7 +99,9 @@ def get_poi_tools():
             with get_db_session() as db:
                 place_repo = PlaceRepository(db)
                 poi_service = PoiAnalysisService(place_repo)
-                response = poi_service.analyze_workspace_pois(request)
+                response: PoiAnalysisResponse = poi_service.analyze_workspace_pois(
+                    request
+                )
 
             day_label = f"{day_no}일차" if day_no else "전체 일정"
             return ToolResult(
