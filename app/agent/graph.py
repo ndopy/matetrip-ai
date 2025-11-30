@@ -23,6 +23,9 @@ from app.agent.nodes.post_processors.handle_place_recommendation_node import (
 from app.agent.nodes.post_processors.handle_travel_route_node import (
     handle_travel_route_node,
 )
+from app.agent.nodes.post_processors.handle_workspace_recommendation_node import (
+    handle_workspace_recommendation_node,
+)
 from app.common.logger import logger
 from app.agent.state import AgentState
 from app.tools import create_nest_tools
@@ -33,6 +36,7 @@ TOOL_POSTPROCESSING_ROUTES: dict[Hashable, str] = {
     "replace_places": "handle_replace_places",
     "recommend_nearby_places": "handle_place_recommendation",
     "recommend_popular_places_in_region": "handle_place_recommendation",
+    "recommend_places_by_all_users": "handle_workspace_recommendation",
     "create_travel_route": "handle_travel_route",
 }
 
@@ -119,6 +123,7 @@ def create_agent_graph():
     workflow.add_node("tools", tool_node)
     workflow.add_node("handle_replace_places", handle_replace_places_node)
     workflow.add_node("handle_place_recommendation", handle_place_recommendation_node)
+    workflow.add_node("handle_workspace_recommendation", handle_workspace_recommendation_node)
     workflow.add_node("handle_travel_route", handle_travel_route_node)
 
     # 엣지 설정
@@ -143,6 +148,7 @@ def create_agent_graph():
     # 각 후처리 노드 -> agent (상태 업데이트 후 에이전트로 복귀)
     workflow.add_edge("handle_replace_places", "agent")
     workflow.add_edge("handle_place_recommendation", "agent")
+    workflow.add_edge("handle_workspace_recommendation", "agent")
     workflow.add_edge("handle_travel_route", "agent")
 
     # MemorySaver 체크포인터 추가
