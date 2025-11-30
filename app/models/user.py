@@ -1,7 +1,6 @@
 from typing import Optional
 from uuid import UUID, uuid4
 from datetime import datetime
-from pydantic import ConfigDict
 from sqlalchemy import TEXT, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -32,5 +31,3 @@ class User(Base):
     email: Mapped[str] = mapped_column(TEXT, nullable=False, unique=True)
 
     hashed_password: Mapped[str] = mapped_column(TEXT, nullable=False)
-
-    model_config = ConfigDict(from_attributes=True)

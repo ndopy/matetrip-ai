@@ -17,14 +17,14 @@ from app.common.logger import logger
 from app.agent.state import AgentState
 
 
-def route_by_intent(state: AgentState) -> str:
-    """router_node 이후 의도에 따라 분기"""
-    intent = state.get("intent")
-    logger.info(f"[route_by_intent] Intent: {intent}")
+# def route_by_intent(state: AgentState) -> str:
+#     """router_node 이후 의도에 따라 분기"""
+#     intent = state.get("intent")
+#     logger.info(f"[route_by_intent] Intent: {intent}")
 
-    # 모든 경우 agent로 라우팅
-    ## 임시 :
-    return "agent"
+#     # 모든 경우 agent로 라우팅
+#     ## 임시 :
+#     return "agent"
 
 
 def should_continue(state: AgentState) -> str:

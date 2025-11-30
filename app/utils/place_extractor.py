@@ -7,7 +7,7 @@
 from typing import List, Any
 from app.schemas.place import SimplePlace
 from app.common.logger import logger
-from app.schemas.tool_response import ToolResult, TravelRouteData
+from app.schemas.tool_response import TravelRouteData
 
 # PlaceRecommendationData: places, count만 포함
 # (recommend_popular_places_in_region, recommend_nearby_places, replace_single_place)

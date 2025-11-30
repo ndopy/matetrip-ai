@@ -4,6 +4,7 @@ from app.agent.state import AgentState
 from app.schemas.chat import IntentClassifier
 from app.common.logger import logger
 from app.core.llm import global_llm
+from app.utils.agent_message_utils import prepare_messages_for_bedrock
 
 
 # =========================
@@ -55,38 +56,13 @@ router_chain = router_prompt | global_llm.with_structured_output(IntentClassifie
 def router_node(state: AgentState) -> AgentState:
     """의도 분류 노드"""
     logger.info("[router_node] Starting intent classification")
-
-    messages = state.get("messages", [])
-    logger.info(f"[router_node] Messages count: {len(messages)}")
-
-    # 최근 10개 메시지만 사용
-    recent_messages = messages[-10:] if len(messages) > 10 else messages
-
-    # Bedrock 제약: 대화는 항상 사용자 메시지로 시작해야 함
-    first_human_idx = next(
-        (idx for idx, msg in enumerate(recent_messages) if msg.type == "human"),
-        None,
-    )
-    if first_human_idx is not None and first_human_idx > 0:
-        logger.info(
-            f"[router_node] Trimming leading messages to start with HumanMessage (dropping {first_human_idx})"
-        )
-        recent_messages = recent_messages[first_human_idx:]
-    elif first_human_idx is None:
-        # 안전장치: 없으면 원본 messages에서 마지막 사용자 메시지만 사용
-        last_human = next(
-            (msg for msg in reversed(messages) if msg.type == "human"),
-            None,
-        )
-        recent_messages = [last_human] if last_human else []
+    # Bedrock 제약에 맞게 메시지 준비
+    messages = prepare_messages_for_bedrock(state.get("messages", []))
 
     # 의도 분류
-    classification = router_chain.invoke({"messages": recent_messages})
+    classification = router_chain.invoke({"messages": messages})
     classification = IntentClassifier.model_validate(classification)
 
-    intent = classification.intent
-    logger.info(f"[router_node] Classified intent: {intent}")
+    logger.info(f"[router_node] Classified intent: {classification.intent}")
 
-    return {
-        "intent": intent,
-    }
+    return {"intent": classification.intent}

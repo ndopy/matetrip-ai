@@ -107,6 +107,7 @@ class PlaceRepository:
         # 제외할 장소 ID 필터링
         if excluded_place_ids:
             query = query.filter(~Place.id.in_(excluded_place_ids))
+            # logger.debug(f"Excluding {len(excluded_place_ids)} places from radius search")
             print(f"[Place Repository : Excluding {len(excluded_place_ids)} places]")
 
         # 거리순 정렬 및 제한

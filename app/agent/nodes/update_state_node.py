@@ -5,14 +5,14 @@
 
 import json
 from app.agent.nodes.node_enums import NON_RECOMMENDATION_TOOLS
-from app.agent.utils.agent_utils import get_last_tool_message
 from app.agent.state import AgentState
-from app.agent.utils.place_extractor import extract_simple_places_from_result
 from langchain_core.messages import ToolMessage
-from app.agent.utils.place_normalizer import to_simple_places
 from app.agent.services.travel_route_notifier import handle_travel_route_notification
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
+from app.utils.agent_message_utils import get_last_tool_message
+from app.utils.place_extractor import extract_simple_places_from_result
+from app.utils.place_normalizer import to_simple_places
 
 
 def _is_place_recommendation_tool(tool_name: str) -> bool:

@@ -9,12 +9,15 @@ from typing import cast
 from fastapi import APIRouter
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-from app.agent.utils.agent_utils import messages_after_last_human
 from app.agent.graph import agent_graph, AgentState
 from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData
 from app.core.constants import TOOL_ACTION_MAP
 from app.common.logger import logger
 from app.service.agent_service import remove_thinking_tags
+from app.utils.agent_message_utils import (
+    get_messages_after_last_human,
+)
+from app.utils.agent_response_utils import extract_final_response
 
 router = APIRouter(prefix="/chat/v2", tags=["chat-v2"])
 
@@ -39,7 +42,7 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
     messages = final_state.get("messages", [])
 
     # 마지막 HumanMessage 이후의 메시지만 처리
-    messages_after_human = messages_after_last_human(messages)
+    messages_after_human = get_messages_after_last_human(messages)
     if not messages_after_human:
         return []
 
@@ -65,28 +68,6 @@ def extract_tool_data_from_graph_state(final_state: dict) -> list[ToolCallData]:
             tool_data_list.append(tool_call_data)
 
     return tool_data_list
-
-
-def extract_final_response(final_state: AgentState) -> str:
-    """마지막 AIMessage(툴콜 없는 것)를 찾아서 텍스트 반환"""
-    messages = final_state.get("messages", [])
-    # next : 제네레이터의 첫번째 값을 꺼내기
-    msg = next(
-        (
-            m
-            for m in reversed(messages)
-            if isinstance(m, AIMessage) and not getattr(m, "tool_calls", [])
-        ),
-        None,
-    )
-
-    if msg is None:
-        return "응답을 생성하지 못했습니다."
-
-    value = getattr(msg, "content", "")
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    return str(value)
 
 
 @router.post("", response_model=ChatResponse)
