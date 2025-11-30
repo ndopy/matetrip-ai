@@ -4,9 +4,9 @@ create_travel_route 도구 전용 후처리 노드
 """
 
 from app.agent.state import AgentState
-from app.agent.services.travel_route_notifier import handle_travel_route_notification
 from app.common.logger import logger
 from app.utils.agent_message_utils import get_last_tool_message
+from app.infra.route_notification import schedule_route_notification
 
 
 def handle_travel_route_node(state: AgentState) -> AgentState:
@@ -25,7 +25,7 @@ def handle_travel_route_node(state: AgentState) -> AgentState:
         return {}
 
     # Backend 알림 처리
-    handle_travel_route_notification(state, content)
+    schedule_route_notification(state, content)
 
     logger.info("[handle_travel_route_node] Notification sent")
 

@@ -10,7 +10,7 @@ def to_simple_places(
 ) -> List[SimplePlace]:
     """dict/Model 혼합 입력을 SimplePlace 리스트로 정규화."""
     normalized: List[SimplePlace] = []
-    for place in places_data or []:
+    for place in places_data:
         if isinstance(place, SimplePlace):
             normalized.append(place)
             continue

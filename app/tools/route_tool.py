@@ -10,6 +10,7 @@ from app.service.route_service import RouteService
 from app.schemas.route_request import CreateRouteRequest
 from app.schemas.tool_response import ToolResult, TravelRouteData
 from app.tools.place_tool import normalize_category
+from app.schemas.route_tool import TravelRouteResponse
 
 
 def get_route_tools():
@@ -25,7 +26,7 @@ def get_route_tools():
         nearby_places_per_waypoint: int = 2,
         radius_km: float = 4.0,
         category: Optional[str] = None,
-        excluded_place_ids: Optional[List[str]] = None,
+        excluded_place_ids: List[str] = [],
     ):
         """
         사용자가 지정한 경유지를 기준으로 여행 코스를 생성합니다.
@@ -108,16 +109,11 @@ def get_route_tools():
           오션뷰, 여유로운 분위기"
         """
         # 입력값 검증
-        validation_error = _validate_inputs(
-            waypoints, days, nearby_places_per_waypoint
-        )
+        validation_error = _validate_inputs(waypoints, days, nearby_places_per_waypoint)
         if validation_error:
             return validation_error
 
         logger.info(f"여행 코스 생성: {len(waypoints)}개 경유지, {days}일")
-
-        # 카테고리 매핑
-        mapped_category = normalize_category(category)
 
         # DTO 생성 (6개 파라미터 → DTO 캡슐화)
         request = CreateRouteRequest.create(
@@ -125,21 +121,15 @@ def get_route_tools():
             days=days,
             nearby_places_per_waypoint=nearby_places_per_waypoint,
             radius_km=radius_km,
-            category=mapped_category,
+            category=normalize_category(category),  # 카테고리 매핑
             excluded_place_ids=excluded_place_ids,
         )
 
-        # ========================================
-        # Service Layer 호출 (순수 비즈니스 로직)
-        # ========================================
         with get_db_session() as db:
             place_service = PlaceService(db)
             route_service = RouteService(place_service)
-            response = route_service.create_travel_route(request)
+            response: TravelRouteResponse = route_service.create_travel_route(request)
 
-        # ========================================
-        # Tool Layer: ToolResult로 포장 (LLM 어댑터)
-        # ========================================
         response_dict = response.model_dump()
         return ToolResult(
             success=True,

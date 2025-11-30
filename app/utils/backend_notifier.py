@@ -60,7 +60,7 @@ async def notify_backend_route_created(
             )
 
         # 해당 경유지 주변 장소들을 places 배열에 추가
-        nearby_places = getattr(waypoint_data, "nearby_places", []) or []
+        nearby_places = getattr(waypoint_data, "nearby_places", [])
         for idx, place in enumerate(nearby_places):
             if not getattr(place, "id", None) or not getattr(place, "title", None):
                 continue

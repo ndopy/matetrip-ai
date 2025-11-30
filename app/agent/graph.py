@@ -5,6 +5,8 @@ LangGraph 기반 AI 에이전트 그래프 구성 (후처리 노드 분리 패�
 - 후처리 노드: Tool별로 전용 노드가 상태 업데이트 담당
 """
 
+from typing import Hashable
+
 from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -12,15 +14,27 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.nodes.agent_node import agent_node
 from app.agent.nodes.router_node import router_node
-from app.agent.nodes.handle_replace_places_node import handle_replace_places_node
-from app.agent.nodes.handle_place_recommendation_node import (
+from app.agent.nodes.post_processors.handle_replace_places_node import (
+    handle_replace_places_node,
+)
+from app.agent.nodes.post_processors.handle_place_recommendation_node import (
     handle_place_recommendation_node,
 )
-from app.agent.nodes.handle_travel_route_node import handle_travel_route_node
+from app.agent.nodes.post_processors.handle_travel_route_node import (
+    handle_travel_route_node,
+)
 from app.common.logger import logger
 from app.agent.state import AgentState
 from app.tools import create_nest_tools
 from app.utils.agent_message_utils import get_last_tool_message
+
+# Tool → 후처리 노드 매핑 (중앙 집중 관리)
+TOOL_POSTPROCESSING_ROUTES: dict[Hashable, str] = {
+    "replace_places": "handle_replace_places",
+    "recommend_nearby_places": "handle_place_recommendation",
+    "recommend_popular_places_in_region": "handle_place_recommendation",
+    "create_travel_route": "handle_travel_route",
+}
 
 
 # def route_by_intent(state: AgentState) -> str:
@@ -70,17 +84,12 @@ def route_after_tools(state: AgentState) -> str:
     tool_name = getattr(last_tool_message, "name", "")
     logger.info(f"[route_after_tools] Tool executed: {tool_name}")
 
-    # Tool별 라우팅
-    if tool_name == "replace_places":
-        return "handle_replace_places"
-    elif tool_name in ["recommend_nearby_places", "recommend_popular_places_in_region"]:
-        return "handle_place_recommendation"
-    elif tool_name == "create_travel_route":
-        return "handle_travel_route"
-    else:
-        # 상태 변경이 필요 없는 Tool들 (get_place_reviews 등)
+    target_node = TOOL_POSTPROCESSING_ROUTES.get(tool_name)
+    if not target_node:
         logger.info(f"[route_after_tools] No post-processing needed for {tool_name}")
         return "agent"
+
+    return target_node
 
 
 # =========================
@@ -131,15 +140,12 @@ def create_agent_graph():
     )
 
     # tools -> route_after_tools (Tool별 후처리 노드로 분기)
+    postprocess_edges: dict[Hashable, str] = {
+        node: node for node in TOOL_POSTPROCESSING_ROUTES.values()
+    }
+    postprocess_edges["agent"] = "agent"  # 기본 경로
     workflow.add_conditional_edges(
-        "tools",
-        route_after_tools,
-        {
-            "handle_replace_places": "handle_replace_places",
-            "handle_place_recommendation": "handle_place_recommendation",
-            "handle_travel_route": "handle_travel_route",
-            "agent": "agent",
-        },
+        "tools", route_after_tools, postprocess_edges
     )
 
     # 각 후처리 노드 -> agent (상태 업데이트 후 에이전트로 복귀)
