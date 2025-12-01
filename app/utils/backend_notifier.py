@@ -20,6 +20,11 @@ nestjs_server_url = os.getenv("NESTJS_SERVER_URL")
 # 일단 배포 환경에서 env맞추기 귀찮으니 나중에 ㄱ
 
 
+def get_nestjs_server_url() -> str:
+    """Backend NestJS 서버 URL 반환"""
+    return nestjs_server_url or ""
+
+
 async def notify_backend_route_created(
     workspace_id: str, route_data: TravelRouteData
 ) -> None:
@@ -60,7 +65,7 @@ async def notify_backend_route_created(
             )
 
         # 해당 경유지 주변 장소들을 places 배열에 추가
-        nearby_places = getattr(waypoint_data, "nearby_places", []) or []
+        nearby_places = getattr(waypoint_data, "nearby_places", [])
         for idx, place in enumerate(nearby_places):
             if not getattr(place, "id", None) or not getattr(place, "title", None):
                 continue
@@ -89,7 +94,7 @@ async def notify_backend_route_created(
             response = await client.post(
                 f"{nestjs_server_url}/workspace/{workspace_id}/ai/schedule-batch",
                 json=payload,
-                headers={"x-ai-api-key": api_key},
+                # headers={"x-ai-api-key": api_key},
                 timeout=30.0,
             )
             response.raise_for_status()

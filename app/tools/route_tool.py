@@ -1,45 +1,16 @@
-import logging
+"""여행 루트 생성 도구 (LLM 어댑터)"""
+
 from typing import List, Optional
 from langchain_core.tools import tool
 
-from app.schemas.routes import Coordinate
-from app.schemas.route_tool import TravelRouteResponse, TravelRouteWaypoint
-from app.schemas.place import NearbyPlaceResponse
-from app.schemas.tool_response import ToolResult, TravelRouteData
-from app.service.place_service import PlaceService
+from app.common.logger import logger
 from app.database.database import get_db_session
-from app.tools.place_tool import fetch_coordinates_from_address, normalize_category
-from app.utils.backend_notifier import notify_backend_route_created
-
-logger = logging.getLogger(__name__)
-
-
-def _distribute_waypoints_by_days(total_waypoints: int, days: int) -> List[int]:
-    """
-    경유지를 일자별로 균등하게 분배
-
-    예시:
-        - 5개 경유지, 2일 -> [3, 2] (1일차 3개, 2일차 2개)
-        - 7개 경유지, 3일 -> [3, 2, 2]
-        - 3개 경유지, 2일 -> [2, 1]
-
-    Args:
-        total_waypoints: 총 경유지 개수
-        days: 여행 일수
-
-    Returns:
-        각 일자별 경유지 개수 리스트
-    """
-    base_count = total_waypoints // days  # 각 날짜에 최소한 배치될 개수
-    remainder = total_waypoints % days  # 남은 경유지 개수
-
-    result = []
-    for day_idx in range(days):
-        # 앞쪽 날짜부터 남은 경유지 하나씩 추가 배치
-        count = base_count + (1 if day_idx < remainder else 0)
-        result.append(count)
-
-    return result
+from app.service.place_service import PlaceService
+from app.service.route_service import RouteService
+from app.schemas.route_request import CreateRouteRequest
+from app.schemas.tool_response import ToolResult, TravelRouteData
+from app.tools.place_tool import normalize_category
+from app.schemas.route_tool import TravelRouteResponse
 
 
 def get_route_tools():
@@ -53,9 +24,9 @@ def get_route_tools():
         waypoints: List[str],
         days: int = 1,
         nearby_places_per_waypoint: int = 2,
-        radius_km: float = 4.0,  # 임시 4
+        radius_km: float = 4.0,
         category: Optional[str] = None,
-        excluded_place_ids: Optional[List[str]] = None,
+        excluded_place_ids: List[str] = [],
     ):
         """
         사용자가 지정한 경유지를 기준으로 여행 코스를 생성합니다.
@@ -78,7 +49,7 @@ def get_route_tools():
             nearby_places_per_waypoint: 각 경유지마다 추천할 근처 장소 개수 (기본값: 2개)
                 - 경유지가 많으면 1~2개로 제한
                 - 경유지가 적으면 3~5개로 늘릴 수 있음
-            radius_km: 경유지 주변 검색 반경 (km 단위, 기본값: 3km)
+            radius_km: 경유지 주변 검색 반경 (km 단위, 기본값: 4km)
                 - 도시 내 코스: 2~3km
                 - 지역 코스: 5~10km
             category: 추천받을 카테고리 (선택사항)
@@ -137,38 +108,28 @@ def get_route_tools():
         - **김영해변 카페** (제주 서귀포시...)
           오션뷰, 여유로운 분위기"
         """
-        validation_error = _validate_route_inputs(
-            waypoints=waypoints,
-            days=days,
-            nearby_places_per_waypoint=nearby_places_per_waypoint,
-        )
+        # 입력값 검증
+        validation_error = _validate_inputs(waypoints, days, nearby_places_per_waypoint)
         if validation_error:
             return validation_error
 
-        logger.info(f"여행 코스 생성 시작: {len(waypoints)}개 경유지, {days}일")
-        # 카테고리 매핑
-        mapped_category = normalize_category(category)
+        logger.info(f"여행 코스 생성: {len(waypoints)}개 경유지, {days}일")
 
-        # 경유지를 일자별로 분배
-        # 예: 5개 경유지, 2일 -> [3, 2] (1일차 3개, 2일차 2개)
-        waypoints_per_day = _distribute_waypoints_by_days(len(waypoints), days)
-
-        route_data: List[TravelRouteWaypoint] = _build_route_way_points(
+        # DTO 생성 (6개 파라미터 → DTO 캡슐화)
+        request = CreateRouteRequest.create(
             waypoints=waypoints,
-            waypoints_per_day=waypoints_per_day,
-            mapped_category=mapped_category,
-            radius_km=radius_km,
+            days=days,
             nearby_places_per_waypoint=nearby_places_per_waypoint,
+            radius_km=radius_km,
+            category=normalize_category(category),  # 카테고리 매핑
             excluded_place_ids=excluded_place_ids,
         )
 
-        response = TravelRouteResponse(
-            total_days=days,
-            waypoints_count=len(waypoints),
-            route=route_data,
-        )
+        with get_db_session() as db:
+            place_service = PlaceService(db)
+            route_service = RouteService(place_service)
+            response: TravelRouteResponse = route_service.create_travel_route(request)
 
-        # ToolResult로 감싸서 반환
         response_dict = response.model_dump()
         return ToolResult(
             success=True,
@@ -179,104 +140,10 @@ def get_route_tools():
     return [create_travel_route]
 
 
-def _build_route_way_points(
-    waypoints: List[str],
-    waypoints_per_day: List[int],
-    mapped_category: Optional[str],
-    radius_km: float,
-    nearby_places_per_waypoint: int,
-    excluded_place_ids: Optional[List[str]],
-) -> List[TravelRouteWaypoint]:
-    """경유지별 추천을 생성"""
-    excluded_ids = excluded_place_ids or []
-
-    with get_db_session() as db:
-        place_service = PlaceService(db)
-        route: List[TravelRouteWaypoint] = []
-        waypoint_iter = enumerate(waypoints)
-
-        for day_num, count_in_day in enumerate(waypoints_per_day, start=1):
-            for seq_in_day in range(count_in_day):
-                waypoint_idx, waypoint = next(waypoint_iter)
-                route.append(
-                    _build_waypoint_route(
-                        place_service=place_service,
-                        waypoint=waypoint,
-                        waypoint_index=waypoint_idx,
-                        day=day_num,
-                        sequence_in_day=seq_in_day,
-                        mapped_category=mapped_category,
-                        radius_km=radius_km,
-                        nearby_places_per_waypoint=nearby_places_per_waypoint,
-                        excluded_place_ids=excluded_ids,
-                    )
-                )
-
-        return route
-
-
-def _build_waypoint_route(
-    place_service: PlaceService,
-    waypoint: str,
-    waypoint_index: int,
-    day: int,
-    sequence_in_day: int,
-    mapped_category: Optional[str],
-    radius_km: float,
-    nearby_places_per_waypoint: int,
-    excluded_place_ids: List[str],
-) -> TravelRouteWaypoint:
-    """경유지 한 개에 대한 좌표 및 주변 추천 생성"""
-    logger.info(
-        f"경유지 {waypoint_index + 1} ({day}일차, 순서 {sequence_in_day}): {waypoint}"
-    )
-
-    try:
-        latitude, longitude = fetch_coordinates_from_address(waypoint)
-    except ValueError as e:
-        logger.warning(f"경유지 '{waypoint}' 좌표를 찾을 수 없습니다: {e}")
-        return TravelRouteWaypoint(
-            waypoint_name=waypoint,
-            waypoint_index=waypoint_index,
-            day=day,
-            sequence_in_day=sequence_in_day,
-            coordinates=None,
-            nearby_places=[],
-            error=f"'{waypoint}' 위치를 찾을 수 없습니다.",
-        )
-
-    nearby_places_entities = place_service.find_nearby_places(
-        latitude=latitude,
-        longitude=longitude,
-        radius_km=radius_km,
-        category=mapped_category,
-        limit=nearby_places_per_waypoint,
-        excluded_place_ids=excluded_place_ids,
-    )
-
-    logger.info(
-        f"경유지 '{waypoint}' 주변 {len(nearby_places_entities)}개 장소 추천 완료"
-    )
-
-    nearby_places = [
-        NearbyPlaceResponse.from_entity(place) for place in nearby_places_entities
-    ]
-
-    return TravelRouteWaypoint(
-        waypoint_name=waypoint,
-        waypoint_index=waypoint_index,
-        day=day,
-        sequence_in_day=sequence_in_day,
-        coordinates=Coordinate(latitude=latitude, longitude=longitude),
-        nearby_places=nearby_places,
-        error=None,
-    )
-
-
-def _validate_route_inputs(
+def _validate_inputs(
     waypoints: List[str], days: int, nearby_places_per_waypoint: int
 ) -> Optional[dict]:
-    """create_travel_route 입력값 검증"""
+    """입력값 검증"""
     if not waypoints:
         return ToolResult(
             success=False, error="최소 1개 이상의 경유지를 지정해주세요."

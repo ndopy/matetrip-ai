@@ -173,6 +173,41 @@ class PopularPlaceResponse(BaseModel):
     }
 
 
+class ReplacePlaceRequest(BaseModel):
+    """장소 교체 요청 DTO"""
+
+    latitude: float = Field(..., description="기준 위도")
+    longitude: float = Field(..., description="기준 경도")
+    replace_count: int = Field(..., description="교체할 장소 개수")
+    excluded_place_ids: List[str] = Field(..., description="제외할 장소 ID 리스트")
+    category: Optional[str] = Field(
+        None,
+        description="카테고리 필터 (음식, 숙박, 레포츠, 자연, 인문(문화/예술/역사), 추천코스)",
+    )
+    radius_km: float = Field(5.0, description="검색 반경 (km 단위)")
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        latitude: float,
+        longitude: float,
+        replace_count: int,
+        excluded_place_ids: List[str],
+        category: Optional[str] = None,
+        radius_km: float = 5.0,
+    ) -> "ReplacePlaceRequest":
+        """요청 DTO 생성 팩토리 메서드"""
+        return cls(
+            latitude=latitude,
+            longitude=longitude,
+            replace_count=replace_count,
+            excluded_place_ids=excluded_place_ids,
+            category=category,
+            radius_km=radius_km,
+        )
+
+
 class SimplePlace(BaseModel):
     id: str = Field(..., description="장소 ID")
     title: str = Field(..., description="장소명")

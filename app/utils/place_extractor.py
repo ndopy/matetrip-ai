@@ -7,7 +7,7 @@
 from typing import List, Any
 from app.schemas.place import SimplePlace
 from app.common.logger import logger
-from app.schemas.tool_response import ToolResult, TravelRouteData
+from app.schemas.tool_response import TravelRouteData
 
 # PlaceRecommendationData: places, count만 포함
 # (recommend_popular_places_in_region, recommend_nearby_places, replace_single_place)
@@ -27,9 +27,6 @@ def extract_simple_places_from_result(
     Args:
         result: 도구 실행 결과 (ToolResult의 dict 형태)
         tool_name: 도구 이름 (로깅용)
-
-    Returns:
-        추출된 SimplePlace 리스트
     """
     if not is_success(result):
         logger.warning(f"[extract_places] {tool_name} failed: {result.get('error')}")

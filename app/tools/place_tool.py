@@ -8,11 +8,14 @@ from langchain_core.tools import tool
 
 from app.common.category_mapping import CATEGORY_MAPPING
 from app.service.place_service import PlaceService
-from app.database.database import get_db
+from app.database.database import get_db, get_db_session
+from app.utils.geocoding import fetch_coordinates_from_address
 from app.schemas.place import (
     NearbyPlaceRequest,
+    NearbyPlaceResponse,
     PopularPlaceRequest,
     PopularPlaceResponse,
+    ReplacePlaceRequest,
 )
 from app.schemas.tool_response import ToolResult, PlaceRecommendationData
 
@@ -101,40 +104,6 @@ def normalize_category(category: Optional[str]) -> Optional[str]:
 
 
 # TODO: 다른 서비스에 넣어놓기
-def fetch_coordinates_from_address(location_name: str) -> tuple[float, float]:
-    """Return (latitude, longitude) searched by Kakao Local API."""
-    if not KAKAO_REST_API_KEY:
-        raise ValueError(
-            "Kakao API 키가 설정되지 않았습니다. .env 파일에 KAKAO_REST_API_KEY를 추가해주세요."
-        )
-
-    with httpx.Client(timeout=60.0) as client:
-        headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-        search_response = client.get(
-            KAKAO_LOCAL_SEARCH_URL,
-            headers=headers,
-            params={"query": location_name, "size": 1},
-        )
-        logger.debug("Kakao Local API 호출 완료")
-        search_response.raise_for_status()
-        search_data = search_response.json()
-
-    documents = search_data.get("documents", [])
-    if not documents:
-        raise ValueError(
-            f"'{location_name}' 위치를 찾을 수 없습니다. 다른 장소명을 시도해보세요."
-        )
-
-    first_place = documents[0]
-    latitude = float(first_place.get("y", 0))
-    longitude = float(first_place.get("x", 0))
-
-    if not latitude or not longitude:
-        raise ValueError("위치 좌표를 가져올 수 없습니다.")
-
-    return latitude, longitude
-
-
 def get_place_tools():
     """
     [장소 추천 관련 도구 모음]
@@ -210,10 +179,10 @@ def get_place_tools():
         6. "다른 사용자들이 많이 찾는" 또는 "인기 있는" 장소임을 자연스럽게 언급하세요.
         """
         try:
-
             if limit <= 0 or limit > 100:
                 raise ValueError(f"limit must be between 1 and 100, but got {limit}")
-            # 지역명 정규화 (약칭이 있을 수 있으니.. 이거 너무 하드코딩같은데 쩔수일 듯)
+
+            # 지역명 정규화
             normalized_region = normalize_region_name(region.strip())
 
             # 카테고리를 DB 카테고리로 매핑
@@ -226,12 +195,9 @@ def get_place_tools():
                 limit=limit,
             )
 
-            # PlaceService를 통해 인기 장소 조회
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 place_responses = PlaceService(db).get_popular_places_in_region(request)
                 place_dicts = [place.model_dump() for place in place_responses]
-
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -240,11 +206,7 @@ def get_place_tools():
                     message=f"{normalized_region}에서 인기 있는 장소 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
 
-            finally:
-                db.close()
-
         except ValueError as e:
-            # 지역명 검증 실패 시
             return ToolResult(
                 success=False, error=f"지역명 검증 실패: {str(e)}"
             ).model_dump()
@@ -319,9 +281,6 @@ def get_place_tools():
         try:
             # 카테고리를 DB 카테고리로 매핑
             mapped_category = normalize_category(category)
-            mapped_category = (
-                CATEGORY_MAPPING.get(category.lower(), category) if category else None
-            )
 
             # 1. Kakao Local API로 장소명을 좌표로 변환
             t0 = time.perf_counter()
@@ -344,9 +303,7 @@ def get_place_tools():
                 limit=limit,
             )
 
-            # 2. PlaceService를 직접 호출 (같은 서버 내부 호출)
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 t2 = time.perf_counter()
                 place_responses = PlaceService(db).get_nearby_place(search_request)
                 t3 = time.perf_counter()
@@ -361,7 +318,6 @@ def get_place_tools():
                         error=f"{location_name} 주변 {radius_km}km 이내에 {category_text}장소를 찾을 수 없습니다.",
                     ).model_dump()
 
-                # 결과 반환
                 return ToolResult(
                     success=True,
                     data=PlaceRecommendationData(
@@ -369,9 +325,6 @@ def get_place_tools():
                     ),
                     message=f"{location_name} 주변 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
-
-            finally:
-                db.close()
 
         except httpx.HTTPStatusError as e:
             return ToolResult(
@@ -384,69 +337,68 @@ def get_place_tools():
             ).model_dump()
 
     @tool
-    def replace_single_place(
-        excluded_place_id: str,
+    def replace_places(
+        replace_target_ids: List[str],
         latitude: float,
         longitude: float,
+        excluded_place_ids: List[str],
         category: Optional[str] = None,
         radius_km: float = 5.0,
-        excluded_place_ids: Optional[List[str]] = None,
     ):
         """
-        특정 장소를 대체할 새로운 장소 1개를 추천합니다.
-        기존 추천 장소 중 하나를 제외하고 같은 위치에서 새로운 장소로 교체할 때 사용합니다.
+        특정 장소들을 대체할 새로운 장소들을 추천합니다.
+        기존 추천 장소 중 일부를 제외하고 같은 위치에서 새로운 장소로 교체할 때 사용합니다.
 
         Args:
-            excluded_place_id: 제외할 장소의 ID (대체할 장소)
-            latitude: 기준 위도 (대체할 장소가 있던 경유지의 좌표)
+            replace_target_ids: 교체 대상 장소 ID 리스트 (이 개수만큼 새로운 장소 추천)
+                - 예: ["place1_id", "place3_id"] → 2개의 새로운 장소 추천
+            latitude: 기준 위도 (교체할 장소들이 있던 지역의 좌표)
             longitude: 기준 경도
+            excluded_place_ids: 추천에서 제외할 모든 장소 ID 리스트 (기존 추천 전체 + 교체 대상 포함)
+                - 중복 방지를 위해 이미 추천된 모든 장소 ID를 포함해야 합니다
             category: 추천받을 카테고리 (선택사항)
             radius_km: 검색 반경 (km 단위, 기본값: 5km)
-            excluded_place_ids: 제외할 장소 ID 목록 (리스트 형식, 예: ["id1", "id2", "id3"])
-                **중요**: 반드시 리스트(list) 타입으로 전달해야 합니다. 문자열로 전달하지 마세요.
 
         Returns:
-            대체할 장소 1개
+            len(replace_target_ids)만큼의 새로운 장소 리스트
 
         사용 예시:
-            - 사용자: "한라수목원 대신 다른 거 없어?"
-            - excluded_place_id: "b648df96-5325-4b06-ba09-95f848ea86f5"
-            - excluded_place_ids: ["b648df96-5325-4b06-ba09-95f848ea86f5", "c016f3f3-9cec-4544-abfb-2f4b7c786c6a"]
-            - 결과: 한라수목원이 있던 위치에서 새로운 장소 1개 추천
+            - 사용자: "1번이랑 3번 빼고 다른 거로 바꿔줘"
+            - replace_target_ids: ["place1_id", "place3_id"]
+            - excluded_place_ids: ["place1_id", "place2_id", ..., "place10_id"] (전체 기존 추천)
+            - 결과: 2개의 새로운 장소 추천
+
+            - 사용자: "카페 다 빼고"
+            - replace_target_ids: ["cafe1_id", "cafe2_id"]
+            - excluded_place_ids: [모든 기존 추천 장소 ID들]
+            - 결과: 2개의 새로운 장소 추천
         """
+        if not replace_target_ids:
+            return ToolResult(
+                success=False,
+                error="교체할 장소가 지정되지 않았습니다.",
+            ).model_dump()
+
         try:
-            # 카테고리 정규화
-            mapped_category = normalize_category(category)
-            # excluded_place_ids에 excluded_place_id가 포함되어 있는지 확인
-            all_excluded_ids = excluded_place_ids or []
-            if excluded_place_id not in all_excluded_ids:
-                all_excluded_ids.append(excluded_place_id)
+            request = ReplacePlaceRequest.create(
+                latitude=latitude,
+                longitude=longitude,
+                replace_count=len(replace_target_ids),  # 교체할 개수
+                excluded_place_ids=excluded_place_ids,
+                category=normalize_category(category),  # 카테고리 정규화
+                radius_km=radius_km,
+            )
 
-            # PlaceService 호출
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 place_service = PlaceService(db)
-                places = place_service.find_nearby_places(
-                    latitude=latitude,
-                    longitude=longitude,
-                    radius_km=radius_km,
-                    category=mapped_category,
-                    limit=1,
-                    excluded_place_ids=all_excluded_ids,
-                )
+                place_responses = place_service.find_replacement_places(request)
 
-                if not places:
+                if not place_responses:
                     return ToolResult(
                         success=False,
                         error=f"해당 위치 주변에서 대체할 장소를 찾을 수 없습니다.",
                     ).model_dump()
 
-                # Place 엔티티를 dict로 변환
-                from app.schemas.place import NearbyPlaceResponse
-
-                place_responses = [
-                    NearbyPlaceResponse.from_entity(place) for place in places
-                ]
                 place_dicts = [place.model_dump() for place in place_responses]
 
                 return ToolResult(
@@ -454,13 +406,10 @@ def get_place_tools():
                     data=PlaceRecommendationData(
                         places=place_dicts,
                         count=len(place_dicts),
-                        replaced_place_id=excluded_place_id,
+                        replaced_place_ids=replace_target_ids,  # 메타정보
                     ),
-                    message=f"대체 장소 1곳을 찾았습니다.",
+                    message=f"대체 장소 {len(place_dicts)}곳을 찾았습니다.",
                 ).model_dump()
-
-            finally:
-                db.close()
 
         except Exception as e:
             logger.error(f"장소 대체 중 에러 발생: {str(e)}")
@@ -471,5 +420,5 @@ def get_place_tools():
     return [
         recommend_popular_places_in_region,
         recommend_nearby_places,
-        replace_single_place,
+        replace_places,
     ]

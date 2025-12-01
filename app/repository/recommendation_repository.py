@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Sequence  # Sequence comes from typing
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from common.embedding_utils import EmbeddingUtils
+from app.utils.embedding_utils import EmbeddingUtils
 
 
 class RecommendationRepository:

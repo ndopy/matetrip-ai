@@ -17,6 +17,7 @@ from app.schemas.place import (
     NearbyPlaceResponse,
     PopularPlaceRequest,
     PopularPlaceResponse,
+    ReplacePlaceRequest,
 )
 from app.repository.place_repository import PlaceRepository
 
@@ -154,7 +155,7 @@ class PlaceService:
         radius_km: float = 5.0,
         category: Optional[str] = None,
         limit: int = 10,
-        excluded_place_ids: Optional[List[str]] = None,
+        excluded_place_ids: List[str] = [],
     ) -> List[Place]:
         """
         주변 장소를 검색합니다.
@@ -177,7 +178,7 @@ class PlaceService:
             radius_km=radius_km,
             category=category,
             limit=limit,
-            excluded_place_ids=excluded_place_ids or [],
+            excluded_place_ids=list(excluded_place_ids),
         )
 
     def get_nearby_place(
@@ -208,49 +209,49 @@ class PlaceService:
         )
         return [NearbyPlaceResponse.from_entity(place) for place in places]
 
-    # 테스트 비교용(product 환경에서 안쓰는 메서드)
-    def find_nearby_places_haversine(
-        self,
-        latitude: float,
-        longitude: float,
-        radius_km: float = 5.0,
-        category: Optional[str] = None,
-        limit: int = 10,
-    ) -> List[NearbyPlaceResponse]:
-        """
-        주변 장소를 Haversine 공식으로 검색합니다. (공간 인덱스 미사용)
+    # # 테스트 비교용(product 환경에서 안쓰는 메서드)
+    # def find_nearby_places_haversine(
+    #     self,
+    #     latitude: float,
+    #     longitude: float,
+    #     radius_km: float = 5.0,
+    #     category: Optional[str] = None,
+    #     limit: int = 10,
+    # ) -> List[NearbyPlaceResponse]:
+    #     """
+    #     주변 장소를 Haversine 공식으로 검색합니다. (공간 인덱스 미사용)
 
-        Args:
-            latitude: 위도
-            longitude: 경도
-            radius_km: 검색 반경 (km)
-            category: 카테고리 (예: '음식', '숙박', '레포츠' 등)
-            limit: 최대 결과 개수
+    #     Args:
+    #         latitude: 위도
+    #         longitude: 경도
+    #         radius_km: 검색 반경 (km)
+    #         category: 카테고리 (예: '음식', '숙박', '레포츠' 등)
+    #         limit: 최대 결과 개수
 
-        Returns:
-            거리순으로 정렬된 장소 리스트
-        """
-        print("[Place Service : find_nearby_places_haversine 함수 호출]")
-        places = self.repository.find_nearby_places_haversine(
-            latitude=latitude,
-            longitude=longitude,
-            radius_km=radius_km,
-            category=category,
-            limit=limit,
-        )
-        return [NearbyPlaceResponse.from_entity(place) for place in places]
+    #     Returns:
+    #         거리순으로 정렬된 장소 리스트
+    #     """
+    #     print("[Place Service : find_nearby_places_haversine 함수 호출]")
+    #     places = self.repository.find_nearby_places_haversine(
+    #         latitude=latitude,
+    #         longitude=longitude,
+    #         radius_km=radius_km,
+    #         category=category,
+    #         limit=limit,
+    #     )
+    #     return [NearbyPlaceResponse.from_entity(place) for place in places]
 
-    def get_nearby_place_haversine(
-        self, request: NearbyPlaceRequest
-    ) -> List[NearbyPlaceResponse]:
-        """주변 장소 검색 결과를 DTO로 캡슐화하여 반환 (Haversine 방식)"""
-        return self.find_nearby_places_haversine(
-            latitude=request.latitude,
-            longitude=request.longitude,
-            radius_km=request.radius_km,
-            category=request.category,
-            limit=request.limit,
-        )
+    # def get_nearby_place_haversine(
+    #     self, request: NearbyPlaceRequest
+    # ) -> List[NearbyPlaceResponse]:
+    #     """주변 장소 검색 결과를 DTO로 캡슐화하여 반환 (Haversine 방식)"""
+    #     return self.find_nearby_places_haversine(
+    #         latitude=request.latitude,
+    #         longitude=request.longitude,
+    #         radius_km=request.radius_km,
+    #         category=request.category,
+    #         limit=request.limit,
+    #     )
 
     def get_popular_places_in_region(
         self, request: PopularPlaceRequest
@@ -270,3 +271,18 @@ class PlaceService:
             category=request.category,
             limit=request.limit,
         )
+
+    def find_replacement_places(
+        self, request: ReplacePlaceRequest
+    ) -> List[NearbyPlaceResponse]:
+        """교체용 장소를 검색합니다."""
+        places = self.repository.find_places_within_radius(
+            latitude=request.latitude,
+            longitude=request.longitude,
+            radius_km=request.radius_km,
+            category=request.category,
+            limit=request.replace_count,
+            excluded_place_ids=request.excluded_place_ids,
+        )
+
+        return [NearbyPlaceResponse.from_entity(place) for place in places]

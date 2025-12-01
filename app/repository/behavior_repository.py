@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import text, select, func
 from sqlalchemy.orm import Session
 
-from app.common.embedding_utils import EmbeddingUtils
+from app.utils.embedding_utils import EmbeddingUtils
 from app.models.user_behavior import UserBehaviorEvent, UserBehaviorEmbedding
 from app.models.place import Place
 from app.schemas.behavior import (

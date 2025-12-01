@@ -42,13 +42,13 @@ class ToolResult(BaseModel, Generic[T]):
 class PlaceRecommendationData(BaseModel):
     """
     장소 추천 결과 데이터
-    recommend_popular_places_in_region, recommend_nearby_places, replace_single_place용
+    recommend_popular_places_in_region, recommend_nearby_places, replace_places용
     """
 
     places: List[dict] = Field(description="추천된 장소 목록 (dict 형태)")
     count: int = Field(description="추천된 장소 개수")
-    replaced_place_id: Optional[str] = Field(
-        default=None, description="대체된 장소 ID (replace_single_place에서만 사용)"
+    replaced_place_ids: List[str] = Field(
+        default_factory=list, description="대체된 장소 ID 리스트 (replace_places에서만 사용)"
     )
 
 

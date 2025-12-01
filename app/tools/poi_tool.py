@@ -1,32 +1,15 @@
+"""POI 분석 도구 (LLM 어댑터)"""
+
 import httpx
-import logging
-from dataclasses import dataclass
-from typing import Dict, List, Optional
-from uuid import UUID
-
+from typing import Optional
 from langchain_core.tools import tool
-from pydantic import ValidationError
 
-from app.common.config import nestJSConfig
-from app.service.place_service import PlaceService
-from app.schemas.poi import (
-    PlanDayScheduledPoisGroupDto,
-    PlanDayScheduleSummaryDto,
-    PoiResDto,
-)
-from app.database.database import get_db
+from app.common.logger import logger
+from app.database.database import get_db_session
 from app.repository.place_repository import PlaceRepository
-from app.models.place import Place
-from app.common.logger import logger  # use shared loguru logger so INFO logs show up
-
-BACKEND_BASE_URL = nestJSConfig.NESTJS_BACKEND_URL
-
-
-@dataclass
-class PlanDayPOIDetails:
-    plan_day: PlanDayScheduleSummaryDto
-    pois: list[dict]
-    category_count: Dict[str, int]
+from app.service.poi_analysis_service import PoiAnalysisService
+from app.schemas.poi_analysis import AnalyzePoiRequest, PoiAnalysisResponse
+from app.schemas.tool_response import ToolResult
 
 
 def get_poi_tools():
@@ -109,110 +92,23 @@ def get_poi_tools():
         - **성산 해물뚝배기** (제주 서귀포시 성산읍...)
           신선한 해산물, 현지인 맛집, 가성비 좋음"
         """
-        print(f"[recommend_next_poi] workspaceId = {workspace_id}")
         try:
-            # logger.info(f"[recommend_try문 시작작] workspace_id={workspace_id}")
             logger.info(f"[recommend_next_poi] workspace_id={workspace_id}")
+            request = AnalyzePoiRequest.create(workspace_id=workspace_id, day_no=day_no)
 
-            plan_day_groups: list[PlanDayScheduledPoisGroupDto] = (
-                _fetch_plan_day_groups(workspace_id)
-            )
-
-            if day_no is not None:
-                plan_day_groups = _filter_plan_day_groups(plan_day_groups, day_no)
-
-            if not plan_day_groups:
-                return _build_empty_schedule_response()
-
-            db = next(get_db())
-            try:
+            with get_db_session() as db:
                 place_repo = PlaceRepository(db)
-                plan_day_details: list[PlanDayPOIDetails] = _collect_plan_day_details(
-                    plan_day_groups, place_repo
+                poi_service = PoiAnalysisService(place_repo)
+                response: PoiAnalysisResponse = poi_service.analyze_workspace_pois(
+                    request
                 )
 
-                if not plan_day_details:
-                    return _build_empty_schedule_response()
-
-                total_days = len(plan_day_details)
-                daily_reports = []
-
-                # plan_day: PlanDayScheduleSummaryDto
-                # pois: list[dict]
-                # category_count: Dict[str, int]
-
-                for idx, day_detail in enumerate(plan_day_details):
-
-                    plan_day_info: PlanDayScheduleSummaryDto = day_detail.plan_day
-                    # pois: list[PoiResDto] = day_detail.pois
-                    day_label = f"{plan_day_info.dayNo}일차"
-
-                    if not day_detail.pois:
-                        analysis_payload = _build_day_analysis_payload(
-                            "아직 이 날짜에 추가된 장소가 없습니다. 먼저 장소를 추가해주세요.",
-                            [],
-                            day_detail.category_count,
-                            0,
-                        )
-                        daily_reports.append(
-                            {
-                                "day_no": plan_day_info.dayNo,
-                                "plan_date": plan_day_info.planDate,
-                                "analysis": analysis_payload,
-                                "recommendations": [],
-                            }
-                        )
-                        continue
-
-                    missing_categories, recommendation_reason = (
-                        _analyze_day_category_balance(
-                            day_detail.category_count,
-                            idx,
-                            total_days,
-                            day_label,
-                        )
-                    )
-                    analysis_payload = _build_day_analysis_payload(
-                        recommendation_reason,
-                        missing_categories,
-                        day_detail.category_count,
-                        len(day_detail.pois),
-                    )
-
-                    recommendations = []
-                    if missing_categories:
-                        center_latitude, center_longitude = (
-                            _calculate_center_coordinates(day_detail.pois)
-                        )
-                        # 부족한 카테고리별로 추천 (최대 2개 카테고리)
-                        for category in missing_categories[:2]:
-                            category_places = _recommend_places(
-                                db,
-                                center_latitude,
-                                center_longitude,
-                                category,
-                            )
-                            # 카테고리당 5개씩 추천 (총 최대 10개)
-                            for place in category_places[:5]:
-                                place_dict = place.model_dump()
-                                place_dict["recommended_category"] = category
-                                recommendations.append(place_dict)
-
-                    daily_reports.append(
-                        {
-                            "day_no": plan_day_info.dayNo,
-                            "plan_date": plan_day_info.planDate,
-                            "analysis": analysis_payload,
-                            "recommendations": recommendations,
-                        }
-                    )
-
-                return {
-                    "total_days": total_days,
-                    "daily_reports": daily_reports,
-                }
-            finally:
-                db.close()
+            day_label = f"{day_no}일차" if day_no else "전체 일정"
+            return ToolResult(
+                success=True,
+                data=response.model_dump(),
+                message=f"{day_label} POI 분석을 완료했습니다.",
+            ).model_dump()
 
         except httpx.HTTPStatusError as e:
             error_msg = f"NestJS API 오류: {e.response.status_code}"
@@ -221,209 +117,14 @@ def get_poi_tools():
                     "워크스페이스를 찾을 수 없습니다. workspace_id를 확인해주세요."
                 )
             logger.error(f"{error_msg} - {e.response.text}")
-            return error_msg
+            return ToolResult(success=False, error=error_msg).model_dump()
         except httpx.RequestError as e:
             error_msg = f"NestJS 서버에 연결할 수 없습니다: {str(e)}"
             logger.error(error_msg)
-            return error_msg
+            return ToolResult(success=False, error=error_msg).model_dump()
         except Exception as e:
             error_msg = f"POI 분석 중 에러 발생: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            return error_msg
+            return ToolResult(success=False, error=error_msg).model_dump()
 
     return [recommend_next_poi]
-
-
-def _fetch_plan_day_groups(workspace_id: str) -> list[PlanDayScheduledPoisGroupDto]:
-    logger.info("=====================_fetch_plan_day_groups=====================")
-    with httpx.Client(timeout=30.0) as client:
-        scheduled_pois_url = (
-            f"{BACKEND_BASE_URL}/workspace/{workspace_id}/scheduled-pois"
-        )
-        logger.info(f"NestJS API 호출")
-        response = client.get(scheduled_pois_url)
-        response.raise_for_status()
-        raw_data = response.json()
-
-    if not isinstance(raw_data, list):
-        raise ValueError("NestJS 응답 형식이 올바르지 않습니다: 리스트가 필요합니다.")
-
-    try:
-        plan_day_groups = [
-            PlanDayScheduledPoisGroupDto.model_validate(item) for item in raw_data
-        ]
-    except ValidationError as e:
-        error_msg = f"NestJS 응답 데이터 검증 실패: {str(e)}"
-        logger.error(error_msg)
-        raise ValueError(error_msg) from e
-
-    logger.info(f"총 {len(plan_day_groups)}일 일정 데이터 수신")
-    return plan_day_groups
-
-
-def _build_empty_schedule_response() -> dict:
-    return {
-        "total_days": 0,
-        "daily_reports": [],
-        "message": "아직 일정에 추가된 장소가 없습니다. 먼저 장소를 추가해주세요.",
-    }
-
-
-def _filter_plan_day_groups(
-    plan_day_groups: list[PlanDayScheduledPoisGroupDto], day_no: int
-) -> list[PlanDayScheduledPoisGroupDto]:
-    try:
-        target_day = int(day_no)
-    except (TypeError, ValueError) as e:
-        raise ValueError("day_no는 정수여야 합니다.") from e
-
-    return [group for group in plan_day_groups if group.planDay.dayNo == target_day]
-
-
-def _collect_plan_day_details(
-    plan_day_groups: list[PlanDayScheduledPoisGroupDto], place_repo: PlaceRepository
-) -> list[PlanDayPOIDetails]:
-    all_poi_dtos: list[PoiResDto] = [
-        poi for group in plan_day_groups for poi in group.pois
-    ]
-
-    place_ids = [poi.placeId for poi in all_poi_dtos]
-    uuid_place_ids = _validate_place_ids(place_ids) if place_ids else []
-
-    place_map: Dict[str, Place] = {}
-
-    if uuid_place_ids:
-        places: List[Place] = place_repo.find_by_ids(uuid_place_ids)
-        place_map = {str(place.id): place for place in places}
-
-    plan_day_details: list[PlanDayPOIDetails] = []
-    total_pois = 0
-
-    for group in plan_day_groups:
-        day_pois = []
-        day_category_count: Dict[str, int] = {}
-
-        for poi in group.pois:
-            place = place_map.get(poi.placeId)
-            category = place.category if place else "기타"
-            day_category_count[category] = day_category_count.get(category, 0) + 1
-            day_pois.append(
-                {
-                    "id": poi.id,
-                    "place_name": poi.placeName,
-                    "category": category,
-                    "latitude": poi.latitude,
-                    "longitude": poi.longitude,
-                }
-            )
-
-        total_pois += len(day_pois)
-        plan_day_details.append(
-            PlanDayPOIDetails(
-                plan_day=group.planDay,
-                pois=day_pois,
-                category_count=day_category_count,
-            )
-        )
-
-    logger.info(f"총 {total_pois}개 POI 수집 완료")
-
-    return plan_day_details
-
-
-def _validate_place_ids(place_ids: list[str]) -> list[UUID]:
-    valid_ids: list[UUID] = []
-    for place_id in place_ids:
-        try:
-            valid_ids.append(UUID(place_id))
-        except (ValueError, TypeError) as e:
-            raise ValueError(
-                f"유효하지 않은 UUID 형식의 place_id가 포함되어 있습니다: {place_id}"
-            ) from e
-
-    return valid_ids
-
-
-def _build_day_analysis_payload(
-    reason: str,
-    missing_categories: list[str],
-    category_count: Dict[str, int],
-    current_poi_count: int,
-) -> dict:
-
-    return {
-        "reason": reason,
-        "missing_categories": missing_categories,
-        "category_distribution": category_count,
-        "current_poi_count": current_poi_count,
-    }
-
-
-def _analyze_day_category_balance(
-    category_count: Dict[str, int],
-    day_index: int,
-    total_days: int,
-    day_label: str,
-) -> tuple[list[str], str]:
-    missing_categories: list[str] = []
-    reason_parts: list[str] = []
-
-    # 첫날부터 마지막 전날까지는 숙소가 필요하다고 가정
-    requires_accommodation = day_index < total_days - 1
-    current_accommodation = category_count.get("숙박", 0)
-    if requires_accommodation and current_accommodation < 1:
-        missing_categories.append("숙박")
-        reason_parts.append(
-            f"{day_label} 일정에 숙소가 없습니다. 밤을 보낼 숙소를 추가해주세요."
-        )
-
-    required_meals = 2
-    current_meals = category_count.get("음식", 0)
-    if current_meals < required_meals:
-        missing_categories.append("음식")
-        shortage = required_meals - current_meals
-
-        # 전체 POI 개수 계산
-        total_pois = sum(category_count.values())
-
-        reason_parts.append(
-            f"{day_label}에 식사 장소(음식 카테고리)가 {current_meals}개만 있습니다. (전체 장소 {total_pois}개 중) {shortage}개 정도 더 추가하시면 좋습니다."
-        )
-
-    recommendation_reason = (
-        " ".join(reason_parts)
-        if reason_parts
-        else f"{day_label} 일정은 균형잡혀 있습니다!"
-    )
-
-    if missing_categories:
-        logger.info("%s 부족 카테고리: %s", day_label, missing_categories)
-    else:
-        logger.info("%s 부족 카테고리 없음", day_label)
-
-    return missing_categories, recommendation_reason
-
-
-def _calculate_center_coordinates(all_pois: list[dict]) -> tuple[float, float]:
-    if not all_pois:
-        raise ValueError("중심 좌표를 계산할 POI가 없습니다.")
-
-    latitudes = [poi["latitude"] for poi in all_pois]
-    longitudes = [poi["longitude"] for poi in all_pois]
-    center_lat = sum(latitudes) / len(latitudes)
-    center_lng = sum(longitudes) / len(longitudes)
-    logger.info("중심 좌표: (%f, %f)", center_lat, center_lng)
-    return center_lat, center_lng
-
-
-def _recommend_places(db, center_lat: float, center_lng: float, category: str):
-    logger.info(f"{category} 카테고리 장소 추천 중...")
-    place_service = PlaceService(db)
-    recommendations = place_service.get_closest_places(
-        latitude=center_lat,
-        longitude=center_lng,
-        category=category,
-        limit=10,
-    )
-    logger.info("'%s' 카테고리: %d개 추천 장소 발견", category, len(recommendations))
-    return recommendations

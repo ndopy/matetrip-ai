@@ -299,7 +299,7 @@ CREATE TABLE places
     address text NOT NULL,
     region region_group_type NOT NULL,
     category text NULL,
-    tags jsonb NULL, -- Optional[list[str]] → jsonb (AI 생성 태그)
+    tags jsonb NULL, 
     summary text NULL, -- 리뷰 기반 AI 요약
     image_url text NULL, -- 장소 대표 이미지 URL
     longitude double precision NOT NULL,

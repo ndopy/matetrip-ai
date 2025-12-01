@@ -3,7 +3,13 @@ import logging
 import re
 import time
 
-from app.schemas.chat import ChatRequest, ChatResponse, ToolCallData, InternalToolLog, AgentResponseDTO
+from app.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+    ToolCallData,
+    InternalToolLog,
+    AgentResponseDTO,
+)
 from app.core.constants import TOOL_ACTION_MAP
 
 
@@ -43,8 +49,6 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> AgentRespo
     )
     t1 = time.perf_counter()
     print(f"[agent.invoke] {t1 - t0:.4f} seconds")
-
-    # print(result)
 
     # 4. 결과 파싱
     # 4-1. AI 답변 텍스트
@@ -92,10 +96,10 @@ def get_agent_response(agent, request: ChatRequest, history: list) -> AgentRespo
 
         internal_logs.append(
             InternalToolLog(
-                tool_call_id=action.tool_call_id, # ★ 진짜 ID
+                tool_call_id=action.tool_call_id,  # ★ 진짜 ID
                 tool_name=action.tool,
-                tool_args=action.tool_input,      # ★ 진짜 인자
-                tool_output_str=content_str
+                tool_args=action.tool_input,  # ★ 진짜 인자
+                tool_output_str=content_str,
             )
         )
 
