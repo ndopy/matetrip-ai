@@ -89,25 +89,19 @@ def schedule_replace_notification(
         replaced_place_ids: 교체된 기존 POI ID 목록
         new_places: 새로 추천된 장소 목록 (NearbyPlaceResponse dict)
     """
+    workspace_id = state.get("session_id")
+    if not workspace_id or not replaced_place_ids or not new_places:
+        logger.warning("[replace_notifier] Invalid input")
+        return
+
+    # DTO 생성
+    notification: ReplaceScheduleNotification = ReplaceScheduleNotification.create(
+        replaced_place_ids=replaced_place_ids,
+        new_places=new_places,
+        source="ai_replace",
+    )
+
     try:
-        workspace_id = state.get("session_id")
-        if not workspace_id:
-            logger.error("[replace_notifier] No session_id in state")
-            return
-
-        if not replaced_place_ids or not new_places:
-            logger.warning(
-                "[replace_notifier] Empty replaced_place_ids or new_places, skipping"
-            )
-            return
-
-        # DTO 생성
-        notification: ReplaceScheduleNotification = ReplaceScheduleNotification.create(
-            replaced_place_ids=replaced_place_ids,
-            new_places=new_places,
-            source="ai_replace",
-        )
-
         _executor.submit(_run_async_notification, workspace_id, notification)
         logger.info(
             f"[replace_notifier] Backend notification scheduled for workspace {workspace_id}"

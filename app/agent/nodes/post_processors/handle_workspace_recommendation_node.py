@@ -3,13 +3,11 @@ recommend_places_by_all_users 도구 전용 후처리 노드
 워크스페이스 기반 추천 결과를 처리합니다.
 """
 
-import json
 from app.agent.state import AgentState
 from app.common.logger import logger
 from app.utils.agent_message_utils import get_last_tool_message
 from app.utils.place_extractor import extract_simple_places_from_result
-
-
+from app.utils.tool_content_parser import parse_tool_content
 def handle_workspace_recommendation_node(state: AgentState) -> AgentState:
     """워크스페이스 추천 도구 결과를 처리하여 상태를 업데이트합니다."""
     logger.info("[handle_workspace_recommendation_node] Starting")
@@ -20,18 +18,12 @@ def handle_workspace_recommendation_node(state: AgentState) -> AgentState:
         logger.warning("[handle_workspace_recommendation_node] No tool message found")
         return {}
 
-    content = getattr(last_tool_message, "content", None)
     tool_name = getattr(last_tool_message, "name", "")
+    raw_content = getattr(last_tool_message, "content", None)
 
-    if not content:
-        logger.warning("[handle_workspace_recommendation_node] No content")
-        return {}
-
-    try:
-        if isinstance(content, str):
-            content = json.loads(content)
-    except Exception as e:
-        logger.error(f"[handle_workspace_recommendation_node] JSON parse error: {e}")
+    # 공통 파싱 유틸리티 사용
+    content = parse_tool_content(raw_content)
+    if content is None:
         return {}
 
     # 장소 추출
