@@ -22,7 +22,6 @@ def start_rabbitmq_consumer():
         connection, channel = create_consumer()
         rabbitmq_connection = connection
         rabbitmq_channel = channel
-        logger.info("RabbitMQ consumer started in background thread")
         channel.start_consuming()
     except Exception as e:
         logger.error(f"RabbitMQ consumer error: {e}", exc_info=True)
@@ -34,7 +33,6 @@ async def lifespan(app: FastAPI):
     global consumer_thread
     consumer_thread = threading.Thread(target=start_rabbitmq_consumer, daemon=True)
     consumer_thread.start()
-    logger.info("Starting RabbitMQ consumer")
     try:
         yield
     finally:

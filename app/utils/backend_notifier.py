@@ -20,6 +20,11 @@ nestjs_server_url = os.getenv("NESTJS_SERVER_URL")
 # 일단 배포 환경에서 env맞추기 귀찮으니 나중에 ㄱ
 
 
+def get_nestjs_server_url() -> str:
+    """Backend NestJS 서버 URL 반환"""
+    return nestjs_server_url or ""
+
+
 async def notify_backend_route_created(
     workspace_id: str, route_data: TravelRouteData
 ) -> None:

@@ -1,13 +1,15 @@
 """
 replace_places 도구 전용 후처리 노드
-도구가 반환한 새 장소 정보를 받아서 상태를 업데이트합니다.
+도구가 반환한 새 장소 정보를 받아서 상태를 업데이트하고 Backend에 알림을 전송합니다.
 """
 
+import json
 from app.agent.state import AgentState
 from app.common.logger import logger
 from app.schemas.place import SimplePlace
 from app.utils.agent_message_utils import get_last_tool_message
 from app.utils.place_normalizer import to_simple_places
+from app.infra.replace_notification import schedule_replace_notification
 
 
 def _drop_places_by_ids(
@@ -29,8 +31,20 @@ def handle_replace_places_node(state: AgentState) -> AgentState:
         return {}
 
     content = getattr(last_tool_message, "content", None)
+    if not content:
+        logger.warning("[handle_replace_places_node] No content")
+        return {}
+
+    # content가 JSON 문자열인 경우 파싱
+    try:
+        if isinstance(content, str):
+            content = json.loads(content)
+    except Exception as e:
+        logger.error(f"[handle_replace_places_node] JSON parse error: {e}")
+        return {}
+
     if not isinstance(content, dict):
-        logger.warning("[handle_replace_places_node] Invalid content type")
+        logger.warning("[handle_replace_places_node] Invalid content type after parsing")
         return {}
 
     # 성공 여부 확인
@@ -83,6 +97,9 @@ def handle_replace_places_node(state: AgentState) -> AgentState:
         f"with {len(new_places)} new places. Added {len(new_place_ids)} IDs to exclusion list "
         f"(total: {len(updated_excluded)})"
     )
+
+    # Backend 알림 처리 (DB 업데이트 + Redis 캐시 동기화 + Socket 브로드캐스트)
+    schedule_replace_notification(state, replaced_place_ids, new_places_data)
 
     return {
         "last_recommended_places": updated_places,

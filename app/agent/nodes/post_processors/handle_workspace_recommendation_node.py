@@ -28,14 +28,13 @@ def handle_workspace_recommendation_node(state: AgentState) -> AgentState:
         return {}
 
     try:
-        # 문자열인 경우 JSON 파싱
         if isinstance(content, str):
             content = json.loads(content)
     except Exception as e:
         logger.error(f"[handle_workspace_recommendation_node] JSON parse error: {e}")
         return {}
 
-    # 장소 추출 (다른 place 도구들과 동일한 유틸 사용)
+    # 장소 추출
     places = extract_simple_places_from_result(content, tool_name)
 
     logger.info(
