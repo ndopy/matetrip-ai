@@ -93,7 +93,8 @@ MateTrip AI는 “**AI 전용 백엔드 마이크로서비스**” 역할을 합
 
 AI 에이전트가 사용자 요청에 따라 자동으로 선택하여 실행하는 도구들입니다:
 
-**(1) 장소 추천 도구 (`place_tool.py`)**
+**1‍⃣ 장소 추천 도구 (`place_tool.py`)**
+<img width="811" height="562" alt="image" src="https://github.com/user-attachments/assets/9c672e43-8d63-4f75-a4df-f9dfcd09e644" />
 
 - `recommend_nearby_places`: 특정 위치 주변 장소 추천
   - 예: "강남역 주변 맛집", "제주공항 근처 숙소"
@@ -105,7 +106,8 @@ AI 에이전트가 사용자 요청에 따라 자동으로 선택하여 실행�
   - 예: "1번이랑 3번 빼고 다른 거로 바꿔줘"
   - 기존 추천 제외 후 새로운 장소 제안
 
-**(2) 워크스페이스 도구 (`workspace_tool.py`)**
+**2‍⃣ 워크스페이스 도구 (`workspace_tool.py`)**
+<img width="1827" height="930" alt="image" src="https://github.com/user-attachments/assets/cd5b0113-ddf0-4a26-925d-07e621499095" />
 
 - `recommend_places_by_all_users`: 협업 필터링 추천
   - 워크스페이스 참여자 전체의 프로필 + 행동 임베딩 결합
@@ -118,7 +120,8 @@ AI 에이전트가 사용자 요청에 따라 자동으로 선택하여 실행�
 - `get_place_reviews`: 장소 리뷰 조회
   - Backend API 호출: `GET /place-user-reviews/place/{place_id}`
 
-**(3) POI 분석 도구 (`poi_tool.py`)**
+**3‍⃣ 일정 분석 도구 (`poi_tool.py`)**
+<img width="803" height="443" alt="image" src="https://github.com/user-attachments/assets/b4cc0671-fa53-493a-9f2a-734e51f96fda" />
 
 - `recommend_next_poi`: 일정 분석 및 부족 카테고리 추천
   - 예: "다음에 뭘 추가하면 좋을까?", "일정이 괜찮은지 확인해줘"
@@ -126,7 +129,8 @@ AI 에이전트가 사용자 요청에 따라 자동으로 선택하여 실행�
   - 식사 장소 부족 여부 체크 (하루 2~3끼 기준)
   - 카테고리 다양성 분석 후 부족한 카테고리 장소 추천
 
-**(4) 여행 코스 생성 도구 (`route_tool.py`)**
+**4‍⃣ 여행 코스 생성 도구 (`route_tool.py`)**
+<img width="812" height="438" alt="image" src="https://github.com/user-attachments/assets/b11a1108-5a6b-416b-9b00-5b75ad4d3163" />
 
 - `create_travel_route`: 경유지 기반 여행 코스 생성
   - 예: "제주도 연동에서 시작해서 해녀촌을 경유하고 김영해수욕장을 거치는 코스"
