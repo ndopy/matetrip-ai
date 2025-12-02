@@ -76,7 +76,7 @@ MateTrip AI는 “**AI 전용 백엔드 마이크로서비스**” 역할을 합
 
 ## 🧩 기능 상세
 
-### 1. AI 대화형 여행 에이전트 (POST /chat/v2)
+### 🤖 1. AI 대화형 여행 에이전트 (POST /chat/v2)
 
 - **LangGraph 상태 그래프**
   - `router_node` : 인텐트 분류 (NEW_SEARCH / REFINEMENT / …)
@@ -91,7 +91,7 @@ MateTrip AI는 “**AI 전용 백엔드 마이크로서비스**” 역할을 합
 
 **엔드포인트**: `POST /chat/v2` (LangGraph 기반, 권장)
 
-### 2. AI 에이전트 도구 (Tools)
+### 🛠 2. AI 에이전트 도구 (Tools)
 
 AI 에이전트가 사용자 요청에 따라 자동으로 선택하여 실행하는 도구들입니다:
 
