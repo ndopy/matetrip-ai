@@ -166,7 +166,7 @@ AI 에이전트가 사용자 요청에 따라 자동으로 선택하여 실행�
 ```
 ### 5. Backend 연동 - AI 에이전트 통합
 
-MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어 AI 기반 여행 계획 기능을 제공합니다.
+MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어 채팅, 일정, POI, 워크스페이스 단위 기능을 AI로 제어합니다.
 
 ### 통합 아키텍처 흐름
 
@@ -188,24 +188,22 @@ MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어
 
 이러한 양방향 연동을 통해 AI 서버는 지속적으로 학습하며, 사용자에게 점점 더 정확한 추천을 제공합니다.
 
-## 기술 스택
+## 🧱 기술 스택
 
-### 언어, 프레임워크
+### ⚙️ 언어, 프레임워크
 
 - **FastAPI** (v0.121.0+): 고성능 비동기 웹 프레임워크
 - **Python 3.13**: 최신 Python 런타임
 - **uvicorn**: ASGI 서버
 
-### AI & 머신러닝
+### 🤖 AI & 머신러닝
 
 - **AWS Bedrock**: AI 인프라
   - **Claude 4.5 Haiku** (`global.anthropic.claude-haiku-4-5-20251001-v1:0`): LLM
   - **Amazon Titan Embeddings v2**: 1024차원 벡터 임베딩
 - **LangChain** (v1.0.5+): AI 에이전트 프레임워크
-  - `langchain-aws`: Bedrock 통합
-  - `langchain-community`: 커뮤니티 도구
-  - `langchain-core`: 핵심 추상화
-- **LangGraph**: 복잡한 에이전트 워크플로우를 위한 상태 그래프 프레임워크
+  - `langchain-aws`, `langchain-community`, `langchain-core`
+- **LangGraph**: 상태 기반 에이전트 워크플로우
 - **pgvector**: PostgreSQL 벡터 유사도 검색
 
 ### 데이터베이스 & 스토리지
@@ -215,15 +213,14 @@ MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어
 - **GeoAlchemy2**: 지리공간 데이터 지원
 - **PostGIS**: 공간 쿼리 (Geography type)
 
-### 데이터 수집 & 크롤링
+### 🌐 데이터 수집 & 크롤링
 
-- **Crawl4AI** (v0.7.6): 현대적인 웹 스크래핑 프레임워크
-- **BeautifulSoup4**: HTML 파싱
-- **Selenium**: 브라우저 자동화
-- **httpx**: 비동기 HTTP 클라이언트
+- **Crawl4AI**
+- **BeautifulSoup4**
+- **Selenium**
+- **httpx**
 
 ### 경로 최적화
-
 - **OR-Tools** (v9.14.6206): Google의 최적화 라이브러리 (TSP)
 
 ### 메시지 큐
@@ -234,10 +231,10 @@ MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어
 
 ### 외부 API
 
-- **Kakao Mobility API**: 실시간 경로 및 거리 매트릭스
-- **Naver Search API**: 리뷰 URL 발견
-- **Korea Tour API**: 공식 관광 데이터
-- **Kakao Local API**: 지오코딩 및 장소 검색
+- **Kakao Mobility API**
+- **Naver Search API**
+- **Korea Tour API**
+- **Kakao Local API**
 
 ## 프로젝트 구조
 
@@ -363,12 +360,11 @@ matetrip-ai/
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. 프로젝트 클론 및 의존성 설치
+### 2. 프로젝트 클론
 
 ```bash
 git clone <repository-url>
 cd matetrip-ai
-uv sync
 ```
 
 ### 3. 환경 변수 설정
@@ -382,8 +378,9 @@ uv sync
 ### 5. 애플리케이션 실행
 
 ```bash
-uv run main.py
+uv run main.py 
 ```
+uv는 자동으로 의존성도 설치해줍니다.
 
 > **참고**: 애플리케이션 실행 시 백그라운드에서 자동으로 RabbitMQ Consumer와 장소 처리 스크립트가 함께 실행됩니다. (`entrypoint.sh` 참조)
 
@@ -391,19 +388,19 @@ uv run main.py
 
 브라우저에서 `http://localhost:8000/docs` 접속
 
-## API 엔드포인트
+## 🌐 API 엔드포인트
 
-### 채팅 & 에이전트
+### 💬채팅 & 에이전트
 
 - `POST /chat/v2` - LangGraph 기반 대화형 에이전트 (메인)
 - `POST /chat` - LanChain 기반 클래식 에이전트 (이전)
 - `GET /chat/v2/health` - 헬스 체크
 
-### 경로 최적화
+### 🧭 경로 최적화
 
 - `POST /optimization/route` - POI 경로 최적화 (TSP)
 
-### 루트
+### 기타
 
 - `GET /` - API 상태 확인
 - `GET /chat/v2/health` - 헬스 체크
