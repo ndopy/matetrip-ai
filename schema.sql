@@ -366,7 +366,8 @@ CREATE TABLE place_user_review
     user_id    UUID        NOT NULL,
     content    TEXT        NOT NULL,
     rating     NUMERIC(2, 1) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (rating >= 0 AND rating <= 5)
 );
 
 -- =====================  UNIQUE CONSTRAINTS  =====================

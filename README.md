@@ -511,7 +511,7 @@ BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
 BEDROCK_LLM_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
 
 # Database
-DB_HOST=localhost
+DB_HOST=localhost # AWS라면 AWS
 DB_PORT=5432
 DB_USER=matetrip
 DB_PASSWORD=your_password
