@@ -471,6 +471,11 @@ AI_SERVER_API_KEY=your_ai_server_api_key
 LOG_LEVEL=INFO
 ```
 
+
+## 🔗 Related
+1. [MateTrip Main Backend Server](https://github.com/NaManMu-10th-team7/matetrip-backend)
+2. [MateTrip Front](https://github.com/NaManMu-10th-team7/matetrip-frontend)
+
 ## 라이선스
 
 Copyright © 2025 MateTrip Team. All rights reserved.
