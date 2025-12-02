@@ -25,15 +25,6 @@ NestJS 기반 MateTrip 메인 서비스와 연동되어, 채팅 한 줄로 여�
   - Claude 4.5 Haiku + LangGraph로 인텐트 분류, 도구 선택, 상태 관리
   - `NEW_SEARCH / REFINEMENT / CONVERSATION / FOLLOW_UP` 자동 분류
 
-- 🧭 **개인화 장소 추천**
-  - 한국관광공사 + 네이버 리뷰 + Crawl4AI 기반 데이터 파이프라인
-  - Bedrock Titan 임베딩 + pgvector 코사인 유사도로 의미 기반 추천
-  - 사용자 행동 이벤트(북마크/스케줄)를 반영한 선호도 임베딩
-
-- 🗺️ **경로 최적화 (TSP)**
-  - Kakao Mobility Distance Matrix + Google OR-Tools
-  - 고정 출발/도착지, 순환/비순환 경로 지원
-  - 실패 시 단순 순차 폴백 전략 내장
 
 - 👥 **실시간 협업 여행 플래너 연동**
   - NestJS Backend와 연동해 워크스페이스 일정/POI를 조작하는 도구 제공
@@ -42,6 +33,12 @@ NestJS 기반 MateTrip 메인 서비스와 연동되어, 채팅 한 줄로 여�
 - 🔄 **지속 학습형 사용자 행동 피드백**
   - RabbitMQ Queue로 행동 이벤트 수집
   - Consumer가 사용자 행동 임베딩을 지속 업데이트 → 다음 추천에 반영
+
+- 🗺️ **경로 최적화 (TSP)**
+  - Kakao Mobility Distance Matrix + Google OR-Tools
+  - 고정 출발/도착지, 순환/비순환 경로 지원
+  - 실패 시 단순 순차 폴백 전략 내장
+
 
 ---
 
@@ -70,9 +67,9 @@ MateTrip AI는 “**AI 전용 백엔드 마이크로서비스**” 역할을 합
 ### 핵심 가치
 
 - **AI 대화형 에이전트**: Claude 4.5 Haiku를 활용한 자연스러운 대화형 여행 컨설팅
-- **개인화 추천**: 벡터 임베딩과 사용자 행동 데이터 기반 맞춤형 장소 추천
-- **경로 최적화**: Google OR-Tools를 활용한 TSP 기반 최적 여행 경로 생성
 - **실시간 협업**: 다중 사용자 워크스페이스에서 함께 여행 계획 수립
+- **경로 최적화**: Google OR-Tools를 활용한 TSP 기반 최적 여행 경로 생성
+- **지속 학습형 사용자 행동 피드백**: 사용자 행동을 기반으로 취향을 학습해 이후 추천 시스템에서 활용할 개인화 데이터 기반을 생성
 
 ## 🧩 기능 상세
 
@@ -206,7 +203,7 @@ MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어
 - **LangGraph**: 상태 기반 에이전트 워크플로우
 - **pgvector**: PostgreSQL 벡터 유사도 검색
 
-### 데이터베이스 & 스토리지
+### 🗄 데이터베이스 & 스토리지
 
 - **PostgreSQL** (with pgvector extension): 메인 데이터베이스
 - **SQLAlchemy** (v2.0.44): 비동기 ORM
