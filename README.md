@@ -18,6 +18,9 @@ AI 기반 여행 계획 및 추천 시스템
 
 **MateTrip AI**는 AWS Bedrock과 LangGraph를 활용한 지능형 여행 계획 및 추천 플랫폼입니다. 사용자와의 대화를 통해 맞춤형 여행지를 추천하고, 최적화된 경로를 생성하며, 협업 기반 여행 일정을 관리할 수 있습니다.
 
+<img width="2376" height="3360" alt="POST V  2 - A1(small) (1)" src="https://github.com/user-attachments/assets/610ca8b3-90d6-44f9-9329-38eb1431241b" />
+
+
 ### 핵심 가치
 
 - **AI 대화형 에이전트**: Claude 4.5 Haiku를 활용한 자연스러운 대화형 여행 컨설팅
