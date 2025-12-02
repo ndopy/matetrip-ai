@@ -2,7 +2,7 @@
 
 <p align="center">
   AI 기반 실시간 협업 여행 플래너 & 추천 엔진<br/>
-  <b>LangGraph · AWS Bedrock · PostGIS · pgvector · OR-Tools</b>
+  <b>LangGraph · AWS Bedrock · PostGIS · pgvector · OR-Tools · RabbitMQ</b>
 </p>
 
 <p align="center">
