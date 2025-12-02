@@ -540,15 +540,6 @@ AI_SERVER_API_KEY=your_ai_server_api_key
 # Optional
 LOG_LEVEL=INFO
 ```
-
-## 배포
-
-### GitHub Actions CI/CD
-
-- **트리거**: `dev` 브랜치에 push
-- **워크플로우**: `.github/workflows/deploy-ai-new.yml`
-- Self-hosted runner (EC2)에서 자동 배포
-
 ### 주요 서비스
 
 애플리케이션 실행 시 다음 서비스가 함께 실행됩니다:
@@ -574,7 +565,6 @@ LOG_LEVEL=INFO
 ### 3. 벡터 검색 최적화
 
 - pgvector 코사인 유사도 연산자 (`<=>`)
-- IVFFlat 인덱스로 서브리니어 검색
 - 벡터 비교 전 카테고리/지역으로 사전 필터링
 
 ### 4. 공간 쿼리
@@ -582,19 +572,6 @@ LOG_LEVEL=INFO
 - PostGIS Geography 타입 (SRID 4326)
 - ST_DWithin으로 효율적인 반경 검색
 - Geography 컬럼에 GiST 인덱스
-
-### 5. 병렬 처리
-
-- 세마포어로 동시성 제어 (최대 5개) Crawl4AI
-- 배치 임베딩 생성
-- 백그라운드 RabbitMQ 컨슈머
-
-### 6. 에러 처리 및 복원력
-
-- 웹 스크래핑 시 지수 백오프 재시도
-- Rate Limiting 대응 3회 재시도 + 지터
-- TSP 실패 시 순차 정렬로 폴백
-- 모든 계층에서 빈 결과 처리
 
 ## 라이선스
 
