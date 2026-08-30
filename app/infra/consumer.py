@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from app.infra.messaging_handler import (
     handle_behavior_save_and_embedding,
-    handle_profile_embedding_test,
+    handle_profile_embedding,
     parse_message,
 )
 from app.schemas.rabbitmq_schema import (
@@ -46,7 +46,7 @@ def consume_profile_embedding(channel, method, properties, body):
     message = parse_message(body, profile_queue, ProfileEmbeddingReqMessage)
     if message:
         try:
-            handle_profile_embedding_test(message)
+            handle_profile_embedding(message)
             channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logger.warning(f"[profile_embedding] 처리 중 오류 발생: {e}")

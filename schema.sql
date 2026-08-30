@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS profile
     tendency           travel_tendency_type[] NOT NULL DEFAULT '{}'::travel_tendency_type[],
     mbti               mbti_type              NOT NULL,
     is_pass_auth       BOOLEAN                NOT NULL DEFAULT FALSE,
-    profile_embedding  VECTOR(1024)
+    profile_embedding  VECTOR(768) -- Bedrock Titan(1024) 대신 Gemini(768)로 대체
 );
 
 CREATE TABLE IF NOT EXISTS post

@@ -1,4 +1,3 @@
-# Todo : 나중에
 import json
 import sys
 from json.decoder import JSONDecodeError
@@ -7,6 +6,8 @@ from typing import Optional, Type, TypeVar
 from pydantic import BaseModel, ValidationError
 from app.database.database import get_db
 from app.service.behavior_service import BehaviorService
+from app.service.gemini_embedding_service import GeminiEmbeddingService
+from app.repository.profile_repository import ProfileRepository
 from app.schemas.behavior import SaveBehaviorEventDto
 from app.common.logger import logger
 from app.schemas.rabbitmq_schema import (
@@ -72,9 +73,36 @@ def parse_message(
         return None
 
 
-def handle_profile_embedding_test(message: ProfileEmbeddingReqMessage) -> None:
-    # Profile 임베딩 시작
-    print(f"[profile_embedding] Processing user_id={message.user_id}")
+def handle_profile_embedding(message: ProfileEmbeddingReqMessage) -> None:
+    """프로필 소개 텍스트로 임베딩을 계산해 profile.profile_embedding에 저장"""
+    log.info(f"[profile_embedding] Processing user_id={message.user_id}")
+
+    for db in get_db():
+        try:
+            repository = ProfileRepository(db)
+            profile_text = repository.get_profile_text(message.user_id)
+
+            if not profile_text:
+                log.warning(
+                    f"[profile_embedding] 프로필을 찾을 수 없습니다: user_id={message.user_id}"
+                )
+                return
+
+            embedding_service = GeminiEmbeddingService()
+            embedding = embedding_service.create_embedding(
+                profile_text.to_embedding_text()
+            )
+            repository.update_profile_embedding(message.user_id, embedding)
+
+            log.info(
+                f"[profile_embedding] 임베딩 저장 완료: user_id={message.user_id}"
+            )
+        except Exception as e:
+            log.error(f"[profile_embedding] 처리 실패: {e}", exc_info=True)
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
 
 def handle_behavior_save_and_embedding(message: BehaviorEmbeddingReqMessage) -> None:

@@ -55,6 +55,28 @@ class BedRockConfig(BaseSettings):
     )
 
 
+class GeminiConfig(BaseSettings):
+    GOOGLE_API_KEY: str = Field(default="", description="Google AI Studio API Key")
+    GEMINI_LLM_MODEL_ID: str = Field(
+        default="gemini-3.6-flash",
+        description="Gemini Model ID",
+    )
+    GEMINI_EMBEDDING_MODEL_ID: str = Field(
+        default="gemini-embedding-001",
+        description="Gemini Embedding Model ID",
+    )
+    GEMINI_EMBEDDING_DIM: int = Field(
+        default=768,
+        description="프로필 임베딩 출력 차원 (schema.sql의 profile.profile_embedding과 반드시 일치해야 함)",
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class TourAPIConfig(BaseSettings):
     TOUR_API_KEY: str = Field(default="", description="한국관광공사 Tour API 인증키")
     TOUR_API_BASE_URL: str = Field(
@@ -117,6 +139,7 @@ class RabbitMQConfig(BaseSettings):
 databaseConfig = DatabaseConfig()
 naverSearchConfig = NaverSearchConfig()
 bedrockConfig = BedRockConfig()
+geminiConfig = GeminiConfig()
 tourAPIConfig = TourAPIConfig()
 kakaoMobilityConfig = KakaoMobilityConfig()
 nestJSConfig = NestJSConfig()

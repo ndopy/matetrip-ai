@@ -2,7 +2,7 @@
 
 <p align="center">
   AI 기반 실시간 협업 여행 플래너 & 추천 엔진<br/>
-  <b>LangGraph · AWS Bedrock · PostGIS · pgvector · OR-Tools · RabbitMQ</b>
+  <b>LangGraph · Google Gemini · PostGIS · pgvector · OR-Tools · RabbitMQ</b>
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@ LangGraph 기반 대화형 에이전트부터 장소 처리·경로 최적화·�
 ## 📌 주요 기능 (Highlights)
 
 - 🤖 **LangGraph 기반 대화형 여행 에이전트**
-  - Claude 4.5 Haiku + LangGraph로 인텐트 분류, 도구 선택, 상태 관리
+  - Google Gemini + LangGraph로 인텐트 분류, 도구 선택, 상태 관리
   - `NEW_SEARCH / REFINEMENT / CONVERSATION / FOLLOW_UP` 자동 분류
 
 
@@ -74,7 +74,7 @@ MateTrip AI는 “**AI 전용 백엔드 마이크로서비스**” 역할을 합
 
 ### 핵심 가치
 
-- **AI 대화형 에이전트**: Claude 4.5 Haiku를 활용한 자연스러운 대화형 여행 컨설팅
+- **AI 대화형 에이전트**: Google Gemini를 활용한 자연스러운 대화형 여행 컨설팅
 - **실시간 협업**: 다중 사용자 워크스페이스에서 함께 여행 계획 수립
 - **경로 최적화**: Google OR-Tools를 활용한 TSP 기반 최적 여행 경로 생성
 - **지속 학습형 사용자 행동 피드백**: 사용자 행동을 기반으로 취향을 학습해 이후 추천 시스템에서 활용할 개인화 데이터 기반을 생성
@@ -92,7 +92,7 @@ MateTrip AI는 “**AI 전용 백엔드 마이크로서비스**” 역할을 합
 - **컨텍스트 전략**
   - NEW_SEARCH: 마지막 사용자 메시지만 전달
   - REFINEMENT / CONVERSATION: 최근 히스토리 최대 10개까지 전달
-  - Bedrock 포맷에 맞춰 메시지 변환 및 안전성 검증
+  - LLM 포맷에 맞춰 메시지 변환 및 안전성 검증
 
 **엔드포인트**: `POST /chat/v2` (LangGraph 기반, 권장)
 
@@ -209,11 +209,12 @@ MateTrip AI는 NestJS 백엔드(`matetrip-backend`)와 긴밀하게 통합되어
 
 ### 🤖 AI & 머신러닝
 
-- **AWS Bedrock**: AI 인프라
-  - **Claude 4.5 Haiku** (`global.anthropic.claude-haiku-4-5-20251001-v1:0`): LLM
-  - **Amazon Titan Embeddings v2**: 1024차원 벡터 임베딩
+- **Google Gemini**: AI 인프라 (팀 프로젝트 종료 후 AWS 크레딧 만료로 Bedrock에서 교체, 아래 "AWS 의존성 제거" 참고)
+  - **`gemini-3.6-flash`**: LLM
+  - **`gemini-embedding-001`**: 768차원 벡터 임베딩 (프로필용)
+- **Amazon Titan Embeddings v2** (레거시): `places`/`place_review`의 장소 임베딩(1024차원)은 개발 당시 Titan으로 미리 계산해 DB에 저장해둔 값을 그대로 재사용 중이며, 더 이상 실시간으로 호출하지 않습니다.
 - **LangChain** (v1.0.5+): AI 에이전트 프레임워크
-  - `langchain-aws`, `langchain-community`, `langchain-core`
+  - `langchain-google-genai`, `langchain-community`, `langchain-core`
 - **LangGraph**: 상태 기반 에이전트 워크플로우
 - **pgvector**: PostgreSQL 벡터 유사도 검색
 
@@ -284,7 +285,8 @@ matetrip-ai/
 │   │   │   └── bedrock_llm_service.py   # 태그/요약 생성
 │   │   ├── place_service.py              # 장소 관리
 │   │   ├── place_embedding_service.py    # 장소 벡터 임베딩
-│   │   ├── bedrock_embedding_service.py  # Bedrock 임베딩 클라이언트
+│   │   ├── bedrock_embedding_service.py  # Bedrock 임베딩 클라이언트 (장소 데이터 수집용, 레거시)
+│   │   ├── gemini_embedding_service.py   # Gemini 임베딩 클라이언트 (프로필용)
 │   │   ├── route_optimization_service.py # TSP 최적화
 │   │   ├── kakao_mobility_service.py     # 경로/거리 API
 │   │   ├── behavior_service.py           # 사용자 행동 추적
@@ -294,7 +296,8 @@ matetrip-ai/
 │   ├── repository/               # 데이터 액세스 레이어
 │   │   ├── place_repository.py   # 장소 CRUD & 공간 쿼리
 │   │   ├── recommendation_repository.py # 벡터 유사도 검색
-│   │   └── behavior_repository.py # 사용자 행동 데이터
+│   │   ├── behavior_repository.py # 사용자 행동 데이터
+│   │   └── profile_repository.py  # 프로필 조회 & 임베딩 저장
 │   │
 │   ├── models/                   # SQLAlchemy ORM 모델
 │   │   ├── place.py              # 장소 테이블
@@ -429,7 +432,7 @@ uv는 자동으로 의존성도 설치해줍니다.
 - **poi**: 관심 지점 (MARKED 또는 SCHEDULED 상태)
 - **user_behavior_events**: 사용자 행동 이벤트 (POI_MARK, POI_SCHEDULE 등)
 - **user_behavior_embeddings**: 집계된 사용자 선호도 벡터
-- **profile**: 사용자 프로필 및 여행 선호도 (VECTOR(1024))
+- **profile**: 사용자 프로필 및 여행 선호도 (VECTOR(768), Gemini 임베딩)
 
 ### 필수 확장
 
@@ -444,15 +447,20 @@ CREATE EXTENSION IF NOT EXISTS postgis;    -- 공간 연산
 `.env` 파일 예시:
 
 ```bash
-# AWS Bedrock
+# Google Gemini (LLM + 프로필 임베딩, AWS Bedrock 대체)
+GOOGLE_API_KEY=your_google_api_key
+GEMINI_LLM_MODEL_ID=gemini-3.6-flash
+GEMINI_EMBEDDING_MODEL_ID=gemini-embedding-001
+GEMINI_EMBEDDING_DIM=768
+
+# AWS Bedrock (레거시, 장소 데이터 수집 스크립트에서만 사용)
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
-BEDROCK_LLM_MODEL_ID=global.anthropic.claude-haiku-4-5-20251001-v1:0
 
-# Database
-DB_HOST=localhost # AWS라면 AWS
+# Database (로컬 실행 시 예시: pgvector/pgvector 이미지 + PostGIS 별도 설치 필요)
+DB_HOST=localhost
 DB_PORT=5432
 DB_USER=matetrip
 DB_PASSWORD=your_password
@@ -479,6 +487,15 @@ AI_SERVER_API_KEY=your_ai_server_api_key
 LOG_LEVEL=INFO
 ```
 
+
+## 🔄 AWS 의존성 제거 (2026-08-30)
+
+팀 프로젝트 종료 후 AWS 크레딧이 만료되어, LLM·프로필 임베딩을 무료 대안으로 교체했습니다.
+
+- **LLM(AWS Bedrock Claude → Google Gemini)**: `app/core/llm.py`의 `ChatBedrockConverse`를 `langchain-google-genai`의 `ChatGoogleGenerativeAI`로 교체했습니다.
+- **프로필 임베딩(AWS Bedrock Titan → Google Gemini)**: `handle_profile_embedding`(`app/infra/messaging_handler.py`)이 실제로는 로그만 찍는 빈 스텁이었던 걸 발견해, `app/service/gemini_embedding_service.py`를 새로 만들어 제대로 구현했습니다(768차원, `gemini-embedding-001`).
+- **장소 데이터**: `places`/`place_review`의 임베딩(1024차원)은 팀 프로젝트 당시 이미 계산해 DB에 저장해둔 값을 그대로 재사용하므로 건드리지 않았습니다.
+- **카카오 로컬 API 키 오설정 수정**: `recommend_nearby_places` 도구가 `SuspendedAppException`으로 실패해 조사한 결과, `.env`의 `KAKAO_REST_API_KEY`가 이 앱의 실제 키가 아니라 다른(모빌리티용) 키였던 것으로 확인되어 올바른 키로 교정했습니다.
 
 ## 🔗 Related
 1. [MateTrip Main Backend Server](https://github.com/NaManMu-10th-team7/matetrip-backend)

@@ -96,7 +96,7 @@ class BehaviorRepository:
                 user_id, behavior_embedding, aggregated_data, total_events_count, last_updated
             )
             VALUES (
-                :user_id, :embedding::vector, :aggregated_data::jsonb, :total_events_count, NOW()
+                :user_id, CAST(:embedding AS vector), CAST(:aggregated_data AS jsonb), :total_events_count, NOW()
             )
             ON CONFLICT (user_id)
             DO UPDATE SET
