@@ -58,7 +58,7 @@ class BedRockConfig(BaseSettings):
 class GeminiConfig(BaseSettings):
     GOOGLE_API_KEY: str = Field(default="", description="Google AI Studio API Key")
     GEMINI_LLM_MODEL_ID: str = Field(
-        default="gemini-3.6-flash",
+        default="gemini-3.5-flash",
         description="Gemini Model ID",
     )
     GEMINI_EMBEDDING_MODEL_ID: str = Field(

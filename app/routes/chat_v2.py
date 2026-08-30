@@ -119,7 +119,10 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         )
 
     except Exception as e:
-        logger.error(f"[LangGraph] Error: {str(e)}", exc_info=True)
+        # str(e) 안에 중괄호({})가 포함된 경우(예: API 에러의 dict 형태 메시지)
+        # loguru가 이를 포맷 문자열로 잘못 해석해 KeyError가 나므로, f-string 대신
+        # loguru의 위치 인자 방식으로 안전하게 로깅한다.
+        logger.error("[LangGraph] Error: {}", str(e), exc_info=True)
         return ChatResponse(
             response="요청을 처리하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
             tool_data=[],

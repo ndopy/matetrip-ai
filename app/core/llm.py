@@ -10,5 +10,11 @@ global_llm = ChatGoogleGenerativeAI(
     model=geminiConfig.GEMINI_LLM_MODEL_ID,
     google_api_key=geminiConfig.GOOGLE_API_KEY,
     temperature=0,
-    max_tokens=2048,
+    # Gemini 3.x 계열은 답변 전 내부 reasoning에도 max_tokens 예산을 함께 쓰고,
+    # max_tokens를 올려도 reasoning이 그만큼 늘어나 실제 답변 text가 빈 문자열로
+    # 잘리는 현상이 있었다(경복궁 볼거리 추천 시나리오에서 reasoning이 1963 →
+    # 3481 tokens까지 늘어나며 재현). thinking_level="low"로 reasoning 깊이 자체를
+    # 낮춰 답변 text가 안정적으로 생성되게 한다.
+    thinking_level="low",
+    max_tokens=4096,
 )
