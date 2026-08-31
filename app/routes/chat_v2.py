@@ -7,6 +7,7 @@ import time
 import json
 from typing import cast
 from fastapi import APIRouter
+from langchain_core.exceptions import ModelRateLimitError
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from app.agent.graph import agent_graph, AgentState
@@ -116,6 +117,16 @@ async def ask_agent_langgraph(request: ChatRequest) -> ChatResponse:
         return ChatResponse(
             response=output,
             tool_data=tool_data_list,
+        )
+
+    except ModelRateLimitError as e:
+        # Gemini 무료 티어 일일 할당량 초과(429 RESOURCE_EXHAUSTED) 시
+        # langchain_google_genai가 던지는 표준 예외. 일반 오류와 구분해서
+        # 사용자가 원인을 알 수 있는 메시지를 그대로 보여준다.
+        logger.error("[LangGraph] Gemini rate limit: {}", str(e), exc_info=True)
+        return ChatResponse(
+            response="AI 응답 생성 요청이 오늘 사용 가능한 한도를 초과했습니다. 잠시 후(또는 내일) 다시 시도해 주세요.",
+            tool_data=[],
         )
 
     except Exception as e:
